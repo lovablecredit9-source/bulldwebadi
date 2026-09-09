@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ModelSelect } from "@/components/ModelSelect";
-import { PROJECT_TYPES } from "@/lib/models";
+import { DEFAULT_MODEL, PROJECT_TYPES } from "@/lib/models";
 import { postJson } from "@/lib/api";
 
 export function BuilderForm({
@@ -39,7 +39,7 @@ export function BuilderForm({
   const [name, setName] = useState(defaultName);
   const [type, setType] = useState(fixedType ?? "telegram-bot");
   const [desc, setDesc] = useState("");
-  const [model, setModel] = useState("nk/auto");
+  const [model, setModel] = useState(DEFAULT_MODEL);
   const [loading, setLoading] = useState(false);
 
   const submit = async () => {

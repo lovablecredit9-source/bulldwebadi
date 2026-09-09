@@ -1,4 +1,5 @@
 import { DEFAULT_BASE_URL, DEFAULT_MODEL, normalizeModel } from "./models";
+import { jsonrepair } from "jsonrepair";
 
 export const SYSTEM_PROMPT = `Kamu adalah ADI BUILDER AI.
 
@@ -48,6 +49,12 @@ export async function loadConfig(): Promise<AiConfig> {
 
 export class AiError extends Error {}
 
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
 /** Ambil pesan error asli dari router agar penyebabnya jelas. */
 async function extractError(res: Response): Promise<string> {
   try {
@@ -77,23 +84,39 @@ export async function callAI(
     throw new AiError("API Key belum dikonfigurasi. Buka Settings → AI Configuration.");
   }
   const base = config.baseUrl.replace(/\/+$/, "");
-  let res: Response;
-  try {
-    res = await fetch(`${base}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: normalizeModel(opts.model || config.model),
-        messages,
-        ...(opts.json ? { response_format: { type: "json_object" } } : {}),
-      }),
-    });
-  } catch {
-    throw new AiError("Koneksi bermasalah.");
+  const model = normalizeModel(opts.model || config.model);
+  let res: Response | undefined;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      res = await fetch(`${base}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          stream: true,
+          ...(opts.json ? { response_format: { type: "json_object" } } : {}),
+        }),
+      });
+    } catch {
+      if (attempt === 0) {
+        await wait(1_000);
+        continue;
+      }
+      throw new AiError("Koneksi ke router terputus sebelum jawaban selesai.");
+    }
+
+    if (!RETRYABLE_STATUS.has(res.status) || attempt === 1) break;
+    const retryAfter = Number(res.headers.get("Retry-After"));
+    await res.body?.cancel();
+    await wait(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1_000 : 1_500);
   }
+
+  if (!res) throw new AiError("Router tidak memberikan respons.");
 
   if (!res.ok) {
     const detail = await extractError(res);
@@ -106,7 +129,7 @@ export async function callAI(
     if (res.status === 404 || res.status === 400) {
       throw new AiError(`Permintaan ditolak router (${res.status}). ${detail}`.trim());
     }
-    throw new AiError(`AI sedang mengalami gangguan (${res.status}). ${detail}`.trim());
+    throw new AiError(`Router menolak model ${model} (${res.status}). ${detail}`.trim());
   }
 
   const raw = await res.text();
@@ -158,7 +181,21 @@ export function parseJsonLoose<T>(text: string): T {
   const start = t.indexOf("{");
   const end = t.lastIndexOf("}");
   if (start > 0 || end < t.length - 1) t = t.slice(start, end + 1);
-  return JSON.parse(t) as T;
+  try {
+    return JSON.parse(t) as T;
+  } catch {
+    try {
+      return JSON.parse(jsonrepair(t)) as T;
+    } catch {
+      // Berikan pesan yang sesuai bila respons tetap tidak bisa dipulihkan.
+    }
+    const looksTruncated = !t.endsWith("}") && !t.endsWith("]");
+    throw new AiError(
+      looksTruncated
+        ? "Jawaban router terpotong sebelum semua file selesai. Coba lagi; project dibuat dengan file lebih ringkas."
+        : "Router mengirim format file yang tidak valid. Coba lagi dengan model otomatis.",
+    );
+  }
 }
 
 export function safeJson(body: unknown, status = 200) {
@@ -170,7 +207,11 @@ export function safeJson(body: unknown, status = 200) {
 
 export function errorResponse(err: unknown) {
   const message =
-    err instanceof AiError ? err.message : "AI sedang mengalami gangguan. Silakan coba lagi.";
+    err instanceof AiError
+      ? err.message
+      : err instanceof Error
+        ? `Proses AI gagal: ${err.message}`
+        : "AI sedang mengalami gangguan. Silakan coba lagi.";
   return safeJson({ error: message }, 400);
 }
 

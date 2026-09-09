@@ -28,6 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModelSelect } from "@/components/ModelSelect";
 import { postJson } from "@/lib/api";
+import { DEFAULT_MODEL } from "@/lib/models";
 import { autoReadme, downloadFile, downloadZip } from "@/lib/zip";
 import {
   createChat,
@@ -68,7 +69,7 @@ function Workspace() {
   const { id } = Route.useParams();
   const [project, setProject] = useState<Project | null>(null);
   const [files, setFiles] = useState<ProjectFile[] | null>(null);
-  const [model, setModel] = useState("nk/auto");
+  const [model, setModel] = useState(DEFAULT_MODEL);
   const [busy, setBusy] = useState("");
 
   const reload = useCallback(async () => {
