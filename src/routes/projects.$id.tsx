@@ -35,11 +35,13 @@ import {
   deleteChat,
   getProject,
   listChats,
+  listActivities,
   listFiles,
   listMessages,
   listVersions,
   renameChat,
   type Project,
+  type ProjectActivity,
   type ProjectFile,
   type ProjectVersion,
 } from "@/lib/db";
