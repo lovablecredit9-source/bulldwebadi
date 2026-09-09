@@ -1,5 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AiError, SYSTEM_PROMPT, callAI, errorResponse, safeJson } from "@/lib/ai.server";
+import {
+  AiError,
+  SYSTEM_PROMPT,
+  callAI,
+  errorResponse,
+  safeJson,
+  type MsgContent,
+} from "@/lib/ai.server";
 import { buildTree, contextBlock, getFiles, getProject, pickRelevantFiles } from "@/lib/project.server";
 
 export const Route = createFileRoute("/api/ai/chat")({
