@@ -42,7 +42,6 @@ import {
   type ProjectFile,
   type ProjectVersion,
 } from "@/lib/db";
-import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/projects/$id")({
   head: () => ({
@@ -811,5 +810,3 @@ function VersionsTab({
     </div>
   );
 }
-
-export { supabase };
