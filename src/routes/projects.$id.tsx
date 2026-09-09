@@ -155,6 +155,9 @@ function Workspace() {
         <TabsContent value="versions">
           <VersionsTab projectId={id} onRestored={reload} />
         </TabsContent>
+        <TabsContent value="history">
+          <HistoryTab projectId={id} />
+        </TabsContent>
       </Tabs>
     </AppShell>
   );
