@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { AI_MODELS } from "@/lib/models";
+import { getJson } from "@/lib/api";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -17,6 +19,20 @@ export function ModelSelect({
   onChange: (v: string) => void;
   label?: string;
 }) {
+  const [models, setModels] = useState<string[]>(AI_MODELS);
+  const [source, setSource] = useState<"router" | "fallback">("fallback");
+
+  useEffect(() => {
+    getJson<{ models: string[]; source: "router" | "fallback" }>("/api/ai/models")
+      .then((r) => {
+        if (r.models?.length) setModels(r.models);
+        setSource(r.source);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const options = value && !models.includes(value) ? [value, ...models] : models;
+
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
@@ -25,13 +41,18 @@ export function ModelSelect({
           <SelectValue placeholder="Pilih model" />
         </SelectTrigger>
         <SelectContent>
-          {AI_MODELS.map((m) => (
+          {options.map((m) => (
             <SelectItem key={m} value={m}>
               {m}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
+      <p className="text-xs text-muted-foreground">
+        {source === "router"
+          ? `Terdeteksi otomatis dari router (${models.length} model).`
+          : "Memakai daftar cadangan. Simpan API Key agar model terdeteksi otomatis."}
+      </p>
     </div>
   );
 }
