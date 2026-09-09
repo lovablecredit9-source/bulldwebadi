@@ -85,6 +85,13 @@ Aturan:
 
           await applyFiles(project.id as string, files);
           await saveVersion(project.id as string, "Versi awal dibuat AI");
+          await logActivity(
+            project.id as string,
+            "generate",
+            `Project dibuat: ${name}`,
+            parsed.plan ?? description,
+            files,
+          );
 
           return safeJson({ projectId: project.id, plan: parsed.plan ?? "", files: files.map((f) => f.path) });
         } catch (err) {
