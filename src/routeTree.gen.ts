@@ -21,7 +21,6 @@ import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
 import { Route as ApiAiAddFeatureRouteImport } from './routes/api/ai/add-feature'
 import { Route as ApiAiAnalyzeProjectRouteImport } from './routes/api/ai/analyze-project'
 import { Route as ApiAiChatRouteImport } from './routes/api/ai/chat'
-import { Route as ApiAiDebugRouteImport } from './routes/api/ai/debug'
 import { Route as ApiAiFixProjectRouteImport } from './routes/api/ai/fix-project'
 import { Route as ApiAiGenerateProjectRouteImport } from './routes/api/ai/generate-project'
 import { Route as ApiAiModelsRouteImport } from './routes/api/ai/models'
@@ -90,11 +89,6 @@ const ApiAiChatRoute = ApiAiChatRouteImport.update({
   path: '/api/ai/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAiDebugRoute = ApiAiDebugRouteImport.update({
-  id: '/api/ai/debug',
-  path: '/api/ai/debug',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiAiFixProjectRoute = ApiAiFixProjectRouteImport.update({
   id: '/api/ai/fix-project',
   path: '/api/ai/fix-project',
@@ -144,7 +138,6 @@ export interface FileRoutesByFullPath {
   '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
   '/api/ai/analyze-project': typeof ApiAiAnalyzeProjectRoute
   '/api/ai/chat': typeof ApiAiChatRoute
-  '/api/ai/debug': typeof ApiAiDebugRoute
   '/api/ai/fix-project': typeof ApiAiFixProjectRoute
   '/api/ai/generate-project': typeof ApiAiGenerateProjectRoute
   '/api/ai/models': typeof ApiAiModelsRoute
@@ -166,7 +159,6 @@ export interface FileRoutesByTo {
   '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
   '/api/ai/analyze-project': typeof ApiAiAnalyzeProjectRoute
   '/api/ai/chat': typeof ApiAiChatRoute
-  '/api/ai/debug': typeof ApiAiDebugRoute
   '/api/ai/fix-project': typeof ApiAiFixProjectRoute
   '/api/ai/generate-project': typeof ApiAiGenerateProjectRoute
   '/api/ai/models': typeof ApiAiModelsRoute
@@ -189,7 +181,6 @@ export interface FileRoutesById {
   '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
   '/api/ai/analyze-project': typeof ApiAiAnalyzeProjectRoute
   '/api/ai/chat': typeof ApiAiChatRoute
-  '/api/ai/debug': typeof ApiAiDebugRoute
   '/api/ai/fix-project': typeof ApiAiFixProjectRoute
   '/api/ai/generate-project': typeof ApiAiGenerateProjectRoute
   '/api/ai/models': typeof ApiAiModelsRoute
@@ -213,7 +204,6 @@ export interface FileRouteTypes {
     | '/api/ai/add-feature'
     | '/api/ai/analyze-project'
     | '/api/ai/chat'
-    | '/api/ai/debug'
     | '/api/ai/fix-project'
     | '/api/ai/generate-project'
     | '/api/ai/models'
@@ -235,7 +225,6 @@ export interface FileRouteTypes {
     | '/api/ai/add-feature'
     | '/api/ai/analyze-project'
     | '/api/ai/chat'
-    | '/api/ai/debug'
     | '/api/ai/fix-project'
     | '/api/ai/generate-project'
     | '/api/ai/models'
@@ -257,7 +246,6 @@ export interface FileRouteTypes {
     | '/api/ai/add-feature'
     | '/api/ai/analyze-project'
     | '/api/ai/chat'
-    | '/api/ai/debug'
     | '/api/ai/fix-project'
     | '/api/ai/generate-project'
     | '/api/ai/models'
@@ -280,7 +268,6 @@ export interface RootRouteChildren {
   ApiAiAddFeatureRoute: typeof ApiAiAddFeatureRoute
   ApiAiAnalyzeProjectRoute: typeof ApiAiAnalyzeProjectRoute
   ApiAiChatRoute: typeof ApiAiChatRoute
-  ApiAiDebugRoute: typeof ApiAiDebugRoute
   ApiAiFixProjectRoute: typeof ApiAiFixProjectRoute
   ApiAiGenerateProjectRoute: typeof ApiAiGenerateProjectRoute
   ApiAiModelsRoute: typeof ApiAiModelsRoute
@@ -376,13 +363,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/ai/debug': {
-      id: '/api/ai/debug'
-      path: '/api/ai/debug'
-      fullPath: '/api/ai/debug'
-      preLoaderRoute: typeof ApiAiDebugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/ai/fix-project': {
       id: '/api/ai/fix-project'
       path: '/api/ai/fix-project'
@@ -448,7 +428,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAiAddFeatureRoute: ApiAiAddFeatureRoute,
   ApiAiAnalyzeProjectRoute: ApiAiAnalyzeProjectRoute,
   ApiAiChatRoute: ApiAiChatRoute,
-  ApiAiDebugRoute: ApiAiDebugRoute,
   ApiAiFixProjectRoute: ApiAiFixProjectRoute,
   ApiAiGenerateProjectRoute: ApiAiGenerateProjectRoute,
   ApiAiModelsRoute: ApiAiModelsRoute,
