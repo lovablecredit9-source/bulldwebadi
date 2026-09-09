@@ -43,7 +43,7 @@ export const Route = createFileRoute("/api/ai/generate-project")({
               { role: "system", content: SYSTEM_PROMPT },
               {
                 role: "user",
-                content: `Buat project baru yang benar-benar berfungsi.
+                content: `Buat project baru yang benar-benar berfungsi dengan struktur ringkas agar seluruh jawaban selesai dan tidak terpotong.
 
 Nama project: ${name}
 Jenis: ${projectTypeLabel(type)}
@@ -57,7 +57,8 @@ Balas HANYA JSON valid dengan bentuk:
 Aturan:
 - Tulis kode lengkap dan bisa dijalankan, bukan placeholder.
 - Sertakan README.md berisi instalasi, dependency, konfigurasi, cara menjalankan, dan struktur project.
-- Maksimal 14 file.
+- Gunakan sesedikit mungkin file; maksimal 8 file. Gabungkan modul kecil yang tidak perlu dipisah.
+- Tulis isi file secara ringkas tanpa komentar berulang, tetapi jangan menghilangkan fungsi utama.
 - Path relatif, tanpa "../".`,
               },
             ],

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ModelSelect } from "@/components/ModelSelect";
-import { DEFAULT_BASE_URL } from "@/lib/models";
+import { DEFAULT_BASE_URL, DEFAULT_MODEL } from "@/lib/models";
 import { getJson, postJson } from "@/lib/api";
 
 export const Route = createFileRoute("/settings")({
@@ -29,7 +29,7 @@ type Cfg = { baseUrl: string; model: string; hasKey: boolean; maskedKey: string 
 
 function SettingsPage() {
   const [baseUrl, setBaseUrl] = useState(DEFAULT_BASE_URL);
-  const [model, setModel] = useState("nk/auto");
+  const [model, setModel] = useState(DEFAULT_MODEL);
   const [apiKey, setApiKey] = useState("");
   const [show, setShow] = useState(false);
   const [masked, setMasked] = useState("");
@@ -41,7 +41,7 @@ function SettingsPage() {
     getJson<Cfg>("/api/settings")
       .then((c) => {
         setBaseUrl(c.baseUrl || DEFAULT_BASE_URL);
-        setModel(c.model || "nk/auto");
+        setModel(c.model || DEFAULT_MODEL);
         setMasked(c.maskedKey);
       })
       .catch(() => undefined);
