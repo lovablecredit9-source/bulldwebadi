@@ -7,7 +7,9 @@ import {
   Copy,
   Download,
   FileCode,
+  ImagePlus,
   Loader2,
+  X,
   MessageSquarePlus,
   Package,
   Pencil,
@@ -574,6 +576,21 @@ function ChatTab({
   const [messages, setMessages] = useState<{ id: string; role: string; content: string }[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [photos, setPhotos] = useState<string[]>([]);
+
+  const addPhotos = async (list: FileList | null) => {
+    if (!list?.length) return;
+    const next: string[] = [];
+    for (const file of Array.from(list).slice(0, 4)) {
+      if (!file.type.startsWith("image/")) continue;
+      try {
+        next.push(await compressImage(file));
+      } catch {
+        toast.error("Foto tidak dapat dibaca.");
+      }
+    }
+    if (next.length) setPhotos((p) => [...p, ...next].slice(0, 4));
+  };
 
   const loadChats = useCallback(async () => {
     const c = await listChats(projectId);

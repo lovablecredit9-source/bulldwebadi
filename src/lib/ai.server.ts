@@ -73,7 +73,10 @@ async function extractError(res: Response): Promise<string> {
   }
 }
 
-type Msg = { role: string; content: string };
+export type MsgContent =
+  | string
+  | ({ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } })[];
+type Msg = { role: string; content: MsgContent };
 
 export async function callAI(
   messages: Msg[],
