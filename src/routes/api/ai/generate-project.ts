@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AiError, SYSTEM_PROMPT, callAI, errorResponse, parseJsonLoose, safeJson } from "@/lib/ai.server";
-import { applyFiles, saveVersion } from "@/lib/project.server";
+import { applyFiles, logActivity, saveVersion } from "@/lib/project.server";
 import { projectTypeLabel } from "@/lib/models";
 
 type GenResult = { plan?: string; files?: { path: string; content: string }[] };
