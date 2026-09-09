@@ -10,33 +10,167 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiSettingsRouteImport } from './routes/api/settings'
+import { Route as ApiAiAddFeatureRouteImport } from './routes/api/ai/add-feature'
+import { Route as ApiAiAnalyzeProjectRouteImport } from './routes/api/ai/analyze-project'
+import { Route as ApiAiChatRouteImport } from './routes/api/ai/chat'
+import { Route as ApiAiFixProjectRouteImport } from './routes/api/ai/fix-project'
+import { Route as ApiAiGenerateProjectRouteImport } from './routes/api/ai/generate-project'
+import { Route as ApiAiTestRouteImport } from './routes/api/ai/test'
+import { Route as ApiAiValidateProjectRouteImport } from './routes/api/ai/validate-project'
+import { Route as ApiProjectApplyRouteImport } from './routes/api/project/apply'
+import { Route as ApiProjectUploadRouteImport } from './routes/api/project/upload'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSettingsRoute = ApiSettingsRouteImport.update({
+  id: '/api/settings',
+  path: '/api/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiAddFeatureRoute = ApiAiAddFeatureRouteImport.update({
+  id: '/api/ai/add-feature',
+  path: '/api/ai/add-feature',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiAnalyzeProjectRoute = ApiAiAnalyzeProjectRouteImport.update({
+  id: '/api/ai/analyze-project',
+  path: '/api/ai/analyze-project',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiChatRoute = ApiAiChatRouteImport.update({
+  id: '/api/ai/chat',
+  path: '/api/ai/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiFixProjectRoute = ApiAiFixProjectRouteImport.update({
+  id: '/api/ai/fix-project',
+  path: '/api/ai/fix-project',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiGenerateProjectRoute = ApiAiGenerateProjectRouteImport.update({
+  id: '/api/ai/generate-project',
+  path: '/api/ai/generate-project',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiTestRoute = ApiAiTestRouteImport.update({
+  id: '/api/ai/test',
+  path: '/api/ai/test',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiValidateProjectRoute = ApiAiValidateProjectRouteImport.update({
+  id: '/api/ai/validate-project',
+  path: '/api/ai/validate-project',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProjectApplyRoute = ApiProjectApplyRouteImport.update({
+  id: '/api/project/apply',
+  path: '/api/project/apply',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProjectUploadRoute = ApiProjectUploadRouteImport.update({
+  id: '/api/project/upload',
+  path: '/api/project/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/settings': typeof ApiSettingsRoute
+  '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
+  '/api/ai/analyze-project': typeof ApiAiAnalyzeProjectRoute
+  '/api/ai/chat': typeof ApiAiChatRoute
+  '/api/ai/fix-project': typeof ApiAiFixProjectRoute
+  '/api/ai/generate-project': typeof ApiAiGenerateProjectRoute
+  '/api/ai/test': typeof ApiAiTestRoute
+  '/api/ai/validate-project': typeof ApiAiValidateProjectRoute
+  '/api/project/apply': typeof ApiProjectApplyRoute
+  '/api/project/upload': typeof ApiProjectUploadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/settings': typeof ApiSettingsRoute
+  '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
+  '/api/ai/analyze-project': typeof ApiAiAnalyzeProjectRoute
+  '/api/ai/chat': typeof ApiAiChatRoute
+  '/api/ai/fix-project': typeof ApiAiFixProjectRoute
+  '/api/ai/generate-project': typeof ApiAiGenerateProjectRoute
+  '/api/ai/test': typeof ApiAiTestRoute
+  '/api/ai/validate-project': typeof ApiAiValidateProjectRoute
+  '/api/project/apply': typeof ApiProjectApplyRoute
+  '/api/project/upload': typeof ApiProjectUploadRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/settings': typeof ApiSettingsRoute
+  '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
+  '/api/ai/analyze-project': typeof ApiAiAnalyzeProjectRoute
+  '/api/ai/chat': typeof ApiAiChatRoute
+  '/api/ai/fix-project': typeof ApiAiFixProjectRoute
+  '/api/ai/generate-project': typeof ApiAiGenerateProjectRoute
+  '/api/ai/test': typeof ApiAiTestRoute
+  '/api/ai/validate-project': typeof ApiAiValidateProjectRoute
+  '/api/project/apply': typeof ApiProjectApplyRoute
+  '/api/project/upload': typeof ApiProjectUploadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/api/settings'
+    | '/api/ai/add-feature'
+    | '/api/ai/analyze-project'
+    | '/api/ai/chat'
+    | '/api/ai/fix-project'
+    | '/api/ai/generate-project'
+    | '/api/ai/test'
+    | '/api/ai/validate-project'
+    | '/api/project/apply'
+    | '/api/project/upload'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/api/settings'
+    | '/api/ai/add-feature'
+    | '/api/ai/analyze-project'
+    | '/api/ai/chat'
+    | '/api/ai/fix-project'
+    | '/api/ai/generate-project'
+    | '/api/ai/test'
+    | '/api/ai/validate-project'
+    | '/api/project/apply'
+    | '/api/project/upload'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/settings'
+    | '/api/ai/add-feature'
+    | '/api/ai/analyze-project'
+    | '/api/ai/chat'
+    | '/api/ai/fix-project'
+    | '/api/ai/generate-project'
+    | '/api/ai/test'
+    | '/api/ai/validate-project'
+    | '/api/project/apply'
+    | '/api/project/upload'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiSettingsRoute: typeof ApiSettingsRoute
+  ApiAiAddFeatureRoute: typeof ApiAiAddFeatureRoute
+  ApiAiAnalyzeProjectRoute: typeof ApiAiAnalyzeProjectRoute
+  ApiAiChatRoute: typeof ApiAiChatRoute
+  ApiAiFixProjectRoute: typeof ApiAiFixProjectRoute
+  ApiAiGenerateProjectRoute: typeof ApiAiGenerateProjectRoute
+  ApiAiTestRoute: typeof ApiAiTestRoute
+  ApiAiValidateProjectRoute: typeof ApiAiValidateProjectRoute
+  ApiProjectApplyRoute: typeof ApiProjectApplyRoute
+  ApiProjectUploadRoute: typeof ApiProjectUploadRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +182,91 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/settings': {
+      id: '/api/settings'
+      path: '/api/settings'
+      fullPath: '/api/settings'
+      preLoaderRoute: typeof ApiSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai/add-feature': {
+      id: '/api/ai/add-feature'
+      path: '/api/ai/add-feature'
+      fullPath: '/api/ai/add-feature'
+      preLoaderRoute: typeof ApiAiAddFeatureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai/analyze-project': {
+      id: '/api/ai/analyze-project'
+      path: '/api/ai/analyze-project'
+      fullPath: '/api/ai/analyze-project'
+      preLoaderRoute: typeof ApiAiAnalyzeProjectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai/chat': {
+      id: '/api/ai/chat'
+      path: '/api/ai/chat'
+      fullPath: '/api/ai/chat'
+      preLoaderRoute: typeof ApiAiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai/fix-project': {
+      id: '/api/ai/fix-project'
+      path: '/api/ai/fix-project'
+      fullPath: '/api/ai/fix-project'
+      preLoaderRoute: typeof ApiAiFixProjectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai/generate-project': {
+      id: '/api/ai/generate-project'
+      path: '/api/ai/generate-project'
+      fullPath: '/api/ai/generate-project'
+      preLoaderRoute: typeof ApiAiGenerateProjectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai/test': {
+      id: '/api/ai/test'
+      path: '/api/ai/test'
+      fullPath: '/api/ai/test'
+      preLoaderRoute: typeof ApiAiTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai/validate-project': {
+      id: '/api/ai/validate-project'
+      path: '/api/ai/validate-project'
+      fullPath: '/api/ai/validate-project'
+      preLoaderRoute: typeof ApiAiValidateProjectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/project/apply': {
+      id: '/api/project/apply'
+      path: '/api/project/apply'
+      fullPath: '/api/project/apply'
+      preLoaderRoute: typeof ApiProjectApplyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/project/upload': {
+      id: '/api/project/upload'
+      path: '/api/project/upload'
+      fullPath: '/api/project/upload'
+      preLoaderRoute: typeof ApiProjectUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiSettingsRoute: ApiSettingsRoute,
+  ApiAiAddFeatureRoute: ApiAiAddFeatureRoute,
+  ApiAiAnalyzeProjectRoute: ApiAiAnalyzeProjectRoute,
+  ApiAiChatRoute: ApiAiChatRoute,
+  ApiAiFixProjectRoute: ApiAiFixProjectRoute,
+  ApiAiGenerateProjectRoute: ApiAiGenerateProjectRoute,
+  ApiAiTestRoute: ApiAiTestRoute,
+  ApiAiValidateProjectRoute: ApiAiValidateProjectRoute,
+  ApiProjectApplyRoute: ApiProjectApplyRoute,
+  ApiProjectUploadRoute: ApiProjectUploadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
