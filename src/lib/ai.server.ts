@@ -109,12 +109,45 @@ export async function callAI(
     throw new AiError(`AI sedang mengalami gangguan (${res.status}). ${detail}`.trim());
   }
 
-  const data = (await res.json().catch(() => null)) as
-    | { choices?: { message?: { content?: string } }[] }
-    | null;
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) throw new AiError("AI sedang mengalami gangguan. Silakan coba lagi.");
+  const raw = await res.text();
+  const content = extractContent(raw);
+  if (!content) throw new AiError("AI tidak mengirim jawaban. Coba lagi atau ganti model.");
   return content;
+}
+
+/** Router Marketku selalu membalas dalam bentuk stream SSE, jadi jawaban perlu dirangkai. */
+function extractContent(raw: string): string {
+  const text = raw.trim();
+  if (!text) return "";
+
+  if (!text.startsWith("data:")) {
+    try {
+      const data = JSON.parse(text) as {
+        choices?: { message?: { content?: string }; text?: string }[];
+      };
+      return data.choices?.[0]?.message?.content ?? data.choices?.[0]?.text ?? "";
+    } catch {
+      return "";
+    }
+  }
+
+  let out = "";
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("data:")) continue;
+    const payload = trimmed.slice(5).trim();
+    if (!payload || payload === "[DONE]") continue;
+    try {
+      const chunk = JSON.parse(payload) as {
+        choices?: { delta?: { content?: string }; message?: { content?: string } }[];
+      };
+      const c = chunk.choices?.[0];
+      out += c?.delta?.content ?? c?.message?.content ?? "";
+    } catch {
+      /* abaikan potongan yang tidak lengkap */
+    }
+  }
+  return out;
 }
 
 /** Ambil objek JSON dari jawaban AI walau dibungkus markdown. */
