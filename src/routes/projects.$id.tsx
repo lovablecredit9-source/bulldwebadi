@@ -137,6 +137,7 @@ function Workspace() {
           <TabsTrigger value="analyze">Analyze</TabsTrigger>
           <TabsTrigger value="fix">Fix / Add Feature</TabsTrigger>
           <TabsTrigger value="versions">Versions</TabsTrigger>
+          <TabsTrigger value="history">Riwayat</TabsTrigger>
         </TabsList>
 
         <TabsContent value="files">
