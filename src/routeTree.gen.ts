@@ -11,6 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSettingsRouteImport } from './routes/api/settings'
+import { Route as ApiAiAddFeatureRouteImport } from './routes/api/ai/add-feature'
+import { Route as ApiAiAnalyzeProjectRouteImport } from './routes/api/ai/analyze-project'
+import { Route as ApiAiFixProjectRouteImport } from './routes/api/ai/fix-project'
+import { Route as ApiAiGenerateProjectRouteImport } from './routes/api/ai/generate-project'
 import { Route as ApiAiTestRouteImport } from './routes/api/ai/test'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +27,26 @@ const ApiSettingsRoute = ApiSettingsRouteImport.update({
   path: '/api/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAiAddFeatureRoute = ApiAiAddFeatureRouteImport.update({
+  id: '/api/ai/add-feature',
+  path: '/api/ai/add-feature',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiAnalyzeProjectRoute = ApiAiAnalyzeProjectRouteImport.update({
+  id: '/api/ai/analyze-project',
+  path: '/api/ai/analyze-project',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiFixProjectRoute = ApiAiFixProjectRouteImport.update({
+  id: '/api/ai/fix-project',
+  path: '/api/ai/fix-project',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAiGenerateProjectRoute = ApiAiGenerateProjectRouteImport.update({
+  id: '/api/ai/generate-project',
+  path: '/api/ai/generate-project',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAiTestRoute = ApiAiTestRouteImport.update({
   id: '/api/ai/test',
   path: '/api/ai/test',
@@ -32,30 +56,68 @@ const ApiAiTestRoute = ApiAiTestRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/settings': typeof ApiSettingsRoute
+  '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
+  '/api/ai/analyze-project': typeof ApiAiAnalyzeProjectRoute
+  '/api/ai/fix-project': typeof ApiAiFixProjectRoute
+  '/api/ai/generate-project': typeof ApiAiGenerateProjectRoute
   '/api/ai/test': typeof ApiAiTestRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/settings': typeof ApiSettingsRoute
+  '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
+  '/api/ai/analyze-project': typeof ApiAiAnalyzeProjectRoute
+  '/api/ai/fix-project': typeof ApiAiFixProjectRoute
+  '/api/ai/generate-project': typeof ApiAiGenerateProjectRoute
   '/api/ai/test': typeof ApiAiTestRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/settings': typeof ApiSettingsRoute
+  '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
+  '/api/ai/analyze-project': typeof ApiAiAnalyzeProjectRoute
+  '/api/ai/fix-project': typeof ApiAiFixProjectRoute
+  '/api/ai/generate-project': typeof ApiAiGenerateProjectRoute
   '/api/ai/test': typeof ApiAiTestRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/settings' | '/api/ai/test'
+  fullPaths:
+    | '/'
+    | '/api/settings'
+    | '/api/ai/add-feature'
+    | '/api/ai/analyze-project'
+    | '/api/ai/fix-project'
+    | '/api/ai/generate-project'
+    | '/api/ai/test'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/settings' | '/api/ai/test'
-  id: '__root__' | '/' | '/api/settings' | '/api/ai/test'
+  to:
+    | '/'
+    | '/api/settings'
+    | '/api/ai/add-feature'
+    | '/api/ai/analyze-project'
+    | '/api/ai/fix-project'
+    | '/api/ai/generate-project'
+    | '/api/ai/test'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/settings'
+    | '/api/ai/add-feature'
+    | '/api/ai/analyze-project'
+    | '/api/ai/fix-project'
+    | '/api/ai/generate-project'
+    | '/api/ai/test'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiSettingsRoute: typeof ApiSettingsRoute
+  ApiAiAddFeatureRoute: typeof ApiAiAddFeatureRoute
+  ApiAiAnalyzeProjectRoute: typeof ApiAiAnalyzeProjectRoute
+  ApiAiFixProjectRoute: typeof ApiAiFixProjectRoute
+  ApiAiGenerateProjectRoute: typeof ApiAiGenerateProjectRoute
   ApiAiTestRoute: typeof ApiAiTestRoute
 }
 
@@ -75,6 +137,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/ai/add-feature': {
+      id: '/api/ai/add-feature'
+      path: '/api/ai/add-feature'
+      fullPath: '/api/ai/add-feature'
+      preLoaderRoute: typeof ApiAiAddFeatureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai/analyze-project': {
+      id: '/api/ai/analyze-project'
+      path: '/api/ai/analyze-project'
+      fullPath: '/api/ai/analyze-project'
+      preLoaderRoute: typeof ApiAiAnalyzeProjectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai/fix-project': {
+      id: '/api/ai/fix-project'
+      path: '/api/ai/fix-project'
+      fullPath: '/api/ai/fix-project'
+      preLoaderRoute: typeof ApiAiFixProjectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/ai/generate-project': {
+      id: '/api/ai/generate-project'
+      path: '/api/ai/generate-project'
+      fullPath: '/api/ai/generate-project'
+      preLoaderRoute: typeof ApiAiGenerateProjectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ai/test': {
       id: '/api/ai/test'
       path: '/api/ai/test'
@@ -88,6 +178,10 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiSettingsRoute: ApiSettingsRoute,
+  ApiAiAddFeatureRoute: ApiAiAddFeatureRoute,
+  ApiAiAnalyzeProjectRoute: ApiAiAnalyzeProjectRoute,
+  ApiAiFixProjectRoute: ApiAiFixProjectRoute,
+  ApiAiGenerateProjectRoute: ApiAiGenerateProjectRoute,
   ApiAiTestRoute: ApiAiTestRoute,
 }
 export const routeTree = rootRouteImport
