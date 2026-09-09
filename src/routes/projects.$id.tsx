@@ -434,8 +434,11 @@ function FixTab({
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [busy, setBusy] = useState("");
 
+  const [lastAction, setLastAction] = useState("fix-project");
+
   const request = async (endpoint: "fix-project" | "add-feature") => {
     setBusy(endpoint);
+    setLastAction(endpoint);
     setProposal(null);
     try {
       setProposal(
@@ -455,7 +458,14 @@ function FixTab({
       const res = await postJson<{ version: number }>("/api/project/apply", {
         projectId,
         label: instruction.slice(0, 80) || "Perubahan AI",
-        files: proposal.files.map((f) => ({ path: f.path, content: f.content })),
+        action: lastAction,
+        plan: proposal.plan,
+        files: proposal.files.map((f) => ({
+          path: f.path,
+          content: f.content,
+          before: f.before,
+          reason: f.reason,
+        })),
       });
       toast.success(`Perubahan diterapkan. Backup: Version ${res.version}`);
       setProposal(null);
@@ -756,6 +766,7 @@ function VersionsTab({
       await postJson("/api/project/apply", {
         projectId,
         label: `Restore ke Version ${v.version}`,
+        action: "restore",
         files: v.snapshot,
       });
       toast.success(`Dipulihkan ke Version ${v.version}`);
