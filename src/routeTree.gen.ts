@@ -23,6 +23,7 @@ import { Route as ApiAiAnalyzeProjectRouteImport } from './routes/api/ai/analyze
 import { Route as ApiAiChatRouteImport } from './routes/api/ai/chat'
 import { Route as ApiAiFixProjectRouteImport } from './routes/api/ai/fix-project'
 import { Route as ApiAiGenerateProjectRouteImport } from './routes/api/ai/generate-project'
+import { Route as ApiAiModelsRouteImport } from './routes/api/ai/models'
 import { Route as ApiAiTestRouteImport } from './routes/api/ai/test'
 import { Route as ApiAiValidateProjectRouteImport } from './routes/api/ai/validate-project'
 import { Route as ApiProjectApplyRouteImport } from './routes/api/project/apply'
@@ -98,6 +99,11 @@ const ApiAiGenerateProjectRoute = ApiAiGenerateProjectRouteImport.update({
   path: '/api/ai/generate-project',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAiModelsRoute = ApiAiModelsRouteImport.update({
+  id: '/api/ai/models',
+  path: '/api/ai/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAiTestRoute = ApiAiTestRouteImport.update({
   id: '/api/ai/test',
   path: '/api/ai/test',
@@ -134,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/api/ai/chat': typeof ApiAiChatRoute
   '/api/ai/fix-project': typeof ApiAiFixProjectRoute
   '/api/ai/generate-project': typeof ApiAiGenerateProjectRoute
+  '/api/ai/models': typeof ApiAiModelsRoute
   '/api/ai/test': typeof ApiAiTestRoute
   '/api/ai/validate-project': typeof ApiAiValidateProjectRoute
   '/api/project/apply': typeof ApiProjectApplyRoute
@@ -154,6 +161,7 @@ export interface FileRoutesByTo {
   '/api/ai/chat': typeof ApiAiChatRoute
   '/api/ai/fix-project': typeof ApiAiFixProjectRoute
   '/api/ai/generate-project': typeof ApiAiGenerateProjectRoute
+  '/api/ai/models': typeof ApiAiModelsRoute
   '/api/ai/test': typeof ApiAiTestRoute
   '/api/ai/validate-project': typeof ApiAiValidateProjectRoute
   '/api/project/apply': typeof ApiProjectApplyRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/api/ai/chat': typeof ApiAiChatRoute
   '/api/ai/fix-project': typeof ApiAiFixProjectRoute
   '/api/ai/generate-project': typeof ApiAiGenerateProjectRoute
+  '/api/ai/models': typeof ApiAiModelsRoute
   '/api/ai/test': typeof ApiAiTestRoute
   '/api/ai/validate-project': typeof ApiAiValidateProjectRoute
   '/api/project/apply': typeof ApiProjectApplyRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/api/ai/chat'
     | '/api/ai/fix-project'
     | '/api/ai/generate-project'
+    | '/api/ai/models'
     | '/api/ai/test'
     | '/api/ai/validate-project'
     | '/api/project/apply'
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/api/ai/chat'
     | '/api/ai/fix-project'
     | '/api/ai/generate-project'
+    | '/api/ai/models'
     | '/api/ai/test'
     | '/api/ai/validate-project'
     | '/api/project/apply'
@@ -237,6 +248,7 @@ export interface FileRouteTypes {
     | '/api/ai/chat'
     | '/api/ai/fix-project'
     | '/api/ai/generate-project'
+    | '/api/ai/models'
     | '/api/ai/test'
     | '/api/ai/validate-project'
     | '/api/project/apply'
@@ -258,6 +270,7 @@ export interface RootRouteChildren {
   ApiAiChatRoute: typeof ApiAiChatRoute
   ApiAiFixProjectRoute: typeof ApiAiFixProjectRoute
   ApiAiGenerateProjectRoute: typeof ApiAiGenerateProjectRoute
+  ApiAiModelsRoute: typeof ApiAiModelsRoute
   ApiAiTestRoute: typeof ApiAiTestRoute
   ApiAiValidateProjectRoute: typeof ApiAiValidateProjectRoute
   ApiProjectApplyRoute: typeof ApiProjectApplyRoute
@@ -364,6 +377,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAiGenerateProjectRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/ai/models': {
+      id: '/api/ai/models'
+      path: '/api/ai/models'
+      fullPath: '/api/ai/models'
+      preLoaderRoute: typeof ApiAiModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ai/test': {
       id: '/api/ai/test'
       path: '/api/ai/test'
@@ -410,6 +430,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAiChatRoute: ApiAiChatRoute,
   ApiAiFixProjectRoute: ApiAiFixProjectRoute,
   ApiAiGenerateProjectRoute: ApiAiGenerateProjectRoute,
+  ApiAiModelsRoute: ApiAiModelsRoute,
   ApiAiTestRoute: ApiAiTestRoute,
   ApiAiValidateProjectRoute: ApiAiValidateProjectRoute,
   ApiProjectApplyRoute: ApiProjectApplyRoute,
