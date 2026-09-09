@@ -17,6 +17,7 @@ import { Route as UploadRouteImport } from './routes/upload'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as ApiSettingsRouteImport } from './routes/api/settings'
 import { Route as ProjectsIndexRouteImport } from './routes/projects.index'
+import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
 import { Route as ApiAiAddFeatureRouteImport } from './routes/api/ai/add-feature'
 import { Route as ApiAiAnalyzeProjectRouteImport } from './routes/api/ai/analyze-project'
 import { Route as ApiAiChatRouteImport } from './routes/api/ai/chat'
@@ -65,6 +66,11 @@ const ApiSettingsRoute = ApiSettingsRouteImport.update({
 const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
   id: '/projects/',
   path: '/projects/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsIdRoute = ProjectsIdRouteImport.update({
+  id: '/projects/$id',
+  path: '/projects/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAiAddFeatureRoute = ApiAiAddFeatureRouteImport.update({
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/upload': typeof UploadRoute
   '/whatsapp': typeof WhatsappRoute
   '/api/settings': typeof ApiSettingsRoute
+  '/projects/$id': typeof ProjectsIdRoute
   '/projects/': typeof ProjectsIndexRoute
   '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
   '/api/ai/analyze-project': typeof ApiAiAnalyzeProjectRoute
@@ -140,6 +147,7 @@ export interface FileRoutesByTo {
   '/upload': typeof UploadRoute
   '/whatsapp': typeof WhatsappRoute
   '/api/settings': typeof ApiSettingsRoute
+  '/projects/$id': typeof ProjectsIdRoute
   '/projects': typeof ProjectsIndexRoute
   '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
   '/api/ai/analyze-project': typeof ApiAiAnalyzeProjectRoute
@@ -160,6 +168,7 @@ export interface FileRoutesById {
   '/upload': typeof UploadRoute
   '/whatsapp': typeof WhatsappRoute
   '/api/settings': typeof ApiSettingsRoute
+  '/projects/$id': typeof ProjectsIdRoute
   '/projects/': typeof ProjectsIndexRoute
   '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
   '/api/ai/analyze-project': typeof ApiAiAnalyzeProjectRoute
@@ -181,6 +190,7 @@ export interface FileRouteTypes {
     | '/upload'
     | '/whatsapp'
     | '/api/settings'
+    | '/projects/$id'
     | '/projects/'
     | '/api/ai/add-feature'
     | '/api/ai/analyze-project'
@@ -200,6 +210,7 @@ export interface FileRouteTypes {
     | '/upload'
     | '/whatsapp'
     | '/api/settings'
+    | '/projects/$id'
     | '/projects'
     | '/api/ai/add-feature'
     | '/api/ai/analyze-project'
@@ -219,6 +230,7 @@ export interface FileRouteTypes {
     | '/upload'
     | '/whatsapp'
     | '/api/settings'
+    | '/projects/$id'
     | '/projects/'
     | '/api/ai/add-feature'
     | '/api/ai/analyze-project'
@@ -239,6 +251,7 @@ export interface RootRouteChildren {
   UploadRoute: typeof UploadRoute
   WhatsappRoute: typeof WhatsappRoute
   ApiSettingsRoute: typeof ApiSettingsRoute
+  ProjectsIdRoute: typeof ProjectsIdRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
   ApiAiAddFeatureRoute: typeof ApiAiAddFeatureRoute
   ApiAiAnalyzeProjectRoute: typeof ApiAiAnalyzeProjectRoute
@@ -307,6 +320,13 @@ declare module '@tanstack/react-router' {
       path: '/projects'
       fullPath: '/projects/'
       preLoaderRoute: typeof ProjectsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/$id': {
+      id: '/projects/$id'
+      path: '/projects/$id'
+      fullPath: '/projects/$id'
+      preLoaderRoute: typeof ProjectsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/ai/add-feature': {
@@ -383,6 +403,7 @@ const rootRouteChildren: RootRouteChildren = {
   UploadRoute: UploadRoute,
   WhatsappRoute: WhatsappRoute,
   ApiSettingsRoute: ApiSettingsRoute,
+  ProjectsIdRoute: ProjectsIdRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
   ApiAiAddFeatureRoute: ApiAiAddFeatureRoute,
   ApiAiAnalyzeProjectRoute: ApiAiAnalyzeProjectRoute,
