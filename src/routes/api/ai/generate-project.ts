@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AiError, SYSTEM_PROMPT, callAI, errorResponse, parseJsonLoose, safeJson } from "@/lib/ai.server";
-import { applyFiles, saveVersion } from "@/lib/project.server";
+import { applyFiles, logActivity, saveVersion } from "@/lib/project.server";
 import { projectTypeLabel } from "@/lib/models";
 
 type GenResult = { plan?: string; files?: { path: string; content: string }[] };
@@ -85,6 +85,13 @@ Aturan:
 
           await applyFiles(project.id as string, files);
           await saveVersion(project.id as string, "Versi awal dibuat AI");
+          await logActivity(
+            project.id as string,
+            "generate",
+            `Project dibuat: ${name}`,
+            parsed.plan ?? description,
+            files,
+          );
 
           return safeJson({ projectId: project.id, plan: parsed.plan ?? "", files: files.map((f) => f.path) });
         } catch (err) {

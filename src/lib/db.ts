@@ -94,3 +94,21 @@ export async function listMessages(chatId: string) {
 export async function deleteProject(id: string) {
   await supabase.from("projects").delete().eq("id", id);
 }
+
+export type ProjectActivity = {
+  id: string;
+  action: string;
+  title: string;
+  summary: string;
+  files: { path: string; content: string; before?: string; reason?: string }[];
+  created_at: string;
+};
+
+export async function listActivities(projectId: string): Promise<ProjectActivity[]> {
+  const { data } = await supabase
+    .from("project_activities")
+    .select("id, action, title, summary, files, created_at")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false });
+  return (data ?? []) as unknown as ProjectActivity[];
+}

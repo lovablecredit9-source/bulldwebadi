@@ -108,3 +108,29 @@ export async function applyFiles(projectId: string, files: FileRow[]) {
   await db.from("projects").update({ updated_at: new Date().toISOString() }).eq("id", projectId);
   return clean.map((f) => f.path);
 }
+
+export type ActivityFile = { path: string; content: string; before?: string; reason?: string };
+
+/** Simpan riwayat aktivitas pembuatan/perubahan file agar tetap ada lintas perangkat. */
+export async function logActivity(
+  projectId: string,
+  action: string,
+  title: string,
+  summary: string,
+  files: ActivityFile[],
+) {
+  const db = await admin();
+  const trimmed = files.slice(0, 20).map((f) => ({
+    path: f.path,
+    reason: f.reason ?? "",
+    before: (f.before ?? "").slice(0, 20000),
+    content: (f.content ?? "").slice(0, 20000),
+  }));
+  await db.from("project_activities").insert({
+    project_id: projectId,
+    action,
+    title: title.slice(0, 200),
+    summary: summary.slice(0, 4000),
+    files: trimmed as never,
+  });
+}

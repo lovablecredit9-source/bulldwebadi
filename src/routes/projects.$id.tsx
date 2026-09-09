@@ -35,11 +35,13 @@ import {
   deleteChat,
   getProject,
   listChats,
+  listActivities,
   listFiles,
   listMessages,
   listVersions,
   renameChat,
   type Project,
+  type ProjectActivity,
   type ProjectFile,
   type ProjectVersion,
 } from "@/lib/db";
@@ -135,6 +137,7 @@ function Workspace() {
           <TabsTrigger value="analyze">Analyze</TabsTrigger>
           <TabsTrigger value="fix">Fix / Add Feature</TabsTrigger>
           <TabsTrigger value="versions">Versions</TabsTrigger>
+          <TabsTrigger value="history">Riwayat</TabsTrigger>
         </TabsList>
 
         <TabsContent value="files">
@@ -151,6 +154,9 @@ function Workspace() {
         </TabsContent>
         <TabsContent value="versions">
           <VersionsTab projectId={id} onRestored={reload} />
+        </TabsContent>
+        <TabsContent value="history">
+          <HistoryTab projectId={id} />
         </TabsContent>
       </Tabs>
     </AppShell>
@@ -428,8 +434,11 @@ function FixTab({
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [busy, setBusy] = useState("");
 
+  const [lastAction, setLastAction] = useState("fix-project");
+
   const request = async (endpoint: "fix-project" | "add-feature") => {
     setBusy(endpoint);
+    setLastAction(endpoint);
     setProposal(null);
     try {
       setProposal(
@@ -449,7 +458,14 @@ function FixTab({
       const res = await postJson<{ version: number }>("/api/project/apply", {
         projectId,
         label: instruction.slice(0, 80) || "Perubahan AI",
-        files: proposal.files.map((f) => ({ path: f.path, content: f.content })),
+        action: lastAction,
+        plan: proposal.plan,
+        files: proposal.files.map((f) => ({
+          path: f.path,
+          content: f.content,
+          before: f.before,
+          reason: f.reason,
+        })),
       });
       toast.success(`Perubahan diterapkan. Backup: Version ${res.version}`);
       setProposal(null);
@@ -750,6 +766,7 @@ function VersionsTab({
       await postJson("/api/project/apply", {
         projectId,
         label: `Restore ke Version ${v.version}`,
+        action: "restore",
         files: v.snapshot,
       });
       toast.success(`Dipulihkan ke Version ${v.version}`);
@@ -802,6 +819,69 @@ function VersionsTab({
                 <details key={f.path} className="rounded-lg border p-2">
                   <summary className="cursor-pointer font-mono text-xs">{f.path}</summary>
                   <pre className="mt-2 max-h-48 overflow-auto text-[11px]">{f.content}</pre>
+                </details>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ---------------- Riwayat ---------------- */
+
+const ACTION_LABEL: Record<string, string> = {
+  generate: "Project dibuat",
+  "fix-project": "AI Fix",
+  "add-feature": "Tambah Fitur",
+  restore: "Restore versi",
+  update: "Perubahan file",
+};
+
+function HistoryTab({ projectId }: { projectId: string }) {
+  const [items, setItems] = useState<ProjectActivity[] | null>(null);
+  const [open, setOpen] = useState("");
+
+  useEffect(() => {
+    void listActivities(projectId).then(setItems);
+  }, [projectId]);
+
+  if (!items) return <Skeleton className="h-32 w-full rounded-2xl" />;
+  if (!items.length)
+    return (
+      <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+        Belum ada riwayat. Setiap pembuatan dan perubahan file akan tercatat di sini dan tersimpan
+        di server, jadi tetap ada saat dibuka dari perangkat lain.
+      </p>
+    );
+
+  return (
+    <div className="space-y-3">
+      {items.map((a) => (
+        <div key={a.id} className="rounded-2xl border bg-card p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="font-semibold">{ACTION_LABEL[a.action] ?? a.action}</p>
+              <p className="text-xs text-muted-foreground">
+                {a.title} · {new Date(a.created_at).toLocaleString("id-ID")} ·{" "}
+                {a.files?.length ?? 0} file
+              </p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => setOpen(open === a.id ? "" : a.id)}>
+              Detail
+            </Button>
+          </div>
+          {a.summary && (
+            <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{a.summary}</p>
+          )}
+          {open === a.id && (
+            <div className="mt-3 max-h-80 space-y-2 overflow-auto">
+              {(a.files ?? []).map((f) => (
+                <details key={f.path} className="rounded-lg border p-2">
+                  <summary className="cursor-pointer font-mono text-xs">{f.path}</summary>
+                  {f.reason && <p className="mt-1 text-xs text-muted-foreground">{f.reason}</p>}
+                  <pre className="mt-2 max-h-56 overflow-auto text-[11px]">{f.content}</pre>
                 </details>
               ))}
             </div>
