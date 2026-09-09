@@ -48,6 +48,24 @@ export async function loadConfig(): Promise<AiConfig> {
 
 export class AiError extends Error {}
 
+/** Ambil pesan error asli dari router agar penyebabnya jelas. */
+async function extractError(res: Response): Promise<string> {
+  try {
+    const text = await res.text();
+    if (!text) return "";
+    try {
+      const j = JSON.parse(text) as { error?: { message?: string } | string; message?: string };
+      const msg =
+        typeof j.error === "string" ? j.error : (j.error?.message ?? j.message ?? "");
+      return String(msg).slice(0, 200);
+    } catch {
+      return text.slice(0, 200);
+    }
+  } catch {
+    return "";
+  }
+}
+
 type Msg = { role: string; content: string };
 
 export async function callAI(
