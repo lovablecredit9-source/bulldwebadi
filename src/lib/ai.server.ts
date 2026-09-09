@@ -1,4 +1,4 @@
-import { DEFAULT_BASE_URL } from "./models";
+import { DEFAULT_BASE_URL, DEFAULT_MODEL, normalizeModel } from "./models";
 
 export const SYSTEM_PROMPT = `Kamu adalah ADI BUILDER AI.
 
@@ -27,7 +27,7 @@ export type AiConfig = { baseUrl: string; apiKey: string; model: string };
 export async function loadConfig(): Promise<AiConfig> {
   const envKey = process.env["MARKETKU_API_KEY"] ?? "";
   const envBase = process.env["MARKETKU_BASE_URL"] ?? DEFAULT_BASE_URL;
-  const envModel = process.env["MARKETKU_MODEL"] ?? "nk/auto";
+  const envModel = normalizeModel(process.env["MARKETKU_MODEL"] ?? DEFAULT_MODEL);
 
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -39,7 +39,7 @@ export async function loadConfig(): Promise<AiConfig> {
     return {
       baseUrl: (data?.base_url as string) || envBase,
       apiKey: (data?.api_key as string) || envKey,
-      model: (data?.model as string) || envModel,
+      model: normalizeModel((data?.model as string) || envModel),
     };
   } catch {
     return { baseUrl: envBase, apiKey: envKey, model: envModel };
@@ -68,7 +68,7 @@ export async function callAI(
         Authorization: `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({
-        model: opts.model || config.model,
+        model: normalizeModel(opts.model || config.model),
         messages,
         ...(opts.json ? { response_format: { type: "json_object" } } : {}),
       }),
@@ -78,13 +78,17 @@ export async function callAI(
   }
 
   if (!res.ok) {
+    const detail = await extractError(res);
     if (res.status === 401 || res.status === 403) {
-      throw new AiError("API Key ditolak oleh server AI. Periksa konfigurasi.");
+      throw new AiError(`API Key ditolak oleh server AI. ${detail}`.trim());
     }
     if (res.status === 429) {
       throw new AiError("Terlalu banyak permintaan ke AI. Coba lagi sebentar lagi.");
     }
-    throw new AiError("AI sedang mengalami gangguan. Silakan coba lagi.");
+    if (res.status === 404 || res.status === 400) {
+      throw new AiError(`Permintaan ditolak router (${res.status}). ${detail}`.trim());
+    }
+    throw new AiError(`AI sedang mengalami gangguan (${res.status}). ${detail}`.trim());
   }
 
   const data = (await res.json().catch(() => null)) as
