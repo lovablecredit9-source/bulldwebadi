@@ -99,6 +99,44 @@ export type Database = {
         }
         Relationships: []
       }
+      project_activities: {
+        Row: {
+          action: string
+          created_at: string
+          files: Json
+          id: string
+          project_id: string
+          summary: string
+          title: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          files?: Json
+          id?: string
+          project_id: string
+          summary?: string
+          title?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          files?: Json
+          id?: string
+          project_id?: string
+          summary?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_activities_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_files: {
         Row: {
           content: string
