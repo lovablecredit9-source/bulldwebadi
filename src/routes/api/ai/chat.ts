@@ -18,9 +18,13 @@ export const Route = createFileRoute("/api/ai/chat")({
           projectId?: string;
           message?: string;
           model?: string;
+          images?: string[];
         };
         try {
-          const message = (body.message ?? "").trim();
+          const images = (body.images ?? [])
+            .filter((u) => typeof u === "string" && u.startsWith("data:image/"))
+            .slice(0, 4);
+          const message = (body.message ?? "").trim() || (images.length ? "Tiru desain pada foto ini semirip mungkin, lalu rangkum isi fotonya." : "");
           if (!message) throw new AiError("Pesan kosong.");
           if (!body.chatId) throw new AiError("Chat tidak ditemukan.");
 
