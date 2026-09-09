@@ -10,7 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ExtensionRouteImport } from './routes/extension'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as TelegramRouteImport } from './routes/telegram'
+import { Route as UploadRouteImport } from './routes/upload'
+import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as ApiSettingsRouteImport } from './routes/api/settings'
+import { Route as ProjectsIndexRouteImport } from './routes/projects.index'
+import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
 import { Route as ApiAiAddFeatureRouteImport } from './routes/api/ai/add-feature'
 import { Route as ApiAiAnalyzeProjectRouteImport } from './routes/api/ai/analyze-project'
 import { Route as ApiAiChatRouteImport } from './routes/api/ai/chat'
@@ -26,9 +33,44 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExtensionRoute = ExtensionRouteImport.update({
+  id: '/extension',
+  path: '/extension',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TelegramRoute = TelegramRouteImport.update({
+  id: '/telegram',
+  path: '/telegram',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UploadRoute = UploadRouteImport.update({
+  id: '/upload',
+  path: '/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WhatsappRoute = WhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSettingsRoute = ApiSettingsRouteImport.update({
   id: '/api/settings',
   path: '/api/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
+  id: '/projects/',
+  path: '/projects/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsIdRoute = ProjectsIdRouteImport.update({
+  id: '/projects/$id',
+  path: '/projects/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAiAddFeatureRoute = ApiAiAddFeatureRouteImport.update({
@@ -79,7 +121,14 @@ const ApiProjectUploadRoute = ApiProjectUploadRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/extension': typeof ExtensionRoute
+  '/settings': typeof SettingsRoute
+  '/telegram': typeof TelegramRoute
+  '/upload': typeof UploadRoute
+  '/whatsapp': typeof WhatsappRoute
   '/api/settings': typeof ApiSettingsRoute
+  '/projects/$id': typeof ProjectsIdRoute
+  '/projects/': typeof ProjectsIndexRoute
   '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
   '/api/ai/analyze-project': typeof ApiAiAnalyzeProjectRoute
   '/api/ai/chat': typeof ApiAiChatRoute
@@ -92,7 +141,14 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/extension': typeof ExtensionRoute
+  '/settings': typeof SettingsRoute
+  '/telegram': typeof TelegramRoute
+  '/upload': typeof UploadRoute
+  '/whatsapp': typeof WhatsappRoute
   '/api/settings': typeof ApiSettingsRoute
+  '/projects/$id': typeof ProjectsIdRoute
+  '/projects': typeof ProjectsIndexRoute
   '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
   '/api/ai/analyze-project': typeof ApiAiAnalyzeProjectRoute
   '/api/ai/chat': typeof ApiAiChatRoute
@@ -106,7 +162,14 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/extension': typeof ExtensionRoute
+  '/settings': typeof SettingsRoute
+  '/telegram': typeof TelegramRoute
+  '/upload': typeof UploadRoute
+  '/whatsapp': typeof WhatsappRoute
   '/api/settings': typeof ApiSettingsRoute
+  '/projects/$id': typeof ProjectsIdRoute
+  '/projects/': typeof ProjectsIndexRoute
   '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
   '/api/ai/analyze-project': typeof ApiAiAnalyzeProjectRoute
   '/api/ai/chat': typeof ApiAiChatRoute
@@ -121,7 +184,14 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/extension'
+    | '/settings'
+    | '/telegram'
+    | '/upload'
+    | '/whatsapp'
     | '/api/settings'
+    | '/projects/$id'
+    | '/projects/'
     | '/api/ai/add-feature'
     | '/api/ai/analyze-project'
     | '/api/ai/chat'
@@ -134,7 +204,14 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/extension'
+    | '/settings'
+    | '/telegram'
+    | '/upload'
+    | '/whatsapp'
     | '/api/settings'
+    | '/projects/$id'
+    | '/projects'
     | '/api/ai/add-feature'
     | '/api/ai/analyze-project'
     | '/api/ai/chat'
@@ -147,7 +224,14 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/extension'
+    | '/settings'
+    | '/telegram'
+    | '/upload'
+    | '/whatsapp'
     | '/api/settings'
+    | '/projects/$id'
+    | '/projects/'
     | '/api/ai/add-feature'
     | '/api/ai/analyze-project'
     | '/api/ai/chat'
@@ -161,7 +245,14 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ExtensionRoute: typeof ExtensionRoute
+  SettingsRoute: typeof SettingsRoute
+  TelegramRoute: typeof TelegramRoute
+  UploadRoute: typeof UploadRoute
+  WhatsappRoute: typeof WhatsappRoute
   ApiSettingsRoute: typeof ApiSettingsRoute
+  ProjectsIdRoute: typeof ProjectsIdRoute
+  ProjectsIndexRoute: typeof ProjectsIndexRoute
   ApiAiAddFeatureRoute: typeof ApiAiAddFeatureRoute
   ApiAiAnalyzeProjectRoute: typeof ApiAiAnalyzeProjectRoute
   ApiAiChatRoute: typeof ApiAiChatRoute
@@ -182,11 +273,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/extension': {
+      id: '/extension'
+      path: '/extension'
+      fullPath: '/extension'
+      preLoaderRoute: typeof ExtensionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/telegram': {
+      id: '/telegram'
+      path: '/telegram'
+      fullPath: '/telegram'
+      preLoaderRoute: typeof TelegramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/upload': {
+      id: '/upload'
+      path: '/upload'
+      fullPath: '/upload'
+      preLoaderRoute: typeof UploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/whatsapp': {
+      id: '/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/whatsapp'
+      preLoaderRoute: typeof WhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/settings': {
       id: '/api/settings'
       path: '/api/settings'
       fullPath: '/api/settings'
       preLoaderRoute: typeof ApiSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/': {
+      id: '/projects/'
+      path: '/projects'
+      fullPath: '/projects/'
+      preLoaderRoute: typeof ProjectsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/$id': {
+      id: '/projects/$id'
+      path: '/projects/$id'
+      fullPath: '/projects/$id'
+      preLoaderRoute: typeof ProjectsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/ai/add-feature': {
@@ -257,7 +397,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ExtensionRoute: ExtensionRoute,
+  SettingsRoute: SettingsRoute,
+  TelegramRoute: TelegramRoute,
+  UploadRoute: UploadRoute,
+  WhatsappRoute: WhatsappRoute,
   ApiSettingsRoute: ApiSettingsRoute,
+  ProjectsIdRoute: ProjectsIdRoute,
+  ProjectsIndexRoute: ProjectsIndexRoute,
   ApiAiAddFeatureRoute: ApiAiAddFeatureRoute,
   ApiAiAnalyzeProjectRoute: ApiAiAnalyzeProjectRoute,
   ApiAiChatRoute: ApiAiChatRoute,

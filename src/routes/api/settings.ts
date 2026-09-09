@@ -26,11 +26,16 @@ export const Route = createFileRoute("/api/settings")({
           apiKey?: string;
           model?: string;
         };
-        const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-        if (body.baseUrl && /^https?:\/\//.test(body.baseUrl)) update["base_url"] = body.baseUrl;
-        if (body.model) update["model"] = body.model;
+        const update: {
+          updated_at: string;
+          base_url?: string;
+          model?: string;
+          api_key?: string;
+        } = { updated_at: new Date().toISOString() };
+        if (body.baseUrl && /^https?:\/\//.test(body.baseUrl)) update.base_url = body.baseUrl;
+        if (body.model) update.model = body.model;
         if (typeof body.apiKey === "string" && body.apiKey.trim().length > 0) {
-          update["api_key"] = body.apiKey.trim();
+          update.api_key = body.apiKey.trim();
         }
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { error } = await supabaseAdmin.from("ai_settings").update(update).eq("id", 1);
