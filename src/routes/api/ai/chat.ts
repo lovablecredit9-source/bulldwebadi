@@ -63,12 +63,31 @@ ${contextBlock(relevant)}`,
           for (const m of (history ?? []).slice().reverse()) {
             messages.push({ role: m.role as string, content: m.content as string });
           }
-          messages.push({ role: "user", content: message });
+          if (images.length) {
+            messages.push({
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `${message}
+
+Tugas tambahan: analisa foto terlampir, rangkum isinya (layout, warna, font, komponen, teks penting), lalu tiru desainnya semirip mungkin dalam kode.`,
+                },
+                ...images.map((url) => ({ type: "image_url" as const, image_url: { url } })),
+              ],
+            });
+          } else {
+            messages.push({ role: "user", content: message });
+          }
 
           const reply = await callAI(messages, { ...(body.model ? { model: body.model } : {}) });
 
           await supabaseAdmin.from("ai_messages").insert([
-            { chat_id: body.chatId, role: "user", content: message },
+            {
+              chat_id: body.chatId,
+              role: "user",
+              content: images.length ? `${message}\n\n[${images.length} foto dilampirkan]` : message,
+            },
             { chat_id: body.chatId, role: "assistant", content: reply },
           ]);
 
