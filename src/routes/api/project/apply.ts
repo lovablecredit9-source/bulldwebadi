@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { safeJson } from "@/lib/ai.server";
-import { applyFiles, saveVersion } from "@/lib/project.server";
+import { applyFiles, logActivity, saveVersion } from "@/lib/project.server";
 
 export const Route = createFileRoute("/api/project/apply")({
   server: {
