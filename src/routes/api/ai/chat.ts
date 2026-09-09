@@ -37,7 +37,7 @@ export const Route = createFileRoute("/api/ai/chat")({
             .order("created_at", { ascending: false })
             .limit(10);
 
-          const messages: { role: string; content: string }[] = [
+          const messages: { role: string; content: MsgContent }[] = [
             { role: "system", content: SYSTEM_PROMPT },
           ];
 
