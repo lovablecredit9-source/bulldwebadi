@@ -1,4 +1,5 @@
 import { DEFAULT_BASE_URL, DEFAULT_MODEL, normalizeModel } from "./models";
+import { jsonrepair } from "jsonrepair";
 
 export const SYSTEM_PROMPT = `Kamu adalah ADI BUILDER AI.
 
@@ -183,6 +184,11 @@ export function parseJsonLoose<T>(text: string): T {
   try {
     return JSON.parse(t) as T;
   } catch {
+    try {
+      return JSON.parse(jsonrepair(t)) as T;
+    } catch {
+      // Berikan pesan yang sesuai bila respons tetap tidak bisa dipulihkan.
+    }
     const looksTruncated = !t.endsWith("}") && !t.endsWith("]");
     throw new AiError(
       looksTruncated
