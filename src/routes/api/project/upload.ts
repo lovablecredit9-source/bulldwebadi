@@ -37,12 +37,13 @@ export const Route = createFileRoute("/api/project/upload")({
           const name = String(form.get("name") ?? "Project Upload").slice(0, 80);
           const type = String(form.get("type") ?? "other");
           const uploads = form.getAll("files").filter((f): f is File => f instanceof File);
+          const paths = form.getAll("paths").map(String);
           if (!uploads.length) return safeJson({ error: "File tidak dapat diproses." }, 400);
 
           const collected: { path: string; content: string }[] = [];
           let total = 0;
 
-          for (const file of uploads) {
+          for (const [uploadIndex, file] of uploads.entries()) {
             if (file.size > MAX_TOTAL) return safeJson({ error: "Ukuran file terlalu besar." }, 400);
             const buf = new Uint8Array(await file.arrayBuffer());
 
@@ -65,7 +66,7 @@ export const Route = createFileRoute("/api/project/upload")({
                 collected.push({ path, content: contentOf(path, data) });
               }
             } else {
-              const path = sanitizePath(file.name);
+              const path = sanitizePath(paths[uploadIndex] || file.name);
               if (!ALLOWED.has(extOf(path))) {
                 return safeJson({ error: "Tipe file tidak didukung." }, 400);
               }

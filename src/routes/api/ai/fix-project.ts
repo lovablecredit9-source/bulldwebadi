@@ -25,11 +25,6 @@ export const Route = createFileRoute("/api/ai/fix-project")({
           const relevant = pickRelevantFiles(files, instruction, body.targetFiles ?? []);
 
           const prompt = `Perbaiki project berikut. Instruksi: ${instruction}
-            [
-              { role: "system", content: SYSTEM_PROMPT },
-              {
-                role: "user",
-                content: `Perbaiki project berikut. Instruksi: ${instruction}
 
 STRUKTUR:
 ${buildTree(files.map((f) => f.path))}
@@ -48,7 +43,6 @@ Aturan: hanya kembalikan file yang benar-benar perlu diubah, isi file harus leng
             [
               { role: "system", content: SYSTEM_PROMPT },
               { role: "user", content },
-            ],
             ],
             { ...(body.model ? { model: body.model } : {}), json: true },
           );

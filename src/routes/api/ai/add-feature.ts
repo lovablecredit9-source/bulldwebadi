@@ -24,11 +24,6 @@ export const Route = createFileRoute("/api/ai/add-feature")({
           const relevant = pickRelevantFiles(files, instruction);
 
           const prompt = `Tambahkan fitur pada project ini. Permintaan: ${instruction || "Tiru desain dari foto referensi."}
-            [
-              { role: "system", content: SYSTEM_PROMPT },
-              {
-                role: "user",
-                content: `Tambahkan fitur pada project ini. Permintaan: ${instruction}
 
 STRUKTUR:
 ${buildTree(files.map((f) => f.path))}
@@ -47,7 +42,6 @@ Aturan: hanya ubah/buat file yang diperlukan untuk fitur ini. ${images.length ? 
             [
               { role: "system", content: SYSTEM_PROMPT },
               { role: "user", content },
-            ],
             ],
             { ...(body.model ? { model: body.model } : {}), json: true },
           );

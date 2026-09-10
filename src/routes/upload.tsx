@@ -53,7 +53,8 @@ function UploadPage() {
     form.set("type", type);
     for (const f of files) {
       const relativePath = (f as File & { webkitRelativePath?: string }).webkitRelativePath;
-      form.append("files", f, relativePath || f.name);
+      form.append("files", f);
+      form.append("paths", relativePath || f.name);
     }
     setLoading(true);
     try {
