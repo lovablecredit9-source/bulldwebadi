@@ -17,6 +17,7 @@ import {
 import { ModelSelect } from "@/components/ModelSelect";
 import { DEFAULT_MODEL, PROJECT_TYPES } from "@/lib/models";
 import { postJson } from "@/lib/api";
+import { ReferenceImages } from "@/components/ReferenceImages";
 
 export function BuilderForm({
   fixedType,
@@ -41,13 +42,14 @@ export function BuilderForm({
   const [desc, setDesc] = useState("");
   const [model, setModel] = useState(DEFAULT_MODEL);
   const [loading, setLoading] = useState(false);
+  const [images, setImages] = useState<string[]>([]);
 
   const submit = async () => {
     setLoading(true);
     try {
       const res = await postJson<{ projectId: string; plan: string; files: string[] }>(
         "/api/ai/generate-project",
-        { name, type: fixedType ?? type, description: desc, model, meta: meta ?? {} },
+        { name, type: fixedType ?? type, description: desc, model, meta: meta ?? {}, images },
       );
       toast.success(`Project dibuat: ${res.files.length} file`);
       navigate({ to: "/projects/$id", params: { id: res.projectId } });
@@ -100,6 +102,8 @@ export function BuilderForm({
         </div>
 
         <ModelSelect value={model} onChange={setModel} />
+
+        <ReferenceImages images={images} onChange={setImages} disabled={loading} />
 
         <Button onClick={submit} disabled={loading} size="lg" className="rounded-xl">
           {loading ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}

@@ -1,4 +1,5 @@
 import { sanitizePath } from "./ai.server";
+import { parseBinaryContent } from "./file-content";
 
 export type FileRow = { path: string; content: string };
 
@@ -70,7 +71,14 @@ export function pickRelevantFiles(files: FileRow[], instruction: string, extra: 
 }
 
 export function contextBlock(files: FileRow[]) {
-  return files.map((f) => `--- FILE: ${f.path} ---\n${f.content}`).join("\n\n");
+  return files
+    .map((f) => {
+      const binary = parseBinaryContent(f.content);
+      return binary
+        ? `--- FILE: ${f.path} ---\n[aset biner ${binary.mime}; isi tidak dimasukkan ke context]`
+        : `--- FILE: ${f.path} ---\n${f.content}`;
+    })
+    .join("\n\n");
 }
 
 export async function saveVersion(projectId: string, label: string) {

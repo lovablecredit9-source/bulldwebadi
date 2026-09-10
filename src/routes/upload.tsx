@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, UploadCloud } from "lucide-react";
+import { FolderUp, Loader2, UploadCloud } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,18 +35,27 @@ function UploadPage() {
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [type, setType] = useState("browser-extension");
-  const [files, setFiles] = useState<FileList | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+  const folderInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    folderInput.current?.setAttribute("webkitdirectory", "");
+  }, []);
 
   const submit = async () => {
-    if (!files?.length) {
+    if (!files.length) {
       toast.error("Pilih file terlebih dahulu.");
       return;
     }
     const form = new FormData();
     form.set("name", name || "Project Upload");
     form.set("type", type);
-    for (const f of Array.from(files)) form.append("files", f);
+    for (const f of files) {
+      const relativePath = (f as File & { webkitRelativePath?: string }).webkitRelativePath;
+      form.append("files", f);
+      form.append("paths", relativePath || f.name);
+    }
     setLoading(true);
     try {
       const res = await postForm<{ projectId: string; files: string[] }>(
@@ -66,8 +75,8 @@ function UploadPage() {
     <AppShell>
       <h1 className="text-2xl font-bold">Upload Project</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Mendukung ZIP, JS, JSON, HTML, CSS, PY, TXT dan file kode aman lainnya. File tidak pernah
-        dijalankan otomatis.
+        Upload ZIP, beberapa file, atau satu folder lengkap. Struktur subfolder dan aset aman tetap
+        dipertahankan; isi unggahan tidak pernah dijalankan otomatis.
       </p>
 
       <div className="mt-6 grid max-w-2xl gap-4 rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
@@ -95,11 +104,24 @@ function UploadPage() {
           <Input
             type="file"
             multiple
-            accept=".zip,.js,.mjs,.cjs,.ts,.tsx,.jsx,.json,.html,.htm,.css,.scss,.py,.txt,.md,.yml,.yaml,.xml,.sql,.toml,.ini"
-            onChange={(e) => setFiles(e.target.files)}
+            accept=".zip,.js,.mjs,.cjs,.ts,.tsx,.jsx,.json,.html,.htm,.css,.scss,.py,.txt,.md,.yml,.yaml,.xml,.sql,.toml,.ini,.png,.jpg,.jpeg,.webp,.gif,.ico,.avif,.bmp,.pdf,.woff,.woff2,.ttf,.otf,.mp3,.wav,.ogg,.mp4,.webm"
+            onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
           />
+          <div className="flex items-center gap-2">
+            <Input
+              ref={folderInput}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
+            />
+            <Button type="button" variant="outline" onClick={() => folderInput.current?.click()}>
+              <FolderUp className="size-4" /> Pilih Folder
+            </Button>
+            <span className="text-xs text-muted-foreground">{files.length ? `${files.length} file dipilih` : "Belum ada file"}</span>
+          </div>
           <p className="text-xs text-muted-foreground">
-            Maksimal total 12 MB, 300 file, 1 MB per file.
+            Maksimal total 20 MB, 500 file, 4 MB per file. Folder kosong tidak memiliki isi untuk disimpan.
           </p>
         </div>
         <Button onClick={submit} disabled={loading} size="lg" className="rounded-xl">

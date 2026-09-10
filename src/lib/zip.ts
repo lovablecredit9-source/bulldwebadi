@@ -1,10 +1,11 @@
 import { zipSync, strToU8 } from "fflate";
+import { binaryContentToBytes, mimeForPath } from "./file-content";
 
 export type ZipFile = { path: string; content: string };
 
 export function downloadZip(name: string, files: ZipFile[]) {
   const entries: Record<string, Uint8Array> = {};
-  for (const f of files) entries[f.path] = strToU8(f.content);
+  for (const f of files) entries[f.path] = binaryContentToBytes(f.content) ?? strToU8(f.content);
   const zipped = zipSync(entries, { level: 6 });
   const view = new Uint8Array(zipped);
   const blob = new Blob([view.buffer as ArrayBuffer], { type: "application/zip" });
@@ -12,7 +13,10 @@ export function downloadZip(name: string, files: ZipFile[]) {
 }
 
 export function downloadFile(path: string, content: string) {
-  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const binary = binaryContentToBytes(content);
+  const blob = binary
+    ? new Blob([binary], { type: mimeForPath(path) })
+    : new Blob([content], { type: "text/plain;charset=utf-8" });
   triggerDownload(blob, path.split("/").pop() || "file.txt");
 }
 
