@@ -158,7 +158,7 @@ function Workspace() {
           <VersionsTab projectId={id} onRestored={reload} />
         </TabsContent>
         <TabsContent value="history">
-          <HistoryTab projectId={id} />
+          <HistoryTab projectId={id} onRestored={reload} />
         </TabsContent>
       </Tabs>
     </AppShell>
