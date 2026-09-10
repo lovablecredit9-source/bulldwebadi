@@ -7,9 +7,7 @@ import {
   Copy,
   Download,
   FileCode,
-  ImagePlus,
   Loader2,
-  X,
   MessageSquarePlus,
   Package,
   Pencil,
@@ -29,7 +27,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModelSelect } from "@/components/ModelSelect";
+import { ReferenceImages } from "@/components/ReferenceImages";
 import { postJson } from "@/lib/api";
+import { binaryContentDataUrl, parseBinaryContent } from "@/lib/file-content";
 import { DEFAULT_MODEL } from "@/lib/models";
 import { autoReadme, downloadFile, downloadZip } from "@/lib/zip";
 import {
@@ -182,6 +182,8 @@ function FilesTab({
   const [saving, setSaving] = useState(false);
 
   const current = files.find((f) => f.path === active);
+  const binary = current ? parseBinaryContent(current.content) : null;
+  const imageUrl = current ? binaryContentDataUrl(current.content) : null;
   useEffect(() => {
     setContent(current?.content ?? "");
   }, [current?.path, current?.content]);
@@ -240,34 +242,52 @@ function FilesTab({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="truncate font-mono text-xs">{active || "—"}</p>
           <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                void navigator.clipboard.writeText(content);
-                toast.success("Disalin");
-              }}
-            >
-              <Copy className="size-4" />
-              Copy
-            </Button>
+            {!binary && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  void navigator.clipboard.writeText(content);
+                  toast.success("Disalin");
+                }}
+              >
+                <Copy className="size-4" />
+                Copy
+              </Button>
+            )}
             <Button size="sm" variant="outline" onClick={() => downloadFile(active, content)}>
               <Download className="size-4" />
               File
             </Button>
-            <Button size="sm" onClick={save} disabled={saving || !active}>
-              {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-              Save
-            </Button>
+            {!binary && (
+              <Button size="sm" onClick={save} disabled={saving || !active}>
+                {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                Save
+              </Button>
+            )}
           </div>
         </div>
-        <Textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          spellCheck={false}
-          rows={22}
-          className="mt-3 font-mono text-xs leading-relaxed"
-        />
+        {binary ? (
+          <div className="mt-3 grid min-h-80 place-items-center rounded-lg border bg-muted/40 p-4">
+            {imageUrl && binary.mime.startsWith("image/") ? (
+              <img src={imageUrl} alt={`Preview ${active}`} className="max-h-[520px] max-w-full object-contain" />
+            ) : (
+              <div className="text-center">
+                <FileCode className="mx-auto size-10 text-muted-foreground" />
+                <p className="mt-2 text-sm font-medium">File biner tersimpan utuh</p>
+                <p className="text-xs text-muted-foreground">{binary.mime} · gunakan tombol File untuk mengunduh</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <Textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            spellCheck={false}
+            rows={22}
+            className="mt-3 font-mono text-xs leading-relaxed"
+          />
+        )}
       </div>
     </div>
   );
@@ -435,6 +455,7 @@ function FixTab({
   const [instruction, setInstruction] = useState("");
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [busy, setBusy] = useState("");
+  const [images, setImages] = useState<string[]>([]);
 
   const [lastAction, setLastAction] = useState("fix-project");
 
@@ -444,7 +465,7 @@ function FixTab({
     setProposal(null);
     try {
       setProposal(
-        await postJson<Proposal>(`/api/ai/${endpoint}`, { projectId, instruction, model }),
+        await postJson<Proposal>(`/api/ai/${endpoint}`, { projectId, instruction, model, images }),
       );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "AI sedang mengalami gangguan.");
@@ -488,6 +509,9 @@ function FixTab({
           onChange={(e) => setInstruction(e.target.value)}
           placeholder="Contoh: perbaiki semua error, atau tambahkan dark mode dan tombol download."
         />
+        <div className="mt-3">
+          <ReferenceImages images={images} onChange={setImages} disabled={busy !== ""} />
+        </div>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button onClick={() => request("fix-project")} disabled={busy !== ""} className="rounded-xl">
             {busy === "fix-project" ? (
@@ -578,20 +602,6 @@ function ChatTab({
   const [sending, setSending] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
 
-  const addPhotos = async (list: FileList | null) => {
-    if (!list?.length) return;
-    const next: string[] = [];
-    for (const file of Array.from(list).slice(0, 4)) {
-      if (!file.type.startsWith("image/")) continue;
-      try {
-        next.push(await compressImage(file));
-      } catch {
-        toast.error("Foto tidak dapat dibaca.");
-      }
-    }
-    if (next.length) setPhotos((p) => [...p, ...next].slice(0, 4));
-  };
-
   const loadChats = useCallback(async () => {
     const c = await listChats(projectId);
     setChats(c);
@@ -615,25 +625,28 @@ function ChatTab({
 
   const send = async (text?: string) => {
     const message = (text ?? input).trim();
-    if (!message) return;
+    if (!message && !photos.length) return;
+    const effectiveMessage = message || "Analisa dan rangkum seluruh foto ini, lalu tiru desainnya semirip mungkin pada project.";
     let chatId = activeChat;
     if (!chatId) {
-      const c = await createChat(projectId, message.slice(0, 40));
+      const c = await createChat(projectId, effectiveMessage.slice(0, 40));
       chatId = c.id;
       setChats((prev) => [c, ...prev]);
       setActiveChat(c.id);
     }
     setSending(true);
-    setInput("");
-    setMessages((m) => [...m, { id: `tmp-${Date.now()}`, role: "user", content: message }]);
+    setMessages((m) => [...m, { id: `tmp-${Date.now()}`, role: "user", content: `${effectiveMessage}${photos.length ? `\n\n[${photos.length} foto dilampirkan]` : ""}` }]);
     try {
       const res = await postJson<{ reply: string }>("/api/ai/chat", {
         chatId,
         projectId,
-        message,
+        message: effectiveMessage,
         model,
+        images: photos,
       });
       setMessages((m) => [...m, { id: `a-${Date.now()}`, role: "assistant", content: res.reply }]);
+      setInput("");
+      setPhotos([]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "AI sedang mengalami gangguan.");
     } finally {
@@ -742,6 +755,9 @@ function ChatTab({
           <Button onClick={() => send()} disabled={sending}>
             {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>
+        </div>
+        <div className="mt-3">
+          <ReferenceImages images={photos} onChange={setPhotos} disabled={sending} />
         </div>
       </div>
 
