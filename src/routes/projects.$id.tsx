@@ -158,7 +158,7 @@ function Workspace() {
           <VersionsTab projectId={id} onRestored={reload} />
         </TabsContent>
         <TabsContent value="history">
-          <HistoryTab projectId={id} />
+          <HistoryTab projectId={id} onRestored={reload} />
         </TabsContent>
       </Tabs>
     </AppShell>
@@ -872,13 +872,53 @@ const ACTION_LABEL: Record<string, string> = {
   update: "Perubahan file",
 };
 
-function HistoryTab({ projectId }: { projectId: string }) {
+function HistoryTab({
+  projectId,
+  onRestored,
+}: {
+  projectId: string;
+  onRestored: () => Promise<void> | void;
+}) {
   const [items, setItems] = useState<ProjectActivity[] | null>(null);
   const [open, setOpen] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     void listActivities(projectId).then(setItems);
   }, [projectId]);
+  useEffect(load, [load]);
+
+  /** Kembalikan isi file ke kondisi sebelum perubahan tercatat. */
+  const revert = async (
+    label: string,
+    files: { path: string; content: string; before?: string }[],
+  ) => {
+    const target = files
+      .filter((f) => typeof f.before === "string")
+      .map((f) => ({ path: f.path, content: f.before as string, reason: "Dikembalikan dari riwayat" }));
+    if (!target.length) {
+      toast.error("File lama tidak tersedia untuk riwayat ini.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await postJson("/api/project/apply", {
+        projectId,
+        label,
+        action: "restore",
+        plan: `Mengembalikan ${target.length} file ke versi sebelumnya.`,
+        files: target,
+      });
+      toast.success(`${target.length} file dikembalikan.`);
+      await onRestored();
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Perubahan tidak dapat diproses.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
 
   if (!items) return <Skeleton className="h-32 w-full rounded-2xl" />;
   if (!items.length)
@@ -901,20 +941,53 @@ function HistoryTab({ projectId }: { projectId: string }) {
                 {a.files?.length ?? 0} file
               </p>
             </div>
-            <Button size="sm" variant="outline" onClick={() => setOpen(open === a.id ? "" : a.id)}>
-              Detail
-            </Button>
+            <div className="flex gap-2">
+              {(a.files ?? []).some((f) => typeof f.before === "string") && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => revert(`Kembalikan: ${ACTION_LABEL[a.action] ?? a.action}`, a.files)}
+                >
+                  Kembalikan semua
+                </Button>
+              )}
+              <Button size="sm" variant="outline" onClick={() => setOpen(open === a.id ? "" : a.id)}>
+                Detail
+              </Button>
+            </div>
           </div>
           {a.summary && (
             <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{a.summary}</p>
           )}
           {open === a.id && (
-            <div className="mt-3 max-h-80 space-y-2 overflow-auto">
+            <div className="mt-3 max-h-[28rem] space-y-2 overflow-auto">
               {(a.files ?? []).map((f) => (
                 <details key={f.path} className="rounded-lg border p-2">
                   <summary className="cursor-pointer font-mono text-xs">{f.path}</summary>
                   {f.reason && <p className="mt-1 text-xs text-muted-foreground">{f.reason}</p>}
-                  <pre className="mt-2 max-h-56 overflow-auto text-[11px]">{f.content}</pre>
+                  {typeof f.before === "string" && (
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-muted-foreground">Sebelum diubah</p>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy}
+                          onClick={() => revert(`Kembalikan file ${f.path}`, [f])}
+                        >
+                          Kembalikan file ini
+                        </Button>
+                      </div>
+                      <pre className="mt-1 overflow-auto rounded bg-muted/50 p-2 text-[11px]">
+                        {f.before || "(file baru / kosong)"}
+                      </pre>
+                    </div>
+                  )}
+                  <p className="mt-2 text-xs font-semibold text-muted-foreground">Sesudah diubah</p>
+                  <pre className="mt-1 overflow-auto rounded bg-muted/50 p-2 text-[11px]">
+                    {f.content}
+                  </pre>
                 </details>
               ))}
             </div>
