@@ -872,13 +872,53 @@ const ACTION_LABEL: Record<string, string> = {
   update: "Perubahan file",
 };
 
-function HistoryTab({ projectId }: { projectId: string }) {
+function HistoryTab({
+  projectId,
+  onRestored,
+}: {
+  projectId: string;
+  onRestored: () => Promise<void> | void;
+}) {
   const [items, setItems] = useState<ProjectActivity[] | null>(null);
   const [open, setOpen] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     void listActivities(projectId).then(setItems);
   }, [projectId]);
+  useEffect(load, [load]);
+
+  /** Kembalikan isi file ke kondisi sebelum perubahan tercatat. */
+  const revert = async (
+    label: string,
+    files: { path: string; content: string; before?: string }[],
+  ) => {
+    const target = files
+      .filter((f) => typeof f.before === "string")
+      .map((f) => ({ path: f.path, content: f.before as string, reason: "Dikembalikan dari riwayat" }));
+    if (!target.length) {
+      toast.error("File lama tidak tersedia untuk riwayat ini.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await postJson("/api/project/apply", {
+        projectId,
+        label,
+        action: "restore",
+        plan: `Mengembalikan ${target.length} file ke versi sebelumnya.`,
+        files: target,
+      });
+      toast.success(`${target.length} file dikembalikan.`);
+      await onRestored();
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Perubahan tidak dapat diproses.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
 
   if (!items) return <Skeleton className="h-32 w-full rounded-2xl" />;
   if (!items.length)
