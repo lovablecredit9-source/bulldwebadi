@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AiError, SYSTEM_PROMPT, callAI, errorResponse, parseJsonLoose, safeJson } from "@/lib/ai.server";
+import { AiError, SYSTEM_PROMPT, callAI, errorResponse, parseJsonLoose, safeJson, type MsgContent } from "@/lib/ai.server";
 import { buildTree, contextBlock, getFiles, getProject, pickRelevantFiles } from "@/lib/project.server";
 
 export const Route = createFileRoute("/api/ai/add-feature")({
@@ -10,18 +10,20 @@ export const Route = createFileRoute("/api/ai/add-feature")({
           projectId?: string;
           instruction?: string;
           model?: string;
+          images?: string[];
         };
         try {
           if (!body.projectId) throw new AiError("Project tidak ditemukan.");
           const project = await getProject(body.projectId);
           if (!project) throw new AiError("Project tidak ditemukan.");
           const instruction = (body.instruction ?? "").trim();
-          if (!instruction) throw new AiError("Tulis fitur yang ingin ditambahkan.");
+          const images = (body.images ?? []).filter((image) => typeof image === "string" && image.startsWith("data:image/")).slice(0, 4);
+          if (!instruction && !images.length) throw new AiError("Tulis fitur atau lampirkan foto referensi.");
 
           const files = await getFiles(body.projectId);
           const relevant = pickRelevantFiles(files, instruction);
 
-          const out = await callAI(
+          const prompt = `Tambahkan fitur pada project ini. Permintaan: ${instruction || "Tiru desain dari foto referensi."}
             [
               { role: "system", content: SYSTEM_PROMPT },
               {
@@ -37,8 +39,15 @@ ${contextBlock(relevant)}
 Balas HANYA JSON valid:
 {"plan":"rencana perubahan","files":[{"path":"","content":"isi file lengkap","reason":""}]}
 
-Aturan: hanya ubah/buat file yang diperlukan untuk fitur ini.`,
-              },
+Aturan: hanya ubah/buat file yang diperlukan untuk fitur ini. ${images.length ? "Analisa semua foto, rangkum isi visualnya dalam plan, lalu tiru desainnya semirip mungkin." : ""}`;
+          const content: MsgContent = images.length
+            ? [{ type: "text", text: prompt }, ...images.map((url) => ({ type: "image_url" as const, image_url: { url } }))]
+            : prompt;
+          const out = await callAI(
+            [
+              { role: "system", content: SYSTEM_PROMPT },
+              { role: "user", content },
+            ],
             ],
             { ...(body.model ? { model: body.model } : {}), json: true },
           );

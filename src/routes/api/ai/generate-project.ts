@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AiError, SYSTEM_PROMPT, callAI, errorResponse, parseJsonLoose, safeJson } from "@/lib/ai.server";
+import { AiError, SYSTEM_PROMPT, callAI, errorResponse, parseJsonLoose, safeJson, type MsgContent } from "@/lib/ai.server";
 import { applyFiles, logActivity, saveVersion } from "@/lib/project.server";
 import { projectTypeLabel } from "@/lib/models";
 
@@ -24,6 +24,7 @@ export const Route = createFileRoute("/api/ai/generate-project")({
           description?: string;
           model?: string;
           meta?: Record<string, unknown>;
+          images?: string[];
         };
         const name = (body.name ?? "").trim();
         const type = body.type ?? "nodejs";
@@ -34,22 +35,21 @@ export const Route = createFileRoute("/api/ai/generate-project")({
           if (description.length < 5) throw new AiError("Deskripsi project terlalu pendek.");
 
           const meta = body.meta ?? {};
+          const images = (body.images ?? [])
+            .filter((image) => typeof image === "string" && image.startsWith("data:image/"))
+            .slice(0, 4);
           const secretNote = meta["telegramToken"]
             ? "Token bot tersimpan di config lewat environment variable, JANGAN tulis token asli di kode."
             : "";
 
-          const out = await callAI(
-            [
-              { role: "system", content: SYSTEM_PROMPT },
-              {
-                role: "user",
-                content: `Buat project baru yang benar-benar berfungsi dengan struktur ringkas agar seluruh jawaban selesai dan tidak terpotong.
+          const prompt = `Buat project baru yang benar-benar berfungsi dengan struktur ringkas agar seluruh jawaban selesai dan tidak terpotong.
 
 Nama project: ${name}
 Jenis: ${projectTypeLabel(type)}
 Deskripsi: ${description}
 ${HINTS[type] ?? ""}
 ${secretNote}
+${images.length ? "Analisa seluruh foto referensi. Rangkum layout, warna, tipografi, komponen, dan teks penting dalam plan, lalu tiru desainnya semirip mungkin dalam kode." : ""}
 
 Balas HANYA JSON valid dengan bentuk:
 {"plan":"ringkasan singkat struktur & fitur","files":[{"path":"package.json","content":"..."}]}
@@ -59,8 +59,18 @@ Aturan:
 - Sertakan README.md berisi instalasi, dependency, konfigurasi, cara menjalankan, dan struktur project.
 - Gunakan sesedikit mungkin file; maksimal 8 file. Gabungkan modul kecil yang tidak perlu dipisah.
 - Tulis isi file secara ringkas tanpa komentar berulang, tetapi jangan menghilangkan fungsi utama.
-- Path relatif, tanpa "../".`,
-              },
+- Path relatif, tanpa "../".`;
+          const content: MsgContent = images.length
+            ? [
+                { type: "text", text: prompt },
+                ...images.map((url) => ({ type: "image_url" as const, image_url: { url } })),
+              ]
+            : prompt;
+
+          const out = await callAI(
+            [
+              { role: "system", content: SYSTEM_PROMPT },
+              { role: "user", content },
             ],
             { ...(body.model ? { model: body.model } : {}), json: true },
           );

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AiError, SYSTEM_PROMPT, callAI, errorResponse, parseJsonLoose, safeJson } from "@/lib/ai.server";
+import { AiError, SYSTEM_PROMPT, callAI, errorResponse, parseJsonLoose, safeJson, type MsgContent } from "@/lib/ai.server";
 import { buildTree, contextBlock, getFiles, getProject, pickRelevantFiles } from "@/lib/project.server";
 
 export const Route = createFileRoute("/api/ai/fix-project")({
@@ -11,6 +11,7 @@ export const Route = createFileRoute("/api/ai/fix-project")({
           instruction?: string;
           model?: string;
           targetFiles?: string[];
+          images?: string[];
         };
         try {
           if (!body.projectId) throw new AiError("Project tidak ditemukan.");
@@ -20,9 +21,10 @@ export const Route = createFileRoute("/api/ai/fix-project")({
           if (!files.length) throw new AiError("Project belum memiliki file.");
 
           const instruction = body.instruction?.trim() || "Perbaiki semua error pada project ini.";
+          const images = (body.images ?? []).filter((image) => typeof image === "string" && image.startsWith("data:image/")).slice(0, 4);
           const relevant = pickRelevantFiles(files, instruction, body.targetFiles ?? []);
 
-          const out = await callAI(
+          const prompt = `Perbaiki project berikut. Instruksi: ${instruction}
             [
               { role: "system", content: SYSTEM_PROMPT },
               {
@@ -38,8 +40,15 @@ ${contextBlock(relevant)}
 Balas HANYA JSON valid:
 {"plan":"rencana perubahan singkat","files":[{"path":"index.js","content":"isi file lengkap setelah perbaikan","reason":"alasan"}]}
 
-Aturan: hanya kembalikan file yang benar-benar perlu diubah, isi file harus lengkap.`,
-              },
+Aturan: hanya kembalikan file yang benar-benar perlu diubah, isi file harus lengkap. ${images.length ? "Analisa seluruh foto referensi, rangkum perbedaannya dalam plan, lalu sesuaikan desain semirip mungkin." : ""}`;
+          const content: MsgContent = images.length
+            ? [{ type: "text", text: prompt }, ...images.map((url) => ({ type: "image_url" as const, image_url: { url } }))]
+            : prompt;
+          const out = await callAI(
+            [
+              { role: "system", content: SYSTEM_PROMPT },
+              { role: "user", content },
+            ],
             ],
             { ...(body.model ? { model: body.model } : {}), json: true },
           );
