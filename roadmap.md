@@ -5,4 +5,4 @@
 - [x] Tampilkan preview gambar dan file biner di workspace
 - [x] Selesaikan foto referensi pada AI Chat
 - [x] Tambahkan foto referensi pada builder serta Fix/Add Feature
-- [ ] Verifikasi upload, download, AI, build, desktop, dan ponsel
+- [x] Verifikasi upload, download, AI, build, desktop, dan ponsel
