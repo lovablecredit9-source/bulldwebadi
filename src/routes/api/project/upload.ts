@@ -1,20 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { unzipSync, strFromU8 } from "fflate";
 import { safeJson, sanitizePath } from "@/lib/ai.server";
+import { encodeBinaryContent, mimeForPath } from "@/lib/file-content";
 import { applyFiles, saveVersion } from "@/lib/project.server";
 
-const MAX_TOTAL = 12 * 1024 * 1024;
-const MAX_FILES = 300;
-const MAX_FILE = 1024 * 1024;
-const ALLOWED = new Set([
+const MAX_TOTAL = 20 * 1024 * 1024;
+const MAX_FILES = 500;
+const MAX_FILE = 4 * 1024 * 1024;
+const TEXT_EXTENSIONS = new Set([
   "js","mjs","cjs","ts","tsx","jsx","json","html","htm","css","scss","py","txt","md","yml","yaml","env","sh","xml","sql","toml","ini","gitignore","babelrc",
 ]);
+const BINARY_EXTENSIONS = new Set([
+  "png","jpg","jpeg","webp","gif","ico","avif","bmp","pdf","woff","woff2","ttf","otf","mp3","wav","ogg","mp4","webm",
+]);
+const ALLOWED = new Set([...TEXT_EXTENSIONS, ...BINARY_EXTENSIONS]);
 const SKIP_DIRS = ["node_modules/", ".git/", "dist/", "build/", "__pycache__/"];
 
 function extOf(p: string) {
   const base = p.split("/").pop() ?? "";
   const i = base.lastIndexOf(".");
   return i === -1 ? base.toLowerCase() : base.slice(i + 1).toLowerCase();
+}
+
+function contentOf(path: string, data: Uint8Array) {
+  return TEXT_EXTENSIONS.has(extOf(path))
+    ? strFromU8(data)
+    : encodeBinaryContent(data, mimeForPath(path));
 }
 
 export const Route = createFileRoute("/api/project/upload")({
@@ -51,7 +62,7 @@ export const Route = createFileRoute("/api/project/upload")({
                 if (data.length > MAX_FILE) continue;
                 total += data.length;
                 if (total > MAX_TOTAL || collected.length >= MAX_FILES) break;
-                collected.push({ path, content: strFromU8(data) });
+                collected.push({ path, content: contentOf(path, data) });
               }
             } else {
               const path = sanitizePath(file.name);
@@ -61,7 +72,7 @@ export const Route = createFileRoute("/api/project/upload")({
               if (buf.length > MAX_FILE) return safeJson({ error: "Ukuran file terlalu besar." }, 400);
               total += buf.length;
               if (total > MAX_TOTAL) return safeJson({ error: "Ukuran file terlalu besar." }, 400);
-              collected.push({ path, content: strFromU8(buf) });
+              collected.push({ path, content: contentOf(path, buf) });
             }
           }
 
