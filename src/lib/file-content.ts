@@ -27,7 +27,12 @@ export function mimeForPath(path: string) {
 }
 
 export function encodeBinaryContent(bytes: Uint8Array, mime: string) {
-  return `${BINARY_PREFIX}${mime};base64,${Buffer.from(bytes).toString("base64")}`;
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return `${BINARY_PREFIX}${mime};base64,${btoa(binary)}`;
 }
 
 export function parseBinaryContent(content: string) {
