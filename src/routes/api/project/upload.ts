@@ -84,38 +84,26 @@ export const Route = createFileRoute("/api/project/upload")({
           if (!uploads.length) return safeJson({ error: "File tidak dapat diproses." }, 400);
 
           const collected: { path: string; content: string }[] = [];
-          let total = 0;
+          const state = { total: 0 };
 
           for (const [uploadIndex, file] of uploads.entries()) {
             if (file.size > MAX_TOTAL) return safeJson({ error: "Ukuran file terlalu besar." }, 400);
             const buf = new Uint8Array(await file.arrayBuffer());
+            const rawPath = paths[uploadIndex] || file.name;
 
             if (file.name.toLowerCase().endsWith(".zip")) {
-              let entries: Record<string, Uint8Array>;
-              try {
-                entries = unzipSync(buf);
-              } catch {
-                return safeJson({ error: "File tidak dapat diproses." }, 400);
-              }
-              for (const [rawPath, data] of Object.entries(entries)) {
-                if (rawPath.endsWith("/")) continue;
-                const path = sanitizePath(rawPath);
-                if (!path) continue;
-                if (SKIP_DIRS.some((d) => `${path}/`.includes(d))) continue;
-                if (!ALLOWED.has(extOf(path))) continue;
-                if (data.length > MAX_FILE) continue;
-                total += data.length;
-                if (total > MAX_TOTAL || collected.length >= MAX_FILES) break;
-                collected.push({ path, content: contentOf(path, data) });
-              }
+              extractZip(buf, "", collected, state);
             } else {
-              const path = sanitizePath(paths[uploadIndex] || file.name);
-              if (!ALLOWED.has(extOf(path))) {
+              const path = sanitizePath(rawPath);
+              const ext = extOf(path);
+              if (!path || BLOCKED_EXTENSIONS.has(ext)) {
                 return safeJson({ error: "Tipe file tidak didukung." }, 400);
               }
+              if (SKIP_DIRS.some((d) => `${path}/`.includes(d))) continue;
               if (buf.length > MAX_FILE) return safeJson({ error: "Ukuran file terlalu besar." }, 400);
-              total += buf.length;
-              if (total > MAX_TOTAL) return safeJson({ error: "Ukuran file terlalu besar." }, 400);
+              state.total += buf.length;
+              if (state.total > MAX_TOTAL) return safeJson({ error: "Ukuran file terlalu besar." }, 400);
+              if (collected.length >= MAX_FILES) break;
               collected.push({ path, content: contentOf(path, buf) });
             }
           }
