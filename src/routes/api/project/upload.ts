@@ -10,10 +10,6 @@ const MAX_FILE = 4 * 1024 * 1024;
 const TEXT_EXTENSIONS = new Set([
   "js","mjs","cjs","ts","tsx","jsx","json","html","htm","css","scss","py","txt","md","yml","yaml","env","sh","xml","sql","toml","ini","gitignore","babelrc",
 ]);
-const BINARY_EXTENSIONS = new Set([
-  "png","jpg","jpeg","webp","gif","ico","avif","bmp","pdf","woff","woff2","ttf","otf","mp3","wav","ogg","mp4","webm",
-]);
-const ALLOWED = new Set([...TEXT_EXTENSIONS, ...BINARY_EXTENSIONS]);
 /** File yang bisa dieksekusi tetap ditolak demi keamanan. */
 const BLOCKED_EXTENSIONS = new Set([
   "exe","dll","so","dylib","bin","msi","apk","jar","com","scr","dmg","iso","sys","bat","cmd","ps1","vbs",
