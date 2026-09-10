@@ -14,6 +14,10 @@ const BINARY_EXTENSIONS = new Set([
   "png","jpg","jpeg","webp","gif","ico","avif","bmp","pdf","woff","woff2","ttf","otf","mp3","wav","ogg","mp4","webm",
 ]);
 const ALLOWED = new Set([...TEXT_EXTENSIONS, ...BINARY_EXTENSIONS]);
+/** File yang bisa dieksekusi tetap ditolak demi keamanan. */
+const BLOCKED_EXTENSIONS = new Set([
+  "exe","dll","so","dylib","bin","msi","apk","jar","com","scr","dmg","iso","sys","bat","cmd","ps1","vbs",
+]);
 const SKIP_DIRS = ["node_modules/", ".git/", "dist/", "build/", "__pycache__/"];
 
 function extOf(p: string) {
@@ -26,6 +30,45 @@ function contentOf(path: string, data: Uint8Array) {
   return TEXT_EXTENSIONS.has(extOf(path))
     ? strFromU8(data)
     : encodeBinaryContent(data, mimeForPath(path));
+}
+
+/** Ekstrak ZIP termasuk seluruh isi subfolder dan ZIP di dalam ZIP. */
+function extractZip(
+  buf: Uint8Array,
+  prefix: string,
+  out: { path: string; content: string }[],
+  state: { total: number },
+  depth = 0,
+) {
+  let entries: Record<string, Uint8Array>;
+  try {
+    entries = unzipSync(buf);
+  } catch {
+    return;
+  }
+  for (const [rawPath, data] of Object.entries(entries)) {
+    if (out.length >= MAX_FILES || state.total > MAX_TOTAL) return;
+    const path = sanitizePath(prefix ? `${prefix}/${rawPath}` : rawPath);
+    if (!path) continue;
+    if (SKIP_DIRS.some((d) => `${path}/`.includes(d))) continue;
+
+    // Folder (termasuk folder kosong) tetap dipertahankan lewat penanda .keep
+    if (rawPath.endsWith("/")) {
+      out.push({ path: `${path}/.keep`, content: "" });
+      continue;
+    }
+
+    const ext = extOf(path);
+    if (BLOCKED_EXTENSIONS.has(ext)) continue;
+    if (ext === "zip" && depth < 3) {
+      extractZip(data, path.replace(/\.zip$/i, ""), out, state, depth + 1);
+      continue;
+    }
+    if (data.length > MAX_FILE) continue;
+    state.total += data.length;
+    if (state.total > MAX_TOTAL) return;
+    out.push({ path, content: contentOf(path, data) });
+  }
 }
 
 export const Route = createFileRoute("/api/project/upload")({
