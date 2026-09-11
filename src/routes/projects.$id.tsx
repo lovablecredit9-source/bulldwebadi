@@ -28,6 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModelSelect } from "@/components/ModelSelect";
 import { ReferenceImages } from "@/components/ReferenceImages";
+import { ReferenceFiles, type ReferenceFile } from "@/components/ReferenceFiles";
 import { AiWorkStatus } from "@/components/AiWorkStatus";
 import { postJson } from "@/lib/api";
 import { binaryContentDataUrl, parseBinaryContent } from "@/lib/file-content";
@@ -457,6 +458,7 @@ function FixTab({
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [busy, setBusy] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<ReferenceFile[]>([]);
 
   const [lastAction, setLastAction] = useState("fix-project");
 
@@ -466,7 +468,13 @@ function FixTab({
     setProposal(null);
     try {
       setProposal(
-        await postJson<Proposal>(`/api/ai/${endpoint}`, { projectId, instruction, model, images }),
+        await postJson<Proposal>(`/api/ai/${endpoint}`, {
+          projectId,
+          instruction,
+          model,
+          images,
+          attachments,
+        }),
       );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "AI sedang mengalami gangguan.");
@@ -512,6 +520,9 @@ function FixTab({
         />
         <div className="mt-3">
           <ReferenceImages images={images} onChange={setImages} disabled={busy !== ""} />
+        </div>
+        <div className="mt-3">
+          <ReferenceFiles files={attachments} onChange={setAttachments} disabled={busy !== ""} />
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button onClick={() => request("fix-project")} disabled={busy !== ""} className="rounded-xl">
