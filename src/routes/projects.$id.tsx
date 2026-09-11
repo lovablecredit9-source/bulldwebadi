@@ -28,6 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModelSelect } from "@/components/ModelSelect";
 import { ReferenceImages } from "@/components/ReferenceImages";
+import { AiWorkStatus } from "@/components/AiWorkStatus";
 import { postJson } from "@/lib/api";
 import { binaryContentDataUrl, parseBinaryContent } from "@/lib/file-content";
 import { DEFAULT_MODEL } from "@/lib/models";
@@ -519,7 +520,7 @@ function FixTab({
             ) : (
               <Wrench className="size-4" />
             )}
-            AI Fix
+            {busy === "fix-project" ? "Sedang memperbaiki…" : "AI Fix"}
           </Button>
           <Button
             onClick={() => request("add-feature")}
@@ -532,9 +533,19 @@ function FixTab({
             ) : (
               <Sparkles className="size-4" />
             )}
-            AI Add Feature
+            {busy === "add-feature" ? "Sedang menambahkan…" : "AI Add Feature"}
           </Button>
         </div>
+        {busy === "fix-project" && (
+          <div className="mt-3">
+            <AiWorkStatus kind="fix" />
+          </div>
+        )}
+        {busy === "add-feature" && (
+          <div className="mt-3">
+            <AiWorkStatus kind="add-feature" />
+          </div>
+        )}
       </div>
 
       {proposal && (

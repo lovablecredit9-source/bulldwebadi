@@ -18,6 +18,7 @@ import { ModelSelect } from "@/components/ModelSelect";
 import { DEFAULT_MODEL, PROJECT_TYPES } from "@/lib/models";
 import { postJson } from "@/lib/api";
 import { ReferenceImages } from "@/components/ReferenceImages";
+import { AiWorkStatus } from "@/components/AiWorkStatus";
 
 export function BuilderForm({
   fixedType,
@@ -107,17 +108,15 @@ export function BuilderForm({
 
         <Button onClick={submit} disabled={loading} size="lg" className="rounded-xl">
           {loading ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-          Buat dengan AI
+          {loading ? "Sedang membuat…" : "Buat dengan AI"}
         </Button>
 
         {loading && (
           <div className="space-y-2">
+            <AiWorkStatus kind="generate" />
             <Skeleton className="h-4 w-2/3" />
             <Skeleton className="h-4 w-1/2" />
             <Skeleton className="h-4 w-3/4" />
-            <p className="text-xs text-muted-foreground">
-              AI sedang menyusun struktur dan menulis file project…
-            </p>
           </div>
         )}
       </div>
