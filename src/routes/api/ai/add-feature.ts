@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AiError, SYSTEM_PROMPT, callAI, errorResponse, parseJsonLoose, safeJson, type MsgContent } from "@/lib/ai.server";
-import { buildTree, contextBlock, getFiles, getProject, pickRelevantFiles } from "@/lib/project.server";
+import { buildTree, contextBlock, getFiles, getProject, getRecentActivities, logChatExchange, pickRelevantFiles } from "@/lib/project.server";
 
 export const Route = createFileRoute("/api/ai/add-feature")({
   server: {
@@ -22,19 +22,20 @@ export const Route = createFileRoute("/api/ai/add-feature")({
 
           const files = await getFiles(body.projectId);
           const relevant = pickRelevantFiles(files, instruction);
+          const memory = await getRecentActivities(body.projectId);
 
           const prompt = `Tambahkan fitur pada project ini. Permintaan: ${instruction || "Tiru desain dari foto referensi."}
 
 STRUKTUR:
 ${buildTree(files.map((f) => f.path))}
 
-FILE RELEVAN:
+${memory ? `MEMORI PERUBAHAN SEBELUMNYA (jangan dihapus, pertahankan fitur yang sudah ada):\n${memory}\n\n` : ""}FILE RELEVAN:
 ${contextBlock(relevant)}
 
 Balas HANYA JSON valid:
 {"plan":"rencana perubahan","files":[{"path":"","content":"isi file lengkap","reason":""}]}
 
-Aturan: hanya ubah/buat file yang diperlukan untuk fitur ini. ${images.length ? "Analisa semua foto, rangkum isi visualnya dalam plan, lalu tiru desainnya semirip mungkin." : ""}`;
+Aturan: hanya ubah/buat file yang diperlukan untuk fitur ini. Jangan menghapus fitur dari perubahan sebelumnya. ${images.length ? "Analisa semua foto, rangkum isi visualnya dalam plan, lalu tiru desainnya semirip mungkin." : ""}`;
           const content: MsgContent = images.length
             ? [{ type: "text", text: prompt }, ...images.map((url) => ({ type: "image_url" as const, image_url: { url } }))]
             : prompt;
@@ -52,6 +53,12 @@ Aturan: hanya ubah/buat file yang diperlukan untuk fitur ini. ${images.length ? 
           }>(out);
           const proposed = (parsed.files ?? []).filter((f) => f?.path && typeof f.content === "string");
           if (!proposed.length) throw new AiError("AI tidak mengusulkan perubahan file.");
+
+          await logChatExchange(
+            body.projectId,
+            `[Tambah Fitur] ${instruction || "Tiru desain dari foto referensi."}${images.length ? `\n[${images.length} foto dilampirkan]` : ""}`,
+            `${parsed.plan ?? "Fitur diusulkan."}\n\nFile: ${proposed.map((f) => f.path).join(", ")}`,
+          );
 
           return safeJson({
             plan: parsed.plan ?? "",
