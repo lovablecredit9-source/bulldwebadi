@@ -119,6 +119,61 @@ export async function applyFiles(projectId: string, files: FileRow[]) {
 
 export type ActivityFile = { path: string; content: string; before?: string; reason?: string };
 
+/** Ringkasan aktivitas terakhir sebagai memori AI agar perubahan sebelumnya tidak hilang. */
+export async function getRecentActivities(projectId: string, limit = 5): Promise<string> {
+  const db = await admin();
+  const { data } = await db
+    .from("project_activities")
+    .select("action, title, summary, files, created_at")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  const rows = (data ?? []) as {
+    action: string;
+    title: string;
+    summary: string;
+    files: { path: string }[];
+    created_at: string;
+  }[];
+  if (!rows.length) return "";
+  return rows
+    .map(
+      (r, i) =>
+        `${i + 1}. [${r.action}] ${r.title} (${r.created_at})\n   Ringkasan: ${r.summary.slice(0, 500)}\n   File: ${(r.files ?? []).map((f) => f.path).join(", ") || "-"}`,
+    )
+    .join("\n");
+}
+
+/** Catat proses fix/tambah fitur ke riwayat chat agar tidak hilang. */
+export async function logChatExchange(
+  projectId: string,
+  userText: string,
+  assistantText: string,
+) {
+  const db = await admin();
+  const { data: chat } = await db
+    .from("ai_chats")
+    .select("id")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  let chatId = chat?.id as string | undefined;
+  if (!chatId) {
+    const { data: created } = await db
+      .from("ai_chats")
+      .insert({ project_id: projectId, title: "Perubahan AI" })
+      .select("id")
+      .single();
+    chatId = created?.id as string | undefined;
+  }
+  if (!chatId) return;
+  await db.from("ai_messages").insert([
+    { chat_id: chatId, role: "user", content: userText.slice(0, 4000) },
+    { chat_id: chatId, role: "assistant", content: assistantText.slice(0, 8000) },
+  ]);
+}
+
 /** Simpan riwayat aktivitas pembuatan/perubahan file agar tetap ada lintas perangkat. */
 export async function logActivity(
   projectId: string,
