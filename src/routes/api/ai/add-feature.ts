@@ -11,6 +11,7 @@ export const Route = createFileRoute("/api/ai/add-feature")({
           instruction?: string;
           model?: string;
           images?: string[];
+          attachments?: { name?: string; content?: string }[];
         };
         try {
           if (!body.projectId) throw new AiError("Project tidak ditemukan.");
