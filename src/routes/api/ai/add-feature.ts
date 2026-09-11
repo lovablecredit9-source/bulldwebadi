@@ -19,7 +19,17 @@ export const Route = createFileRoute("/api/ai/add-feature")({
           if (!project) throw new AiError("Project tidak ditemukan.");
           const instruction = (body.instruction ?? "").trim();
           const images = (body.images ?? []).filter((image) => typeof image === "string" && image.startsWith("data:image/")).slice(0, 4);
-          if (!instruction && !images.length) throw new AiError("Tulis fitur atau lampirkan foto referensi.");
+          const attachments = (body.attachments ?? [])
+            .filter((a) => a && typeof a.content === "string" && a.content.trim())
+            .slice(0, 4)
+            .map((a) => ({ name: String(a.name ?? "lampiran").slice(0, 120), content: String(a.content).slice(0, 20000) }));
+          const attachmentBlock = attachments.length
+            ? `FILE CONTOH DARI PENGGUNA (tiru gaya/strukturnya bila relevan):\n${attachments
+                .map((a) => `--- LAMPIRAN: ${a.name} ---\n${a.content}`)
+                .join("\n\n")}\n\n`
+            : "";
+          if (!instruction && !images.length && !attachments.length)
+            throw new AiError("Tulis fitur, lampirkan foto, atau lampirkan file contoh.");
 
           const files = await getFiles(body.projectId);
           const relevant = pickRelevantFiles(files, instruction);
