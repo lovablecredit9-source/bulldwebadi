@@ -12,6 +12,7 @@ export const Route = createFileRoute("/api/ai/fix-project")({
           model?: string;
           targetFiles?: string[];
           images?: string[];
+          attachments?: { name?: string; content?: string }[];
         };
         try {
           if (!body.projectId) throw new AiError("Project tidak ditemukan.");
@@ -22,6 +23,15 @@ export const Route = createFileRoute("/api/ai/fix-project")({
 
           const instruction = body.instruction?.trim() || "Perbaiki semua error pada project ini.";
           const images = (body.images ?? []).filter((image) => typeof image === "string" && image.startsWith("data:image/")).slice(0, 4);
+          const attachments = (body.attachments ?? [])
+            .filter((a) => a && typeof a.content === "string" && a.content.trim())
+            .slice(0, 4)
+            .map((a) => ({ name: String(a.name ?? "lampiran").slice(0, 120), content: String(a.content).slice(0, 20000) }));
+          const attachmentBlock = attachments.length
+            ? `FILE CONTOH DARI PENGGUNA (tiru gaya/strukturnya bila relevan):\n${attachments
+                .map((a) => `--- LAMPIRAN: ${a.name} ---\n${a.content}`)
+                .join("\n\n")}\n\n`
+            : "";
           const relevant = pickRelevantFiles(files, instruction, body.targetFiles ?? []);
           const memory = await getRecentActivities(body.projectId);
 
@@ -30,7 +40,7 @@ export const Route = createFileRoute("/api/ai/fix-project")({
 STRUKTUR:
 ${buildTree(files.map((f) => f.path))}
 
-${memory ? `MEMORI PERUBAHAN SEBELUMNYA (jangan dihapus, pertahankan fitur yang sudah ada):\n${memory}\n\n` : ""}FILE RELEVAN:
+${memory ? `MEMORI PERUBAHAN SEBELUMNYA (jangan dihapus, pertahankan fitur yang sudah ada):\n${memory}\n\n` : ""}${attachmentBlock}FILE RELEVAN:
 ${contextBlock(relevant)}
 
 Balas HANYA JSON valid:
