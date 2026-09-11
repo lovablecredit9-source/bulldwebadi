@@ -54,6 +54,12 @@ Aturan: hanya ubah/buat file yang diperlukan untuk fitur ini. Jangan menghapus f
           const proposed = (parsed.files ?? []).filter((f) => f?.path && typeof f.content === "string");
           if (!proposed.length) throw new AiError("AI tidak mengusulkan perubahan file.");
 
+          await logChatExchange(
+            body.projectId,
+            `[Tambah Fitur] ${instruction || "Tiru desain dari foto referensi."}${images.length ? `\n[${images.length} foto dilampirkan]` : ""}`,
+            `${parsed.plan ?? "Fitur diusulkan."}\n\nFile: ${proposed.map((f) => f.path).join(", ")}`,
+          );
+
           return safeJson({
             plan: parsed.plan ?? "",
             files: proposed.map((f) => ({

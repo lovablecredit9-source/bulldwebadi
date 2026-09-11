@@ -55,6 +55,12 @@ Aturan: hanya kembalikan file yang benar-benar perlu diubah, isi file harus leng
           const proposed = (parsed.files ?? []).filter((f) => f?.path && typeof f.content === "string");
           if (!proposed.length) throw new AiError("AI tidak mengusulkan perubahan file.");
 
+          await logChatExchange(
+            body.projectId,
+            `[Fix] ${instruction}${images.length ? `\n[${images.length} foto dilampirkan]` : ""}`,
+            `${parsed.plan ?? "Perbaikan diusulkan."}\n\nFile: ${proposed.map((f) => f.path).join(", ")}`,
+          );
+
           return safeJson({
             plan: parsed.plan ?? "",
             files: proposed.map((f) => ({
