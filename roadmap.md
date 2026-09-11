@@ -6,3 +6,6 @@
 - [x] Selesaikan foto referensi pada AI Chat
 - [x] Tambahkan foto referensi pada builder serta Fix/Add Feature
 - [x] Verifikasi upload, download, AI, build, desktop, dan ponsel
+- [ ] Percepat konteks AI untuk pembuatan, Fix, dan Tambah Fitur
+- [ ] Tampilkan status pekerjaan dan waktu berjalan selama proses AI
+- [ ] Verifikasi alur proses di desktop dan ponsel
