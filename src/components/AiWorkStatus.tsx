@@ -41,9 +41,10 @@ export function AiWorkStatus({ kind }: { kind: WorkKind }) {
     return () => window.clearInterval(timer);
   }, []);
 
-  const stage = STAGES[kind].reduce(
+  const stages = STAGES[kind];
+  const stage = stages.reduce(
     (current, candidate) => (elapsed >= candidate.after ? candidate : current),
-    STAGES[kind][0],
+    stages[0] ?? { after: 0, label: "Menyiapkan proses AI" },
   );
 
   return (
