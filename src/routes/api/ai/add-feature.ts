@@ -22,19 +22,20 @@ export const Route = createFileRoute("/api/ai/add-feature")({
 
           const files = await getFiles(body.projectId);
           const relevant = pickRelevantFiles(files, instruction);
+          const memory = await getRecentActivities(body.projectId);
 
           const prompt = `Tambahkan fitur pada project ini. Permintaan: ${instruction || "Tiru desain dari foto referensi."}
 
 STRUKTUR:
 ${buildTree(files.map((f) => f.path))}
 
-FILE RELEVAN:
+${memory ? `MEMORI PERUBAHAN SEBELUMNYA (jangan dihapus, pertahankan fitur yang sudah ada):\n${memory}\n\n` : ""}FILE RELEVAN:
 ${contextBlock(relevant)}
 
 Balas HANYA JSON valid:
 {"plan":"rencana perubahan","files":[{"path":"","content":"isi file lengkap","reason":""}]}
 
-Aturan: hanya ubah/buat file yang diperlukan untuk fitur ini. ${images.length ? "Analisa semua foto, rangkum isi visualnya dalam plan, lalu tiru desainnya semirip mungkin." : ""}`;
+Aturan: hanya ubah/buat file yang diperlukan untuk fitur ini. Jangan menghapus fitur dari perubahan sebelumnya. ${images.length ? "Analisa semua foto, rangkum isi visualnya dalam plan, lalu tiru desainnya semirip mungkin." : ""}`;
           const content: MsgContent = images.length
             ? [{ type: "text", text: prompt }, ...images.map((url) => ({ type: "image_url" as const, image_url: { url } }))]
             : prompt;

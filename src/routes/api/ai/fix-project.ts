@@ -23,19 +23,20 @@ export const Route = createFileRoute("/api/ai/fix-project")({
           const instruction = body.instruction?.trim() || "Perbaiki semua error pada project ini.";
           const images = (body.images ?? []).filter((image) => typeof image === "string" && image.startsWith("data:image/")).slice(0, 4);
           const relevant = pickRelevantFiles(files, instruction, body.targetFiles ?? []);
+          const memory = await getRecentActivities(body.projectId);
 
           const prompt = `Perbaiki project berikut. Instruksi: ${instruction}
 
 STRUKTUR:
 ${buildTree(files.map((f) => f.path))}
 
-FILE RELEVAN:
+${memory ? `MEMORI PERUBAHAN SEBELUMNYA (jangan dihapus, pertahankan fitur yang sudah ada):\n${memory}\n\n` : ""}FILE RELEVAN:
 ${contextBlock(relevant)}
 
 Balas HANYA JSON valid:
 {"plan":"rencana perubahan singkat","files":[{"path":"index.js","content":"isi file lengkap setelah perbaikan","reason":"alasan"}]}
 
-Aturan: hanya kembalikan file yang benar-benar perlu diubah, isi file harus lengkap. ${images.length ? "Analisa seluruh foto referensi, rangkum perbedaannya dalam plan, lalu sesuaikan desain semirip mungkin." : ""}`;
+Aturan: hanya kembalikan file yang benar-benar perlu diubah, isi file harus lengkap. Jangan menghapus fitur dari perubahan sebelumnya. ${images.length ? "Analisa seluruh foto referensi, rangkum perbedaannya dalam plan, lalu sesuaikan desain semirip mungkin." : ""}`;
           const content: MsgContent = images.length
             ? [{ type: "text", text: prompt }, ...images.map((url) => ({ type: "image_url" as const, image_url: { url } }))]
             : prompt;
