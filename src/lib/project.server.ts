@@ -42,17 +42,44 @@ const MANIFESTS = [
   "requirements.txt",
 ];
 
-const MAX_CONTEXT_CHARS = 60000;
+const MAX_CONTEXT_CHARS = 36000;
+const MAX_CONTEXT_FILES = 12;
+const SOURCE_EXTENSIONS = new Set([
+  "js",
+  "jsx",
+  "ts",
+  "tsx",
+  "json",
+  "css",
+  "html",
+  "py",
+  "php",
+  "java",
+  "go",
+  "rs",
+]);
 
 /** Pilih hanya file yang relevan agar penggunaan API efisien. */
 export function pickRelevantFiles(files: FileRow[], instruction: string, extra: string[] = []) {
   const lower = instruction.toLowerCase();
+  const terms = new Set(
+    lower
+      .split(/[^a-z0-9_.-]+/)
+      .filter((term) => term.length >= 3),
+  );
   const scored = files.map((f) => {
     const name = f.path.toLowerCase();
+    const basename = name.split("/").pop() ?? "";
+    const extension = basename.split(".").pop() ?? "";
     let score = 0;
     if (extra.includes(f.path)) score += 100;
-    if (lower.includes(name) || lower.includes(name.split("/").pop() ?? "")) score += 50;
-    if (MANIFESTS.includes(name.split("/").pop() ?? "")) score += 20;
+    if (lower.includes(name) || lower.includes(basename)) score += 50;
+    for (const term of terms) {
+      if (name.includes(term)) score += 8;
+      else if (f.content.slice(0, 6000).toLowerCase().includes(term)) score += 2;
+    }
+    if (MANIFESTS.includes(basename)) score += 20;
+    if (SOURCE_EXTENSIONS.has(extension)) score += 3;
     if (name.endsWith(".md")) score -= 5;
     if (f.content.length > 40000) score -= 20;
     return { f, score };
@@ -65,7 +92,7 @@ export function pickRelevantFiles(files: FileRow[], instruction: string, extra: 
     if (total + f.content.length > MAX_CONTEXT_CHARS) continue;
     picked.push(f);
     total += f.content.length;
-    if (picked.length >= 18) break;
+    if (picked.length >= MAX_CONTEXT_FILES) break;
   }
   return picked;
 }
