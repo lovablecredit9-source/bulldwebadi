@@ -40,7 +40,7 @@ export const Route = createFileRoute("/api/ai/add-feature")({
 STRUKTUR:
 ${buildTree(files.map((f) => f.path))}
 
-${memory ? `MEMORI PERUBAHAN SEBELUMNYA (jangan dihapus, pertahankan fitur yang sudah ada):\n${memory}\n\n` : ""}FILE RELEVAN:
+${memory ? `MEMORI PERUBAHAN SEBELUMNYA (jangan dihapus, pertahankan fitur yang sudah ada):\n${memory}\n\n` : ""}${attachmentBlock}FILE RELEVAN:
 ${contextBlock(relevant)}
 
 Balas HANYA JSON valid:
