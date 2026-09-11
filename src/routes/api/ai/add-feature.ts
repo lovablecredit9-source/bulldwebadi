@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AiError, SYSTEM_PROMPT, callAI, errorResponse, parseJsonLoose, safeJson, type MsgContent } from "@/lib/ai.server";
-import { buildTree, contextBlock, getFiles, getProject, pickRelevantFiles } from "@/lib/project.server";
+import { buildTree, contextBlock, getFiles, getProject, getRecentActivities, logChatExchange, pickRelevantFiles } from "@/lib/project.server";
 
 export const Route = createFileRoute("/api/ai/add-feature")({
   server: {
