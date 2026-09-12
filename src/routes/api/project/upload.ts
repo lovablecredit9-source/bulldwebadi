@@ -4,9 +4,9 @@ import { safeJson, sanitizePath } from "@/lib/ai.server";
 import { encodeBinaryContent, mimeForPath } from "@/lib/file-content";
 import { applyFiles, saveVersion } from "@/lib/project.server";
 
-const MAX_TOTAL = 20 * 1024 * 1024;
+const MAX_TOTAL = 200 * 1024 * 1024;
 const MAX_FILES = 500;
-const MAX_FILE = 4 * 1024 * 1024;
+const MAX_FILE = 200 * 1024 * 1024;
 const TEXT_EXTENSIONS = new Set([
   "js","mjs","cjs","ts","tsx","jsx","json","html","htm","css","scss","py","txt","md","yml","yaml","env","sh","xml","sql","toml","ini","gitignore","babelrc",
 ]);
@@ -42,8 +42,10 @@ function extractZip(
   } catch {
     return;
   }
+
   for (const [rawPath, data] of Object.entries(entries)) {
     if (out.length >= MAX_FILES || state.total > MAX_TOTAL) return;
+
     const path = sanitizePath(prefix ? `${prefix}/${rawPath}` : rawPath);
     if (!path) continue;
     if (SKIP_DIRS.some((d) => `${path}/`.includes(d))) continue;
@@ -56,14 +58,28 @@ function extractZip(
 
     const ext = extOf(path);
     if (BLOCKED_EXTENSIONS.has(ext)) continue;
+
     if (ext === "zip" && depth < 3) {
-      extractZip(data, path.replace(/\.zip$/i, ""), out, state, depth + 1);
+      extractZip(
+        data,
+        path.replace(/\.zip$/i, ""),
+        out,
+        state,
+        depth + 1,
+      );
       continue;
     }
+
     if (data.length > MAX_FILE) continue;
+
     state.total += data.length;
+
     if (state.total > MAX_TOTAL) return;
-    out.push({ path, content: contentOf(path, data) });
+
+    out.push({
+      path,
+      content: contentOf(path, data),
+    });
   }
 }
 
@@ -73,53 +89,172 @@ export const Route = createFileRoute("/api/project/upload")({
       POST: async ({ request }) => {
         try {
           const form = await request.formData();
-          const name = String(form.get("name") ?? "Project Upload").slice(0, 80);
-          const type = String(form.get("type") ?? "other");
-          const uploads = form.getAll("files").filter((f): f is File => f instanceof File);
-          const paths = form.getAll("paths").map(String);
-          if (!uploads.length) return safeJson({ error: "File tidak dapat diproses." }, 400);
 
-          const collected: { path: string; content: string }[] = [];
+          const name = String(
+            form.get("name") ?? "Project Upload",
+          ).slice(0, 80);
+
+          const type = String(
+            form.get("type") ?? "other",
+          );
+
+          const uploads = form
+            .getAll("files")
+            .filter((f): f is File => f instanceof File);
+
+          const paths = form
+            .getAll("paths")
+            .map(String);
+
+          if (!uploads.length) {
+            return safeJson(
+              { error: "File tidak dapat diproses." },
+              400,
+            );
+          }
+
+          const collected: {
+            path: string;
+            content: string;
+          }[] = [];
+
           const state = { total: 0 };
 
           for (const [uploadIndex, file] of uploads.entries()) {
-            if (file.size > MAX_TOTAL) return safeJson({ error: "Ukuran file terlalu besar." }, 400);
-            const buf = new Uint8Array(await file.arrayBuffer());
-            const rawPath = paths[uploadIndex] || file.name;
+            if (file.size > MAX_TOTAL) {
+              return safeJson(
+                { error: "Ukuran file terlalu besar." },
+                400,
+              );
+            }
 
-            if (file.name.toLowerCase().endsWith(".zip")) {
-              extractZip(buf, "", collected, state);
+            const buf = new Uint8Array(
+              await file.arrayBuffer(),
+            );
+
+            const rawPath =
+              paths[uploadIndex] || file.name;
+
+            if (
+              file.name
+                .toLowerCase()
+                .endsWith(".zip")
+            ) {
+              extractZip(
+                buf,
+                "",
+                collected,
+                state,
+              );
             } else {
               const path = sanitizePath(rawPath);
               const ext = extOf(path);
-              if (!path || BLOCKED_EXTENSIONS.has(ext)) {
-                return safeJson({ error: "Tipe file tidak didukung." }, 400);
+
+              if (
+                !path ||
+                BLOCKED_EXTENSIONS.has(ext)
+              ) {
+                return safeJson(
+                  { error: "Tipe file tidak didukung." },
+                  400,
+                );
               }
-              if (SKIP_DIRS.some((d) => `${path}/`.includes(d))) continue;
-              if (buf.length > MAX_FILE) return safeJson({ error: "Ukuran file terlalu besar." }, 400);
+
+              if (
+                SKIP_DIRS.some(
+                  (d) => `${path}/`.includes(d),
+                )
+              ) {
+                continue;
+              }
+
+              if (buf.length > MAX_FILE) {
+                return safeJson(
+                  { error: "Ukuran file terlalu besar." },
+                  400,
+                );
+              }
+
               state.total += buf.length;
-              if (state.total > MAX_TOTAL) return safeJson({ error: "Ukuran file terlalu besar." }, 400);
-              if (collected.length >= MAX_FILES) break;
-              collected.push({ path, content: contentOf(path, buf) });
+
+              if (state.total > MAX_TOTAL) {
+                return safeJson(
+                  { error: "Ukuran file terlalu besar." },
+                  400,
+                );
+              }
+
+              if (collected.length >= MAX_FILES) {
+                break;
+              }
+
+              collected.push({
+                path,
+                content: contentOf(path, buf),
+              });
             }
           }
 
-          if (!collected.length) return safeJson({ error: "Tidak ada file yang dapat dibaca." }, 400);
+          if (!collected.length) {
+            return safeJson(
+              {
+                error:
+                  "Tidak ada file yang dapat dibaca.",
+              },
+              400,
+            );
+          }
 
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const { data: project, error } = await supabaseAdmin
+          const {
+            supabaseAdmin,
+          } = await import(
+            "@/integrations/supabase/client.server"
+          );
+
+          const {
+            data: project,
+            error,
+          } = await supabaseAdmin
             .from("projects")
-            .insert({ name, type, description: "Project hasil upload" })
+            .insert({
+              name,
+              type,
+              description: "Project hasil upload",
+            })
             .select("id")
             .single();
-          if (error || !project) return safeJson({ error: "Project gagal disimpan." }, 400);
 
-          await applyFiles(project.id as string, collected);
-          await saveVersion(project.id as string, "Versi awal (upload)");
+          if (error || !project) {
+            return safeJson(
+              { error: "Project gagal disimpan." },
+              400,
+            );
+          }
 
-          return safeJson({ projectId: project.id, files: collected.map((f) => f.path) });
+          await applyFiles(
+            project.id as string,
+            collected,
+          );
+
+          await saveVersion(
+            project.id as string,
+            "Versi awal (upload)",
+          );
+
+          return safeJson({
+            projectId: project.id,
+            files: collected.map(
+              (f) => f.path,
+            ),
+          });
         } catch {
-          return safeJson({ error: "File tidak dapat diproses." }, 400);
+          return safeJson(
+            {
+              error:
+                "File tidak dapat diproses.",
+            },
+            400,
+          );
         }
       },
     },
