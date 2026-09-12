@@ -9,67 +9,20 @@ const MAX_FILES = 500;
 const MAX_FILE = 200 * 1024 * 1024;
 
 const TEXT_EXTENSIONS = new Set([
-  "js",
-  "mjs",
-  "cjs",
-  "ts",
-  "tsx",
-  "jsx",
-  "json",
-  "html",
-  "htm",
-  "css",
-  "scss",
-  "py",
-  "txt",
-  "md",
-  "yml",
-  "yaml",
-  "env",
-  "sh",
-  "xml",
-  "sql",
-  "toml",
-  "ini",
-  "gitignore",
-  "babelrc",
+  "js","mjs","cjs","ts","tsx","jsx","json","html","htm","css","scss","py","txt","md","yml","yaml","env","sh","xml","sql","toml","ini","gitignore","babelrc",
 ]);
 
 /** File yang bisa dieksekusi tetap ditolak demi keamanan. */
 const BLOCKED_EXTENSIONS = new Set([
-  "exe",
-  "dll",
-  "so",
-  "dylib",
-  "bin",
-  "msi",
-  "apk",
-  "jar",
-  "com",
-  "scr",
-  "dmg",
-  "iso",
-  "sys",
-  "bat",
-  "cmd",
-  "ps1",
-  "vbs",
+  "exe","dll","so","dylib","bin","msi","apk","jar","com","scr","dmg","iso","sys","bat","cmd","ps1","vbs",
 ]);
 
-const SKIP_DIRS = [
-  "node_modules/",
-  ".git/",
-  "dist/",
-  "build/",
-  "__pycache__/",
-];
+const SKIP_DIRS = ["node_modules/", ".git/", "dist/", "build/", "__pycache__/"];
 
 function extOf(p: string) {
   const base = p.split("/").pop() ?? "";
   const i = base.lastIndexOf(".");
-  return i === -1
-    ? base.toLowerCase()
-    : base.slice(i + 1).toLowerCase();
+  return i === -1 ? base.toLowerCase() : base.slice(i + 1).toLowerCase();
 }
 
 function contentOf(path: string, data: Uint8Array) {
@@ -97,9 +50,7 @@ function extractZip(
   for (const [rawPath, data] of Object.entries(entries)) {
     if (out.length >= MAX_FILES || state.total > MAX_TOTAL) return;
 
-    const path = sanitizePath(
-      prefix ? `${prefix}/${rawPath}` : rawPath,
-    );
+    const path = sanitizePath(prefix ? `${prefix}/${rawPath}` : rawPath);
 
     if (!path) continue;
 
@@ -107,10 +58,7 @@ function extractZip(
 
     // Folder (termasuk folder kosong) tetap dipertahankan lewat penanda .keep
     if (rawPath.endsWith("/")) {
-      out.push({
-        path: `${path}/.keep`,
-        content: "",
-      });
+      out.push({ path: `${path}/.keep`, content: "" });
       continue;
     }
 
@@ -179,15 +127,10 @@ export const Route = createFileRoute("/api/project/upload")({
             content: string;
           }[] = [];
 
-          const state = {
-            total: 0,
-          };
+          const state = { total: 0 };
 
-          for (const [
-            uploadIndex,
-            file,
-          ] of uploads.entries()) {
-            if (file.size > MAX_FILE) {
+          for (const [uploadIndex, file] of uploads.entries()) {
+            if (file.size > MAX_TOTAL) {
               return safeJson(
                 { error: "Ukuran file terlalu besar." },
                 400,
@@ -201,11 +144,7 @@ export const Route = createFileRoute("/api/project/upload")({
             const rawPath =
               paths[uploadIndex] || file.name;
 
-            if (
-              file.name
-                .toLowerCase()
-                .endsWith(".zip")
-            ) {
+            if (file.name.toLowerCase().endsWith(".zip")) {
               extractZip(
                 buf,
                 "",
@@ -221,10 +160,7 @@ export const Route = createFileRoute("/api/project/upload")({
                 BLOCKED_EXTENSIONS.has(ext)
               ) {
                 return safeJson(
-                  {
-                    error:
-                      "Tipe file tidak didukung.",
-                  },
+                  { error: "Tipe file tidak didukung." },
                   400,
                 );
               }
@@ -239,10 +175,7 @@ export const Route = createFileRoute("/api/project/upload")({
 
               if (buf.length > MAX_FILE) {
                 return safeJson(
-                  {
-                    error:
-                      "Ukuran file terlalu besar.",
-                  },
+                  { error: "Ukuran file terlalu besar." },
                   400,
                 );
               }
@@ -251,19 +184,12 @@ export const Route = createFileRoute("/api/project/upload")({
 
               if (state.total > MAX_TOTAL) {
                 return safeJson(
-                  {
-                    error:
-                      "Ukuran file terlalu besar.",
-                  },
+                  { error: "Ukuran file terlalu besar." },
                   400,
                 );
               }
 
-              if (
-                collected.length >= MAX_FILES
-              ) {
-                break;
-              }
+              if (collected.length >= MAX_FILES) break;
 
               collected.push({
                 path,
@@ -274,10 +200,7 @@ export const Route = createFileRoute("/api/project/upload")({
 
           if (!collected.length) {
             return safeJson(
-              {
-                error:
-                  "Tidak ada file yang dapat dibaca.",
-              },
+              { error: "Tidak ada file yang dapat dibaca." },
               400,
             );
           }
@@ -295,18 +218,14 @@ export const Route = createFileRoute("/api/project/upload")({
             .insert({
               name,
               type,
-              description:
-                "Project hasil upload",
+              description: "Project hasil upload",
             })
             .select("id")
             .single();
 
           if (error || !project) {
             return safeJson(
-              {
-                error:
-                  "Project gagal disimpan.",
-              },
+              { error: "Project gagal disimpan." },
               400,
             );
           }
@@ -329,10 +248,7 @@ export const Route = createFileRoute("/api/project/upload")({
           });
         } catch {
           return safeJson(
-            {
-              error:
-                "File tidak dapat diproses.",
-            },
+            { error: "File tidak dapat diproses." },
             400,
           );
         }
