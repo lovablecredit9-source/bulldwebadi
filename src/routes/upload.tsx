@@ -40,7 +40,6 @@ function extractZip(
   depth = 0,
 ) {
   let entries: Record<string, Uint8Array>;
-
   try {
     entries = unzipSync(buf);
   } catch {
@@ -53,7 +52,6 @@ function extractZip(
     const path = sanitizePath(prefix ? `${prefix}/${rawPath}` : rawPath);
 
     if (!path) continue;
-
     if (SKIP_DIRS.some((d) => `${path}/`.includes(d))) continue;
 
     // Folder (termasuk folder kosong) tetap dipertahankan lewat penanda .keep
@@ -67,13 +65,7 @@ function extractZip(
     if (BLOCKED_EXTENSIONS.has(ext)) continue;
 
     if (ext === "zip" && depth < 3) {
-      extractZip(
-        data,
-        path.replace(/\.zip$/i, ""),
-        out,
-        state,
-        depth + 1,
-      );
+      extractZip(data, path.replace(/\.zip$/i, ""), out, state, depth + 1);
       continue;
     }
 
@@ -83,10 +75,7 @@ function extractZip(
 
     if (state.total > MAX_TOTAL) return;
 
-    out.push({
-      path,
-      content: contentOf(path, data),
-    });
+    out.push({ path, content: contentOf(path, data) });
   }
 }
 
@@ -107,13 +96,9 @@ export const Route = createFileRoute("/api/project/upload")({
 
           const uploads = form
             .getAll("files")
-            .filter(
-              (f): f is File => f instanceof File,
-            );
+            .filter((f): f is File => f instanceof File);
 
-          const paths = form
-            .getAll("paths")
-            .map(String);
+          const paths = form.getAll("paths").map(String);
 
           if (!uploads.length) {
             return safeJson(
@@ -141,35 +126,22 @@ export const Route = createFileRoute("/api/project/upload")({
               await file.arrayBuffer(),
             );
 
-            const rawPath =
-              paths[uploadIndex] || file.name;
+            const rawPath = paths[uploadIndex] || file.name;
 
             if (file.name.toLowerCase().endsWith(".zip")) {
-              extractZip(
-                buf,
-                "",
-                collected,
-                state,
-              );
+              extractZip(buf, "", collected, state);
             } else {
               const path = sanitizePath(rawPath);
               const ext = extOf(path);
 
-              if (
-                !path ||
-                BLOCKED_EXTENSIONS.has(ext)
-              ) {
+              if (!path || BLOCKED_EXTENSIONS.has(ext)) {
                 return safeJson(
                   { error: "Tipe file tidak didukung." },
                   400,
                 );
               }
 
-              if (
-                SKIP_DIRS.some(
-                  (d) => `${path}/`.includes(d),
-                )
-              ) {
+              if (SKIP_DIRS.some((d) => `${path}/`.includes(d))) {
                 continue;
               }
 
@@ -210,10 +182,7 @@ export const Route = createFileRoute("/api/project/upload")({
               "@/integrations/supabase/client.server"
             );
 
-          const {
-            data: project,
-            error,
-          } = await supabaseAdmin
+          const { data: project, error } = await supabaseAdmin
             .from("projects")
             .insert({
               name,
@@ -230,10 +199,7 @@ export const Route = createFileRoute("/api/project/upload")({
             );
           }
 
-          await applyFiles(
-            project.id as string,
-            collected,
-          );
+          await applyFiles(project.id as string, collected);
 
           await saveVersion(
             project.id as string,
@@ -242,9 +208,7 @@ export const Route = createFileRoute("/api/project/upload")({
 
           return safeJson({
             projectId: project.id,
-            files: collected.map(
-              (f) => f.path,
-            ),
+            files: collected.map((f) => f.path),
           });
         } catch {
           return safeJson(
