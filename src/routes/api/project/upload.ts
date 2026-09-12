@@ -1,262 +1,213 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { unzipSync, strFromU8 } from "fflate";
-import { safeJson, sanitizePath } from "@/lib/ai.server";
-import { encodeBinaryContent, mimeForPath } from "@/lib/file-content";
-import { applyFiles, saveVersion } from "@/lib/project.server";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { FolderUp, Loader2, UploadCloud } from "lucide-react";
+import { AppShell } from "@/components/AppShell";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { postForm } from "@/lib/api";
+import { PROJECT_TYPES } from "@/lib/models";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-const MAX_TOTAL = 200 * 1024 * 1024;
-const MAX_FILES = 500;
-const MAX_FILE = 200 * 1024 * 1024;
-const TEXT_EXTENSIONS = new Set([
-  "js","mjs","cjs","ts","tsx","jsx","json","html","htm","css","scss","py","txt","md","yml","yaml","env","sh","xml","sql","toml","ini","gitignore","babelrc",
-]);
-/** File yang bisa dieksekusi tetap ditolak demi keamanan. */
-const BLOCKED_EXTENSIONS = new Set([
-  "exe","dll","so","dylib","bin","msi","apk","jar","com","scr","dmg","iso","sys","bat","cmd","ps1","vbs",
-]);
-const SKIP_DIRS = ["node_modules/", ".git/", "dist/", "build/", "__pycache__/"];
-
-function extOf(p: string) {
-  const base = p.split("/").pop() ?? "";
-  const i = base.lastIndexOf(".");
-  return i === -1 ? base.toLowerCase() : base.slice(i + 1).toLowerCase();
-}
-
-function contentOf(path: string, data: Uint8Array) {
-  return TEXT_EXTENSIONS.has(extOf(path))
-    ? strFromU8(data)
-    : encodeBinaryContent(data, mimeForPath(path));
-}
-
-/** Ekstrak ZIP termasuk seluruh isi subfolder dan ZIP di dalam ZIP. */
-function extractZip(
-  buf: Uint8Array,
-  prefix: string,
-  out: { path: string; content: string }[],
-  state: { total: number },
-  depth = 0,
-) {
-  let entries: Record<string, Uint8Array>;
-  try {
-    entries = unzipSync(buf);
-  } catch {
-    return;
-  }
-
-  for (const [rawPath, data] of Object.entries(entries)) {
-    if (out.length >= MAX_FILES || state.total > MAX_TOTAL) return;
-
-    const path = sanitizePath(prefix ? `${prefix}/${rawPath}` : rawPath);
-    if (!path) continue;
-    if (SKIP_DIRS.some((d) => `${path}/`.includes(d))) continue;
-
-    // Folder (termasuk folder kosong) tetap dipertahankan lewat penanda .keep
-    if (rawPath.endsWith("/")) {
-      out.push({ path: `${path}/.keep`, content: "" });
-      continue;
-    }
-
-    const ext = extOf(path);
-    if (BLOCKED_EXTENSIONS.has(ext)) continue;
-
-    if (ext === "zip" && depth < 3) {
-      extractZip(
-        data,
-        path.replace(/\.zip$/i, ""),
-        out,
-        state,
-        depth + 1,
-      );
-      continue;
-    }
-
-    if (data.length > MAX_FILE) continue;
-
-    state.total += data.length;
-
-    if (state.total > MAX_TOTAL) return;
-
-    out.push({
-      path,
-      content: contentOf(path, data),
-    });
-  }
-}
-
-export const Route = createFileRoute("/api/project/upload")({
-  server: {
-    handlers: {
-      POST: async ({ request }) => {
-        try {
-          const form = await request.formData();
-
-          const name = String(
-            form.get("name") ?? "Project Upload",
-          ).slice(0, 80);
-
-          const type = String(
-            form.get("type") ?? "other",
-          );
-
-          const uploads = form
-            .getAll("files")
-            .filter((f): f is File => f instanceof File);
-
-          const paths = form
-            .getAll("paths")
-            .map(String);
-
-          if (!uploads.length) {
-            return safeJson(
-              { error: "File tidak dapat diproses." },
-              400,
-            );
-          }
-
-          const collected: {
-            path: string;
-            content: string;
-          }[] = [];
-
-          const state = { total: 0 };
-
-          for (const [uploadIndex, file] of uploads.entries()) {
-            if (file.size > MAX_TOTAL) {
-              return safeJson(
-                { error: "Ukuran file terlalu besar." },
-                400,
-              );
-            }
-
-            const buf = new Uint8Array(
-              await file.arrayBuffer(),
-            );
-
-            const rawPath =
-              paths[uploadIndex] || file.name;
-
-            if (
-              file.name
-                .toLowerCase()
-                .endsWith(".zip")
-            ) {
-              extractZip(
-                buf,
-                "",
-                collected,
-                state,
-              );
-            } else {
-              const path = sanitizePath(rawPath);
-              const ext = extOf(path);
-
-              if (
-                !path ||
-                BLOCKED_EXTENSIONS.has(ext)
-              ) {
-                return safeJson(
-                  { error: "Tipe file tidak didukung." },
-                  400,
-                );
-              }
-
-              if (
-                SKIP_DIRS.some(
-                  (d) => `${path}/`.includes(d),
-                )
-              ) {
-                continue;
-              }
-
-              if (buf.length > MAX_FILE) {
-                return safeJson(
-                  { error: "Ukuran file terlalu besar." },
-                  400,
-                );
-              }
-
-              state.total += buf.length;
-
-              if (state.total > MAX_TOTAL) {
-                return safeJson(
-                  { error: "Ukuran file terlalu besar." },
-                  400,
-                );
-              }
-
-              if (collected.length >= MAX_FILES) {
-                break;
-              }
-
-              collected.push({
-                path,
-                content: contentOf(path, buf),
-              });
-            }
-          }
-
-          if (!collected.length) {
-            return safeJson(
-              {
-                error:
-                  "Tidak ada file yang dapat dibaca.",
-              },
-              400,
-            );
-          }
-
-          const {
-            supabaseAdmin,
-          } = await import(
-            "@/integrations/supabase/client.server"
-          );
-
-          const {
-            data: project,
-            error,
-          } = await supabaseAdmin
-            .from("projects")
-            .insert({
-              name,
-              type,
-              description: "Project hasil upload",
-            })
-            .select("id")
-            .single();
-
-          if (error || !project) {
-            return safeJson(
-              { error: "Project gagal disimpan." },
-              400,
-            );
-          }
-
-          await applyFiles(
-            project.id as string,
-            collected,
-          );
-
-          await saveVersion(
-            project.id as string,
-            "Versi awal (upload)",
-          );
-
-          return safeJson({
-            projectId: project.id,
-            files: collected.map(
-              (f) => f.path,
-            ),
-          });
-        } catch {
-          return safeJson(
-            {
-              error:
-                "File tidak dapat diproses.",
-            },
-            400,
-          );
-        }
+export const Route = createFileRoute("/upload")({
+  head: () => ({
+    meta: [
+      { title: "Upload Project — ADI BUILDER BOT" },
+      {
+        name: "description",
+        content:
+          "Upload ZIP atau file kode untuk dianalisa, diperbaiki, dan dikembangkan AI.",
       },
-    },
-  },
+      { property: "og:title", content: "Upload Project — ADI BUILDER BOT" },
+      {
+        property: "og:description",
+        content: "Upload ZIP atau file kode dengan aman.",
+      },
+    ],
+  }),
+  component: UploadPage,
 });
+
+function UploadPage() {
+  const navigate = useNavigate();
+  const [name, setName] = useState("");
+  const [type, setType] = useState("browser-extension");
+  const [files, setFiles] = useState<File[]>([]);
+  const [loading, setLoading] = useState(false);
+  const folderInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    folderInput.current?.setAttribute("webkitdirectory", "");
+  }, []);
+
+  const submit = async () => {
+    if (!files.length) {
+      toast.error("Pilih file terlebih dahulu.");
+      return;
+    }
+
+    const form = new FormData();
+    form.set("name", name || "Project Upload");
+    form.set("type", type);
+
+    for (const f of files) {
+      const relativePath = (
+        f as File & { webkitRelativePath?: string }
+      ).webkitRelativePath;
+
+      form.append("files", f);
+      form.append("paths", relativePath || f.name);
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await postForm<{
+        projectId: string;
+        files: string[];
+      }>("/api/project/upload", form);
+
+      toast.success(`${res.files.length} file diproses`);
+
+      navigate({
+        to: "/projects/$id",
+        params: { id: res.projectId },
+      });
+    } catch (e) {
+      toast.error(
+        e instanceof Error
+          ? e.message
+          : "File tidak dapat diproses.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AppShell>
+      <h1 className="text-2xl font-bold">
+        Upload Project
+      </h1>
+
+      <p className="mt-1 text-sm text-muted-foreground">
+        Upload ZIP, beberapa file, atau satu folder lengkap.
+        Struktur subfolder dan aset aman tetap dipertahankan;
+        isi unggahan tidak pernah dijalankan otomatis.
+      </p>
+
+      <div className="mt-6 grid max-w-2xl gap-4 rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+        <div className="space-y-2">
+          <Label>Nama Project</Label>
+
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="my-extension"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Jenis Project</Label>
+
+          <Select
+            value={type}
+            onValueChange={setType}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+
+            <SelectContent>
+              {PROJECT_TYPES.map((t) => (
+                <SelectItem
+                  key={t.value}
+                  value={t.value}
+                >
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>File / ZIP</Label>
+
+          <Input
+            type="file"
+            multiple
+            accept=".zip,.js,.mjs,.cjs,.ts,.tsx,.jsx,.json,.html,.htm,.css,.scss,.py,.txt,.md,.yml,.yaml,.xml,.sql,.toml,.ini,.png,.jpg,.jpeg,.webp,.gif,.ico,.avif,.bmp,.pdf,.woff,.woff2,.ttf,.otf,.mp3,.wav,.ogg,.mp4,.webm"
+            onChange={(e) =>
+              setFiles(
+                Array.from(
+                  e.target.files ?? [],
+                ),
+              )
+            }
+          />
+
+          <div className="flex items-center gap-2">
+            <Input
+              ref={folderInput}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(event) =>
+                setFiles(
+                  Array.from(
+                    event.target.files ?? [],
+                  ),
+                )
+              }
+            />
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                folderInput.current?.click()
+              }
+            >
+              <FolderUp className="size-4" />
+              Pilih Folder
+            </Button>
+
+            <span className="text-xs text-muted-foreground">
+              {files.length
+                ? `${files.length} file dipilih`
+                : "Belum ada file"}
+            </span>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Maksimal total 200 MB, 500 file, 200 MB per file.
+            Folder kosong tidak memiliki isi untuk disimpan.
+          </p>
+        </div>
+
+        <Button
+          onClick={submit}
+          disabled={loading}
+          size="lg"
+          className="rounded-xl"
+        >
+          {loading ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <UploadCloud className="size-4" />
+          )}
+
+          Upload &amp; Buka Project
+        </Button>
+      </div>
+    </AppShell>
+  );
+}
