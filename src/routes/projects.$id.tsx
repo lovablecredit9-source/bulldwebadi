@@ -77,6 +77,9 @@ function Workspace() {
   const [files, setFiles] = useState<ProjectFile[] | null>(null);
   const [model, setModel] = useState(DEFAULT_MODEL);
   const [busy, setBusy] = useState("");
+  const [gate, setGate] = useState<"loading" | "locked" | "open">("loading");
+  const [locked, setLocked] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const reload = useCallback(async () => {
     const [p, f] = await Promise.all([getProject(id), listFiles(id)]);
@@ -84,9 +87,23 @@ function Workspace() {
     setFiles(f);
   }, [id]);
 
+  const checkGate = useCallback(async () => {
+    try {
+      const status = await pinStatus(id);
+      setLocked(status.locked);
+      setGate(status.locked && !status.unlocked ? "locked" : "open");
+    } catch {
+      setGate("open");
+    }
+  }, [id]);
+
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    void checkGate();
+  }, [checkGate]);
+
+  useEffect(() => {
+    if (gate === "open") void reload();
+  }, [gate, reload]);
 
   const downloadProjectZip = () => {
     if (!files || !project) return;
