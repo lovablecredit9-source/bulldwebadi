@@ -30,10 +30,17 @@ function ProjectsPage() {
   };
   useEffect(load, []);
 
-  const remove = async (id: string) => {
-    await deleteProject(id);
-    toast.success("Project dihapus");
-    load();
+  const remove = async (p: Project) => {
+    if (!window.confirm(`Hapus project "${p.name}"?`)) return;
+    try {
+      await removeProject(p.id);
+      toast.success("Project dihapus");
+      load();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Project gagal dihapus.",
+      );
+    }
   };
 
   return (
