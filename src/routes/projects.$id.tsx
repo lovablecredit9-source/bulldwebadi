@@ -149,11 +149,29 @@ function Workspace() {
             {project.type} · {files.length} file
           </p>
         </div>
-        <Button onClick={downloadProjectZip} className="rounded-xl">
-          <Package className="size-4" />
-          Download ZIP
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" className="rounded-xl" onClick={() => setShowSettings((v) => !v)}>
+            <Settings className="size-4" />
+            Pengaturan
+          </Button>
+          <Button onClick={downloadProjectZip} className="rounded-xl">
+            <Package className="size-4" />
+            Download ZIP
+          </Button>
+        </div>
       </div>
+
+      {showSettings && (
+        <ProjectSettings
+          projectId={id}
+          name={project.name}
+          locked={locked}
+          onRenamed={(name) => setProject({ ...project, name })}
+          onLockChange={setLocked}
+          onLocked={() => setGate("locked")}
+        />
+      )}
+
 
       <div className="mt-5 w-full max-w-3xl">
         <ModelSelect value={model} onChange={setModel} />
