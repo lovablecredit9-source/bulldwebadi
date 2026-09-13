@@ -15,6 +15,7 @@ import {
   Save,
   Search,
   Send,
+  Settings,
   ShieldCheck,
   Sparkles,
   Trash2,
@@ -30,6 +31,8 @@ import { ModelSelect } from "@/components/ModelSelect";
 import { ReferenceImages } from "@/components/ReferenceImages";
 import { ReferenceFiles, type ReferenceFile } from "@/components/ReferenceFiles";
 import { AiWorkStatus } from "@/components/AiWorkStatus";
+import { ProjectSettings, UnlockScreen } from "@/components/ProjectSecurity";
+import { pinStatus } from "@/lib/pin";
 import { postJson } from "@/lib/api";
 import { binaryContentDataUrl, parseBinaryContent } from "@/lib/file-content";
 import { DEFAULT_MODEL } from "@/lib/models";
@@ -77,6 +80,9 @@ function Workspace() {
   const [files, setFiles] = useState<ProjectFile[] | null>(null);
   const [model, setModel] = useState(DEFAULT_MODEL);
   const [busy, setBusy] = useState("");
+  const [gate, setGate] = useState<"loading" | "locked" | "open">("loading");
+  const [locked, setLocked] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const reload = useCallback(async () => {
     const [p, f] = await Promise.all([getProject(id), listFiles(id)]);
@@ -84,9 +90,23 @@ function Workspace() {
     setFiles(f);
   }, [id]);
 
+  const checkGate = useCallback(async () => {
+    try {
+      const status = await pinStatus(id);
+      setLocked(status.locked);
+      setGate(status.locked && !status.unlocked ? "locked" : "open");
+    } catch {
+      setGate("open");
+    }
+  }, [id]);
+
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    void checkGate();
+  }, [checkGate]);
+
+  useEffect(() => {
+    if (gate === "open") void reload();
+  }, [gate, reload]);
 
   const downloadProjectZip = () => {
     if (!files || !project) return;
@@ -100,7 +120,15 @@ function Workspace() {
     downloadZip(project.name, list);
   };
 
-  if (!project || !files) {
+  if (gate === "locked") {
+    return (
+      <AppShell>
+        <UnlockScreen projectId={id} onUnlocked={() => setGate("open")} />
+      </AppShell>
+    );
+  }
+
+  if (gate === "loading" || !project || !files) {
     return (
       <AppShell>
         <Skeleton className="h-8 w-56" />
@@ -124,11 +152,29 @@ function Workspace() {
             {project.type} · {files.length} file
           </p>
         </div>
-        <Button onClick={downloadProjectZip} className="rounded-xl">
-          <Package className="size-4" />
-          Download ZIP
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" className="rounded-xl" onClick={() => setShowSettings((v) => !v)}>
+            <Settings className="size-4" />
+            Pengaturan
+          </Button>
+          <Button onClick={downloadProjectZip} className="rounded-xl">
+            <Package className="size-4" />
+            Download ZIP
+          </Button>
+        </div>
       </div>
+
+      {showSettings && (
+        <ProjectSettings
+          projectId={id}
+          name={project.name}
+          locked={locked}
+          onRenamed={(name) => setProject({ ...project, name })}
+          onLockChange={setLocked}
+          onLocked={() => setGate("locked")}
+        />
+      )}
+
 
       <div className="mt-5 w-full max-w-3xl">
         <ModelSelect value={model} onChange={setModel} />

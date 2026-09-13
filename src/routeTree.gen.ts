@@ -27,6 +27,8 @@ import { Route as ApiAiModelsRouteImport } from './routes/api/ai/models'
 import { Route as ApiAiTestRouteImport } from './routes/api/ai/test'
 import { Route as ApiAiValidateProjectRouteImport } from './routes/api/ai/validate-project'
 import { Route as ApiProjectApplyRouteImport } from './routes/api/project/apply'
+import { Route as ApiProjectManageRouteImport } from './routes/api/project/manage'
+import { Route as ApiProjectPinRouteImport } from './routes/api/project/pin'
 import { Route as ApiProjectUploadRouteImport } from './routes/api/project/upload'
 
 const IndexRoute = IndexRouteImport.update({
@@ -119,6 +121,16 @@ const ApiProjectApplyRoute = ApiProjectApplyRouteImport.update({
   path: '/api/project/apply',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiProjectManageRoute = ApiProjectManageRouteImport.update({
+  id: '/api/project/manage',
+  path: '/api/project/manage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProjectPinRoute = ApiProjectPinRouteImport.update({
+  id: '/api/project/pin',
+  path: '/api/project/pin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiProjectUploadRoute = ApiProjectUploadRouteImport.update({
   id: '/api/project/upload',
   path: '/api/project/upload',
@@ -144,6 +156,8 @@ export interface FileRoutesByFullPath {
   '/api/ai/test': typeof ApiAiTestRoute
   '/api/ai/validate-project': typeof ApiAiValidateProjectRoute
   '/api/project/apply': typeof ApiProjectApplyRoute
+  '/api/project/manage': typeof ApiProjectManageRoute
+  '/api/project/pin': typeof ApiProjectPinRoute
   '/api/project/upload': typeof ApiProjectUploadRoute
 }
 export interface FileRoutesByTo {
@@ -165,6 +179,8 @@ export interface FileRoutesByTo {
   '/api/ai/test': typeof ApiAiTestRoute
   '/api/ai/validate-project': typeof ApiAiValidateProjectRoute
   '/api/project/apply': typeof ApiProjectApplyRoute
+  '/api/project/manage': typeof ApiProjectManageRoute
+  '/api/project/pin': typeof ApiProjectPinRoute
   '/api/project/upload': typeof ApiProjectUploadRoute
 }
 export interface FileRoutesById {
@@ -187,6 +203,8 @@ export interface FileRoutesById {
   '/api/ai/test': typeof ApiAiTestRoute
   '/api/ai/validate-project': typeof ApiAiValidateProjectRoute
   '/api/project/apply': typeof ApiProjectApplyRoute
+  '/api/project/manage': typeof ApiProjectManageRoute
+  '/api/project/pin': typeof ApiProjectPinRoute
   '/api/project/upload': typeof ApiProjectUploadRoute
 }
 export interface FileRouteTypes {
@@ -210,6 +228,8 @@ export interface FileRouteTypes {
     | '/api/ai/test'
     | '/api/ai/validate-project'
     | '/api/project/apply'
+    | '/api/project/manage'
+    | '/api/project/pin'
     | '/api/project/upload'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -231,6 +251,8 @@ export interface FileRouteTypes {
     | '/api/ai/test'
     | '/api/ai/validate-project'
     | '/api/project/apply'
+    | '/api/project/manage'
+    | '/api/project/pin'
     | '/api/project/upload'
   id:
     | '__root__'
@@ -252,6 +274,8 @@ export interface FileRouteTypes {
     | '/api/ai/test'
     | '/api/ai/validate-project'
     | '/api/project/apply'
+    | '/api/project/manage'
+    | '/api/project/pin'
     | '/api/project/upload'
   fileRoutesById: FileRoutesById
 }
@@ -274,6 +298,8 @@ export interface RootRouteChildren {
   ApiAiTestRoute: typeof ApiAiTestRoute
   ApiAiValidateProjectRoute: typeof ApiAiValidateProjectRoute
   ApiProjectApplyRoute: typeof ApiProjectApplyRoute
+  ApiProjectManageRoute: typeof ApiProjectManageRoute
+  ApiProjectPinRoute: typeof ApiProjectPinRoute
   ApiProjectUploadRoute: typeof ApiProjectUploadRoute
 }
 
@@ -405,6 +431,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProjectApplyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/project/manage': {
+      id: '/api/project/manage'
+      path: '/api/project/manage'
+      fullPath: '/api/project/manage'
+      preLoaderRoute: typeof ApiProjectManageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/project/pin': {
+      id: '/api/project/pin'
+      path: '/api/project/pin'
+      fullPath: '/api/project/pin'
+      preLoaderRoute: typeof ApiProjectPinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/project/upload': {
       id: '/api/project/upload'
       path: '/api/project/upload'
@@ -434,6 +474,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAiTestRoute: ApiAiTestRoute,
   ApiAiValidateProjectRoute: ApiAiValidateProjectRoute,
   ApiProjectApplyRoute: ApiProjectApplyRoute,
+  ApiProjectManageRoute: ApiProjectManageRoute,
+  ApiProjectPinRoute: ApiProjectPinRoute,
   ApiProjectUploadRoute: ApiProjectUploadRoute,
 }
 export const routeTree = rootRouteImport

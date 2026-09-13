@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { FolderTree, Trash2 } from "lucide-react";
+import { FolderTree, Lock, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { deleteProject, listProjects, type Project } from "@/lib/db";
+import { listProjects, type Project } from "@/lib/db";
+import { removeProject } from "@/lib/pin";
 import { projectTypeLabel } from "@/lib/models";
 import { toast } from "sonner";
 
@@ -30,10 +31,17 @@ function ProjectsPage() {
   };
   useEffect(load, []);
 
-  const remove = async (id: string) => {
-    await deleteProject(id);
-    toast.success("Project dihapus");
-    load();
+  const remove = async (p: Project) => {
+    if (!window.confirm(`Hapus project "${p.name}"?`)) return;
+    try {
+      await removeProject(p.id);
+      toast.success("Project dihapus");
+      load();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Project gagal dihapus.",
+      );
+    }
   };
 
   return (
@@ -59,10 +67,13 @@ function ProjectsPage() {
           <div key={p.id} className="rounded-2xl border bg-card p-4 shadow-sm">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="truncate font-semibold">{p.name}</p>
+                <p className="flex items-center gap-1.5 truncate font-semibold">
+                  {p.pin_set_at && <Lock className="size-3.5 shrink-0 text-primary" />}
+                  {p.name}
+                </p>
                 <p className="text-xs text-muted-foreground">{projectTypeLabel(p.type)}</p>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => remove(p.id)}>
+              <Button variant="ghost" size="icon" onClick={() => void remove(p)}>
                 <Trash2 className="size-4" />
               </Button>
             </div>
