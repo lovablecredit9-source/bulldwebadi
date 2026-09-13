@@ -15,6 +15,7 @@ import {
   Save,
   Search,
   Send,
+  Settings,
   ShieldCheck,
   Sparkles,
   Trash2,
