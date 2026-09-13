@@ -30,6 +30,8 @@ import { ModelSelect } from "@/components/ModelSelect";
 import { ReferenceImages } from "@/components/ReferenceImages";
 import { ReferenceFiles, type ReferenceFile } from "@/components/ReferenceFiles";
 import { AiWorkStatus } from "@/components/AiWorkStatus";
+import { ProjectSettings, UnlockScreen } from "@/components/ProjectSecurity";
+import { pinStatus } from "@/lib/pin";
 import { postJson } from "@/lib/api";
 import { binaryContentDataUrl, parseBinaryContent } from "@/lib/file-content";
 import { DEFAULT_MODEL } from "@/lib/models";
