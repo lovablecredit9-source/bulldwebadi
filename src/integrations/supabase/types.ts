@@ -172,6 +172,38 @@ export type Database = {
           },
         ]
       }
+      project_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          project_id: string
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          project_id: string
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          project_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_sessions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_versions: {
         Row: {
           created_at: string
@@ -215,6 +247,9 @@ export type Database = {
           meta: Json
           model: string | null
           name: string
+          pin_hash: string | null
+          pin_salt: string | null
+          pin_set_at: string | null
           type: string
           updated_at: string
         }
@@ -225,6 +260,9 @@ export type Database = {
           meta?: Json
           model?: string | null
           name: string
+          pin_hash?: string | null
+          pin_salt?: string | null
+          pin_set_at?: string | null
           type?: string
           updated_at?: string
         }
@@ -235,6 +273,9 @@ export type Database = {
           meta?: Json
           model?: string | null
           name?: string
+          pin_hash?: string | null
+          pin_salt?: string | null
+          pin_set_at?: string | null
           type?: string
           updated_at?: string
         }
