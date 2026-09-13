@@ -117,7 +117,15 @@ function Workspace() {
     downloadZip(project.name, list);
   };
 
-  if (!project || !files) {
+  if (gate === "locked") {
+    return (
+      <AppShell>
+        <UnlockScreen projectId={id} onUnlocked={() => setGate("open")} />
+      </AppShell>
+    );
+  }
+
+  if (gate === "loading" || !project || !files) {
     return (
       <AppShell>
         <Skeleton className="h-8 w-56" />
