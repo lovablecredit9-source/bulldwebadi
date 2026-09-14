@@ -39,7 +39,7 @@ export const Route = createFileRoute("/api/project/pin")({
         if (body.action === "verify") {
           if (!locked) return safeJson({ ok: true, token: null });
           if (!validPin(body.pin)) return safeJson({ error: "PIN tidak valid." }, 400);
-          if (!(await verifyPin(id, body.pin!))) return safeJson({ error: "PIN salah." }, 401);
+          if (!body.pin || !(await verifyPin(id, body.pin))) return safeJson({ error: "PIN salah." }, 401);
           return safeJson({ ok: true, token: await createSession(id) });
         }
 
@@ -50,18 +50,19 @@ export const Route = createFileRoute("/api/project/pin")({
 
         if (body.action === "set" || body.action === "change") {
           if (locked) {
-            if (!validPin(body.pin) || !(await verifyPin(id, body.pin!))) {
+            if (!body.pin || !validPin(body.pin) || !(await verifyPin(id, body.pin))) {
               return safeJson({ error: "PIN lama salah." }, 401);
             }
           }
           if (!validPin(body.newPin)) return safeJson({ error: "PIN harus 4-8 angka." }, 400);
-          await setPin(id, body.newPin!);
+          if (!body.newPin) return safeJson({ error: "PIN harus 4-8 angka." }, 400);
+          await setPin(id, body.newPin);
           return safeJson({ ok: true, token: await createSession(id) });
         }
 
         if (body.action === "remove") {
           if (!locked) return safeJson({ ok: true });
-          if (!validPin(body.pin) || !(await verifyPin(id, body.pin!))) {
+          if (!body.pin || !validPin(body.pin) || !(await verifyPin(id, body.pin))) {
             return safeJson({ error: "PIN salah." }, 401);
           }
           await clearPin(id);

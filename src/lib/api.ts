@@ -10,7 +10,9 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
     throw new Error("Koneksi bermasalah.");
   }
   const data = (await res.json().catch(() => null)) as (T & { error?: string }) | null;
-  if (!res.ok || !data) throw new Error(data?.error ?? "AI sedang mengalami gangguan. Silakan coba lagi.");
+  if (!res.ok || !data) {
+    throw new Error(data?.error ?? `Permintaan gagal diproses (${res.status || "koneksi"}).`);
+  }
   if (data.error) throw new Error(data.error);
   return data;
 }
