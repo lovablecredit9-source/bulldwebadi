@@ -15,8 +15,7 @@ export function ReferenceImages({
 }) {
   const add = async (files: FileList | null) => {
     if (!files?.length) return;
-    const available = Math.max(0, 4 - images.length);
-    const selected = Array.from(files).slice(0, available);
+    const selected = Array.from(files);
     const next: string[] = [];
     for (const file of selected) {
       try {
@@ -25,20 +24,20 @@ export function ReferenceImages({
         toast.error(error instanceof Error ? error.message : "Foto tidak dapat dibaca.");
       }
     }
-    if (next.length) onChange([...images, ...next].slice(0, 4));
+    if (next.length) onChange([...images, ...next]);
   };
 
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 text-sm font-medium">
         <ImagePlus className="size-4" /> Foto referensi
-        <span className="font-normal text-muted-foreground">(opsional, maksimal 4)</span>
+        <span className="font-normal text-muted-foreground">(opsional, tanpa batas pilihan)</span>
       </div>
       <Input
         type="file"
         accept="image/png,image/jpeg,image/webp,image/gif"
         multiple
-        disabled={disabled || images.length >= 4}
+        disabled={disabled}
         onChange={(event) => {
           void add(event.target.files);
           event.target.value = "";
@@ -47,8 +46,8 @@ export function ReferenceImages({
       {images.length > 0 && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {images.map((src, index) => (
-            <div key={`${src.slice(-24)}-${index}`} className="relative overflow-hidden rounded-lg border bg-muted">
-              <img src={src} alt={`Referensi ${index + 1}`} className="aspect-square w-full object-cover" />
+            <div key={`${src.slice(-24)}-${index}`} className="relative flex min-h-24 items-center justify-center overflow-hidden rounded-lg border bg-muted">
+              <img src={src} alt={`Referensi ${index + 1}`} className="max-h-56 w-full object-contain" />
               <Button
                 type="button"
                 size="icon"

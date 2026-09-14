@@ -1,13 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { FolderTree, Lock, Trash2 } from "lucide-react";
+import { FolderTree, Lock } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { listProjects, type Project } from "@/lib/db";
-import { removeProject } from "@/lib/pin";
 import { projectTypeLabel } from "@/lib/models";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/projects/")({
   head: () => ({
@@ -31,19 +29,6 @@ function ProjectsPage() {
   };
   useEffect(load, []);
 
-  const remove = async (p: Project) => {
-    if (!window.confirm(`Hapus project "${p.name}"?`)) return;
-    try {
-      await removeProject(p.id);
-      toast.success("Project dihapus");
-      load();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Project gagal dihapus.",
-      );
-    }
-  };
-
   return (
     <AppShell>
       <h1 className="text-2xl font-bold">Project Files</h1>
@@ -65,7 +50,7 @@ function ProjectsPage() {
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
         {items?.map((p) => (
           <div key={p.id} className="rounded-2xl border bg-card p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start gap-2">
               <div className="min-w-0">
                 <p className="flex items-center gap-1.5 truncate font-semibold">
                   {p.pin_set_at && <Lock className="size-3.5 shrink-0 text-primary" />}
@@ -73,9 +58,6 @@ function ProjectsPage() {
                 </p>
                 <p className="text-xs text-muted-foreground">{projectTypeLabel(p.type)}</p>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => void remove(p)}>
-                <Trash2 className="size-4" />
-              </Button>
             </div>
             <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{p.description}</p>
             <Button asChild size="sm" className="mt-3 rounded-xl">
