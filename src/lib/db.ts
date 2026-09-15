@@ -19,6 +19,16 @@ export type ProjectVersion = {
   created_at: string;
 };
 
+export type ProjectLibraryState = {
+  project_id: string;
+  archived: boolean;
+  saved: boolean;
+  liked: boolean;
+};
+
+type LibraryRow = ProjectLibraryState;
+const libraryTable = () => (supabase as any).from("project_library_states");
+
 export async function listProjects(): Promise<Project[]> {
   const { data, error } = await supabase
     .from("projects")
@@ -35,6 +45,29 @@ export async function getProject(id: string): Promise<Project | null> {
     .eq("id", id)
     .maybeSingle();
   return (data as Project) ?? null;
+}
+
+export async function getProjectLibraryState(projectId: string): Promise<ProjectLibraryState> {
+  const { data, error } = await libraryTable().select("project_id, archived, saved, liked").eq("project_id", projectId).maybeSingle();
+  if (error) throw new Error("Status project tidak dapat dimuat.");
+  return (data as LibraryRow | null) ?? { project_id: projectId, archived: false, saved: false, liked: false };
+}
+
+export async function listProjectLibraryStates(projectIds: string[]): Promise<Record<string, ProjectLibraryState>> {
+  if (!projectIds.length) return {};
+  const { data, error } = await libraryTable().select("project_id, archived, saved, liked").in("project_id", projectIds);
+  if (error) throw new Error("Status project tidak dapat dimuat.");
+  return Object.fromEntries(
+    (data as LibraryRow[] | null ?? []).map((row) => [row.project_id, row]),
+  );
+}
+
+export async function setProjectLibraryState(projectId: string, patch: Partial<Omit<ProjectLibraryState, "project_id">>) {
+  const current = await getProjectLibraryState(projectId);
+  const next = { project_id: projectId, archived: current.archived, saved: current.saved, liked: current.liked, ...patch };
+  const { data, error } = await libraryTable().upsert(next, { onConflict: "project_id" }).select("project_id, archived, saved, liked").single();
+  if (error || !data) throw new Error("Perubahan status project gagal disimpan.");
+  return data as ProjectLibraryState;
 }
 
 export async function listFiles(projectId: string): Promise<ProjectFile[]> {
@@ -107,7 +140,7 @@ export type ProjectActivity = {
 export async function listActivities(projectId: string): Promise<ProjectActivity[]> {
   const { data } = await supabase
     .from("project_activities")
-    .select("id, action, title, summary, files, created_at")
+    .select("id, project_id, action, title, summary, files, created_at")
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });
   return (data ?? []) as unknown as ProjectActivity[];
