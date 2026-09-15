@@ -26,6 +26,17 @@ function errorMessage(error: unknown) {
   return "Permintaan PIN tidak dapat diproses.";
 }
 
+async function legacyProtectionState(projectId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("projects")
+    .select("pin_hash, pin_salt")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data?.pin_hash && data?.pin_salt);
+}
+
 export const Route = createFileRoute("/api/project/pin")({
   server: {
     handlers: {
@@ -36,12 +47,24 @@ export const Route = createFileRoute("/api/project/pin")({
           if (!id) return safeJson({ error: "Project tidak ditemukan." }, 400);
 
           if (body.action === "status") {
-            const locked = await isProtected(id);
+            // Jangan biarkan RPC schema-cache yang stale membuat project
+            // tanpa PIN terlihat terkunci.
+            let locked = false;
+            try {
+              locked = await isProtected(id);
+            } catch {
+              locked = await legacyProtectionState(id);
+            }
             const unlocked = locked ? await hasAccess(id, body.token) : true;
             return safeJson({ locked, unlocked });
           }
 
-          const locked = await isProtected(id);
+          let locked = false;
+          try {
+            locked = await isProtected(id);
+          } catch {
+            locked = await legacyProtectionState(id);
+          }
 
           if (body.action === "verify") {
             if (!locked) return safeJson({ ok: true, token: null });
@@ -49,7 +72,6 @@ export const Route = createFileRoute("/api/project/pin")({
             if (!body.pin || !(await verifyPin(id, body.pin))) {
               return safeJson({ error: "PIN salah." }, 401);
             }
-            const { createSession } = await import("@/lib/pin.server");
             return safeJson({ ok: true, token: await createSession(id) });
           }
 
@@ -67,8 +89,6 @@ export const Route = createFileRoute("/api/project/pin")({
                 return safeJson({ error: "PIN lama salah." }, 401);
               }
             }
-            // Aktivasi/ganti PIN tidak membuat session. Session dibuat saat
-            // project berikutnya dibuka setelah PIN berhasil diverifikasi.
             await setPin(id, body.newPin);
             return safeJson({ ok: true, token: null });
           }
