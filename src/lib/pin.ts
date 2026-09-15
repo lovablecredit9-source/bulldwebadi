@@ -27,8 +27,15 @@ export async function unlockProject(projectId: string, pin: string) {
     action: "verify",
     pin,
   });
-  savePinToken(projectId, res.token);
-  return res;
+  if (res.token) {
+    savePinToken(projectId, res.token);
+    const status = await pinStatus(projectId);
+    if (!status.locked || status.unlocked) return res;
+    savePinToken(projectId, null);
+    throw new Error("PIN benar, tetapi sesi project gagal dibuka. Silakan coba lagi.");
+  }
+  if (res.ok) return res;
+  throw new Error("PIN project gagal diverifikasi.");
 }
 
 export async function setProjectPin(projectId: string, newPin: string, oldPin?: string) {
