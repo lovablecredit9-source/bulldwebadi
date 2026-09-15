@@ -1,20 +1,28 @@
 import { postJson } from "./api";
 
-const tokens = new Map<string, string>();
+const TOKEN_KEY = (projectId: string) => `adi-pin-token:${projectId}`;
+const ENABLED_KEY = (projectId: string) => `adi-pin-enabled:${projectId}`;
 
 export function getPinToken(projectId: string) {
   if (typeof window === "undefined") return null;
-  const workspacePath = `/projects/${projectId}`;
-  if (!window.location.pathname.startsWith(workspacePath)) {
-    tokens.delete(projectId);
-    return null;
-  }
-  return tokens.get(projectId) ?? null;
+  return window.localStorage.getItem(TOKEN_KEY(projectId));
 }
 
 export function savePinToken(projectId: string, token: string | null) {
-  if (token) tokens.set(projectId, token);
-  else tokens.delete(projectId);
+  if (typeof window === "undefined") return;
+  if (token) window.localStorage.setItem(TOKEN_KEY(projectId), token);
+  else window.localStorage.removeItem(TOKEN_KEY(projectId));
+}
+
+export function isPinEnabled(projectId: string) {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(ENABLED_KEY(projectId)) === "1";
+}
+
+function setPinEnabled(projectId: string, enabled: boolean) {
+  if (typeof window === "undefined") return;
+  if (enabled) window.localStorage.setItem(ENABLED_KEY(projectId), "1");
+  else window.localStorage.removeItem(ENABLED_KEY(projectId));
 }
 
 export async function pinStatus(projectId: string) {
@@ -42,7 +50,8 @@ export async function setProjectPin(projectId: string, newPin: string, oldPin?: 
     newPin,
     ...(oldPin ? { pin: oldPin } : {}),
   });
-  savePinToken(projectId, res.token);
+  setPinEnabled(projectId, true);
+  savePinToken(projectId, null);
   return res;
 }
 
@@ -52,6 +61,7 @@ export async function removeProjectPin(projectId: string, pin: string) {
     action: "remove",
     pin,
   });
+  setPinEnabled(projectId, false);
   savePinToken(projectId, null);
   return res;
 }
