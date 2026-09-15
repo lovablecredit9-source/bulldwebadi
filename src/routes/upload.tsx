@@ -378,7 +378,7 @@ function UploadPage() {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Maksimal total 200 MB, 500 file, 200 MB per file.
+            Maksimal total 500 MB, 500 file, 500 MB per file.
             Folder kosong tidak memiliki isi untuk disimpan.
           </p>
         </div>
