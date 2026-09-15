@@ -75,44 +75,23 @@ export function randomHex(bytes = 16) {
 
 type PinRow = { pin_hash: string | null; pin_salt: string | null };
 
-async function legacyProjectPin(projectId: string): Promise<PinRow | null> {
-  try {
-    const data = await rpc<PinRow | null>("pin_legacy_project", { p_project_id: projectId });
-    return data?.pin_hash && data?.pin_salt ? data : null;
-  } catch {
-    return null;
-  }
-}
-
 export async function projectPinRow(projectId: string): Promise<PinRow | null> {
-  try {
-    const salt = await rpc<string | null>("pin_get_salt", { p_project_id: projectId });
-    if (!salt) return null;
-    return { pin_hash: "protected", pin_salt: salt };
-  } catch {
-    return legacyProjectPin(projectId);
-  }
+  const salt = await rpc<string | null>("pin_get_salt", { p_project_id: projectId });
+  if (!salt) return null;
+  return { pin_hash: "protected", pin_salt: salt };
 }
 
 export async function isProtected(projectId: string) {
-  try {
-    return Boolean(await rpc<boolean>("pin_is_protected", { p_project_id: projectId }));
-  } catch {
-    return Boolean(await legacyProjectPin(projectId));
-  }
+  return Boolean(await rpc<boolean>("pin_is_protected", { p_project_id: projectId }));
 }
 
 export async function hasAccess(projectId: string, token?: string | null) {
   if (!(await isProtected(projectId))) return true;
   if (!token) return false;
-  try {
-    return Boolean(await rpc<boolean>("pin_session_valid", {
-      p_project_id: projectId,
-      p_token_hash: await sha256(token),
-    }));
-  } catch {
-    return false;
-  }
+  return Boolean(await rpc<boolean>("pin_session_valid", {
+    p_project_id: projectId,
+    p_token_hash: await sha256(token),
+  }));
 }
 
 export async function verifyPin(projectId: string, pin: string) {
@@ -120,11 +99,7 @@ export async function verifyPin(projectId: string, pin: string) {
   const row = await projectPinRow(projectId);
   if (!row?.pin_salt) return false;
   const hash = await hashPin(pin, row.pin_salt);
-  try {
-    return Boolean(await rpc<boolean>("pin_verify_hash", { p_project_id: projectId, p_hash: hash }));
-  } catch {
-    return false;
-  }
+  return Boolean(await rpc<boolean>("pin_verify_hash", { p_project_id: projectId, p_hash: hash }));
 }
 
 export async function createSession(projectId: string) {
