@@ -1,16 +1,17 @@
 import { postJson } from "./api";
 
-const TOKEN_KEY = (projectId: string) => `adi-pin-token:${projectId}`;
+// PIN unlock is intentionally kept in memory only.
+// This makes the unlock valid only for the current workspace visit:
+// leaving the workspace or refreshing the page requires the PIN again.
+const tokens = new Map<string, string>();
 
 export function getPinToken(projectId: string) {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(TOKEN_KEY(projectId));
+  return tokens.get(projectId) ?? null;
 }
 
 export function savePinToken(projectId: string, token: string | null) {
-  if (typeof window === "undefined") return;
-  if (token) window.localStorage.setItem(TOKEN_KEY(projectId), token);
-  else window.localStorage.removeItem(TOKEN_KEY(projectId));
+  if (token) tokens.set(projectId, token);
+  else tokens.delete(projectId);
 }
 
 export async function pinStatus(projectId: string) {
