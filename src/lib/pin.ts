@@ -1,5 +1,4 @@
 import { postJson } from "./api";
-import { supabase } from "@/integrations/supabase/client";
 
 const KEY = (projectId: string) => `adi-pin-token:${projectId}`;
 
@@ -15,18 +14,8 @@ export function savePinToken(projectId: string, token: string | null) {
 }
 
 export async function pinStatus(projectId: string) {
-  // A project without pin_set_at is never protected. Read only this public
-  // project metadata first so a broken PIN endpoint cannot block unpinned workspaces.
-  const { data, error } = await supabase
-    .from("projects")
-    .select("pin_set_at")
-    .eq("id", projectId)
-    .maybeSingle();
-
-  if (!error && data && !data.pin_set_at) {
-    return { locked: false, unlocked: true };
-  }
-
+  // PIN metadata is intentionally kept server-side. The status RPC only
+  // returns locked/unlocked state and never exposes the PIN hash or salt.
   return postJson<{ locked: boolean; unlocked: boolean }>("/api/project/pin", {
     projectId,
     action: "status",
