@@ -5,7 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { listProjects, type Project } from "@/lib/db";
-import { isPinEnabled, pinStatus } from "@/lib/pin";
+import { pinStatus } from "@/lib/pin";
 import { projectTypeLabel } from "@/lib/models";
 
 export const Route = createFileRoute("/projects/")({
@@ -30,12 +30,11 @@ function ProjectsPage() {
       setItems(projects);
       const states = await Promise.all(
         projects.map(async (project) => {
-          const localEnabled = isPinEnabled(project.id);
           try {
             const status = await pinStatus(project.id);
-            return [project.id, localEnabled || status.locked] as const;
+            return [project.id, status.locked] as const;
           } catch {
-            return [project.id, localEnabled] as const;
+            return [project.id, false] as const;
           }
         }),
       );
