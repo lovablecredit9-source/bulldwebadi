@@ -3,10 +3,22 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
-const SUPABASE_URL = process.env["SUPABASE_URL"] || process.env["VITE_SUPABASE_URL"];
-const SUPABASE_KEY = process.env["SUPABASE_PUBLISHABLE_KEY"] || process.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
+// TanStack/Lovable server runtime may expose VITE_* only through the build-time
+// import.meta.env object, while some deployments expose SUPABASE_* via process.env.
+const SUPABASE_URL =
+  process.env["SUPABASE_URL"] ||
+  process.env["VITE_SUPABASE_URL"] ||
+  import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY =
+  process.env["SUPABASE_SERVICE_ROLE_KEY"] ||
+  process.env["SUPABASE_SECRET_KEY"] ||
+  process.env["SUPABASE_PUBLISHABLE_KEY"] ||
+  process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error("Missing Supabase URL or publishable key for PIN backend.");
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  throw new Error("Missing Supabase URL or server key for PIN backend.");
+}
 
 const supabaseServer = createClient<Database>(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
