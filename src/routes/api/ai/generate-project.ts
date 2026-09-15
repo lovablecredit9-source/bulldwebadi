@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AiError, SYSTEM_PROMPT, callAI, errorResponse, parseJsonLoose, safeJson, type MsgContent } from "@/lib/ai.server";
+import { supabase } from "@/integrations/supabase/client";
 import { applyFiles, logActivity, saveVersion } from "@/lib/project.server";
 import { projectTypeLabel } from "@/lib/models";
 
@@ -77,8 +78,7 @@ Aturan:
           const files = (parsed.files ?? []).filter((f) => f?.path && typeof f.content === "string");
           if (!files.length) throw new AiError("AI tidak mengembalikan file. Coba lagi.");
 
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const { data: project, error } = await supabaseAdmin
+          const { data: project, error } = await supabase
             .from("projects")
             .insert({
               name,
