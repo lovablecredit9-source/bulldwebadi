@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { unzipSync, strFromU8 } from "fflate";
 import { safeJson, sanitizePath } from "@/lib/ai.server";
 import { encodeBinaryContent, mimeForPath } from "@/lib/file-content";
+import { supabase } from "@/integrations/supabase/client";
 import { applyFiles, saveVersion } from "@/lib/project.server";
 
 const MAX_TOTAL = 500 * 1024 * 1024;
@@ -177,12 +178,7 @@ export const Route = createFileRoute("/api/project/upload")({
             );
           }
 
-          const { supabaseAdmin } =
-            await import(
-              "@/integrations/supabase/client.server"
-            );
-
-          const { data: project, error } = await supabaseAdmin
+          const { data: project, error } = await supabase
             .from("projects")
             .insert({
               name,
