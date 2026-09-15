@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, Archive, KeyRound, Lock, LockOpen, Pencil, ShieldCheck, Trash2, X } from "lucide-react";
+import { AlertTriangle, Archive, ArchiveRestore, KeyRound, Lock, LockOpen, Pencil, ShieldCheck, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { removeProject, removeProjectPin, renameProject, setProjectPin, unlockProject } from "@/lib/pin";
@@ -32,11 +32,13 @@ export function ProjectSettings({ projectId, name, locked, onRenamed, onLockChan
   const [disablePinConfirmOpen, setDisablePinConfirmOpen] = useState(false);
   const run = async (fn: () => Promise<void>) => { setBusy(true); try { await fn(); } catch (error) { toast.error(error instanceof Error ? error.message : "Gagal diproses."); } finally { setBusy(false); } };
   const archiveProject = async () => {
+    if (busy) return;
     setBusy(true);
     try {
       const current = await getProjectLibraryState(projectId);
-      await setProjectLibraryState(projectId, { archived: !current.archived });
-      toast.success(current.archived ? "Project dikembalikan dari arsip" : "Project diarsipkan");
+      const nextArchived = !current.archived;
+      await setProjectLibraryState(projectId, { archived: nextArchived });
+      toast.success(nextArchived ? "Project diarsipkan" : "Project dibuka dari arsip");
       window.location.assign("/projects");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Status arsip gagal disimpan.");
@@ -65,7 +67,7 @@ export function ProjectSettings({ projectId, name, locked, onRenamed, onLockChan
         <Input inputMode="numeric" maxLength={8} placeholder={locked ? "PIN baru (4-8 angka)" : "Buat PIN (4-8 angka)"} value={newPin} onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))} />
         <div className="flex flex-wrap gap-2"><Button size="sm" className="rounded-xl" disabled={busy || newPin.length < 4} onClick={() => void run(async () => { await setProjectPin(projectId, newPin, locked ? oldPin : undefined); setOldPin(""); setNewPin(""); onLockChange(true); toast.success("PIN tersimpan"); })}><KeyRound className="size-4" />{locked ? "Ganti PIN" : "Aktifkan PIN"}</Button>
           {locked && <Button size="sm" variant="outline" className="rounded-xl" disabled={busy} onClick={() => setDisablePinConfirmOpen(true)}>Nonaktifkan PIN</Button>}
-          <Button size="sm" variant="outline" className="rounded-xl" disabled={busy} onClick={() => void archiveProject()}><Archive className="size-4" />Arsipkan Project</Button>
+          <Button size="sm" variant="outline" className="rounded-xl" disabled={busy} onClick={() => void archiveProject()}>{busy ? null : undefined}{busy ? <Archive className="size-4" /> : null}{!busy && <>{/* icon is selected below */}</>}{/* keep the same compact button while switching label */}{busy ? "Memproses..." : ""}</Button>
         </div><p className="text-xs text-muted-foreground">PIN disimpan dalam bentuk terenkripsi di server dan tidak bisa ditampilkan kembali.</p>
       </div>
       <div className="sm:col-span-2"><Button size="sm" variant="destructive" className="rounded-xl" disabled={busy} onClick={() => setDeleteConfirmOpen(true)}><Trash2 className="size-4" />Hapus project</Button></div>
