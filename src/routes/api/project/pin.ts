@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { safeJson } from "@/lib/ai.server";
 import {
   clearPin,
-  createSession,
   dropSession,
   hasAccess,
   isProtected,
@@ -36,11 +35,13 @@ export const Route = createFileRoute("/api/project/pin")({
           const id = body.projectId;
           if (!id) return safeJson({ error: "Project tidak ditemukan." }, 400);
 
-          const locked = await isProtected(id);
-
           if (body.action === "status") {
-            return safeJson({ locked, unlocked: await hasAccess(id, body.token) });
+            const locked = await isProtected(id);
+            const unlocked = locked ? await hasAccess(id, body.token) : true;
+            return safeJson({ locked, unlocked });
           }
+
+          const locked = await isProtected(id);
 
           if (body.action === "verify") {
             if (!locked) return safeJson({ ok: true, token: null });
@@ -48,6 +49,7 @@ export const Route = createFileRoute("/api/project/pin")({
             if (!body.pin || !(await verifyPin(id, body.pin))) {
               return safeJson({ error: "PIN salah." }, 401);
             }
+            const { createSession } = await import("@/lib/pin.server");
             return safeJson({ ok: true, token: await createSession(id) });
           }
 
@@ -57,19 +59,16 @@ export const Route = createFileRoute("/api/project/pin")({
           }
 
           if (body.action === "set" || body.action === "change") {
+            if (!validPin(body.newPin)) {
+              return safeJson({ error: "PIN harus 4-8 angka." }, 400);
+            }
             if (locked) {
               if (!body.pin || !validPin(body.pin) || !(await verifyPin(id, body.pin))) {
                 return safeJson({ error: "PIN lama salah." }, 401);
               }
             }
-            if (!validPin(body.newPin)) {
-              return safeJson({ error: "PIN harus 4-8 angka." }, 400);
-            }
-
-            // Aktivasi/ganti PIN tidak perlu membuat session baru. User sudah
-            // berada di workspace; session hanya dibuat saat membuka project.
-            // Ini mencegah kegagalan session insert berubah menjadi HTTP 500
-            // setelah hash PIN sebenarnya sudah berhasil disimpan.
+            // Aktivasi/ganti PIN tidak membuat session. Session dibuat saat
+            // project berikutnya dibuka setelah PIN berhasil diverifikasi.
             await setPin(id, body.newPin);
             return safeJson({ ok: true, token: null });
           }
