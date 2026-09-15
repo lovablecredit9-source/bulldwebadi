@@ -1,7 +1,5 @@
 import { postJson } from "./api";
 
-// PIN unlock is intentionally kept in memory only.
-// A full refresh resets this state, and leaving the workspace clears it below.
 const tokens = new Map<string, string>();
 
 export function getPinToken(projectId: string) {
@@ -14,13 +12,9 @@ export function savePinToken(projectId: string, token: string | null) {
 }
 
 export async function pinStatus(projectId: string) {
-  if (typeof window !== "undefined") {
-    const workspacePath = `/projects/${projectId}`;
-    if (window.location.pathname !== workspacePath) {
-      savePinToken(projectId, null);
-    }
+  if (typeof window !== "undefined" && window.location.pathname !== `/projects/${projectId}`) {
+    savePinToken(projectId, null);
   }
-
   return postJson<{ locked: boolean; unlocked: boolean }>("/api/project/pin", {
     projectId,
     action: "status",
@@ -51,11 +45,11 @@ export async function setProjectPin(projectId: string, newPin: string, oldPin?: 
   return res;
 }
 
-export async function removeProjectPin(projectId: string, pin: string) {
+export async function removeProjectPin(projectId: string) {
   const res = await postJson<{ ok: boolean }>("/api/project/pin", {
     projectId,
     action: "remove",
-    pin,
+    token: getPinToken(projectId),
   });
   savePinToken(projectId, null);
   return res;
