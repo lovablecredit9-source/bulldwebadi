@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, Archive, ArchiveRestore, KeyRound, Lock, LockOpen, Pencil, ShieldCheck, Trash2, X } from "lucide-react";
+import { AlertTriangle, Archive, ArchiveRestore, ArrowLeft, KeyRound, Lock, LockOpen, Pencil, ShieldCheck, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { removeProject, removeProjectPin, renameProject, setProjectPin, unlockProject } from "@/lib/pin";
 import { getProjectLibraryState, setProjectLibraryState } from "@/lib/db";
 
-export function UnlockScreen({ projectId, onUnlocked }: { projectId: string; onUnlocked: () => void }) {
+export function UnlockScreen({ projectId, onUnlocked, onBack }: { projectId: string; onUnlocked: () => void; onBack: () => void }) {
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
   const submit = async () => {
@@ -15,11 +15,14 @@ export function UnlockScreen({ projectId, onUnlocked }: { projectId: string; onU
     catch (error) { toast.error(error instanceof Error ? error.message : "PIN salah."); }
     finally { setBusy(false); }
   };
-  return <div className="mx-auto mt-10 max-w-sm rounded-2xl border bg-card p-6 text-center shadow-sm">
-    <Lock className="mx-auto size-8 text-primary" /><h1 className="mt-3 text-lg font-bold">Project terkunci</h1>
-    <p className="mt-1 text-sm text-muted-foreground">Masukkan PIN project untuk membuka workspace.</p>
-    <Input className="mt-4 text-center tracking-[0.4em]" inputMode="numeric" maxLength={8} placeholder="••••" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => { if (e.key === "Enter") void submit(); }} />
-    <Button className="mt-3 w-full rounded-xl" disabled={busy || pin.length < 4} onClick={() => void submit()}><LockOpen className="size-4" />{busy ? "Memverifikasi..." : "Buka Project"}</Button>
+  return <div className="mx-auto mt-10 max-w-sm">
+    <Button variant="ghost" size="sm" className="mb-3 -ml-2 rounded-xl" disabled={busy} onClick={onBack}><ArrowLeft className="size-4" />Kembali</Button>
+    <div className="rounded-2xl border bg-card p-6 text-center shadow-sm">
+      <Lock className="mx-auto size-8 text-primary" /><h1 className="mt-3 text-lg font-bold">Project terkunci</h1>
+      <p className="mt-1 text-sm text-muted-foreground">Masukkan PIN project untuk membuka workspace.</p>
+      <Input className="mt-4 text-center tracking-[0.4em]" inputMode="numeric" maxLength={8} placeholder="••••" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => { if (e.key === "Enter") void submit(); }} />
+      <Button className="mt-3 w-full rounded-xl" disabled={busy || pin.length < 4} onClick={() => void submit()}><LockOpen className="size-4" />{busy ? "Memverifikasi..." : "Buka Project"}</Button>
+    </div>
   </div>;
 }
 
