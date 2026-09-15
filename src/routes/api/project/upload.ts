@@ -4,9 +4,9 @@ import { safeJson, sanitizePath } from "@/lib/ai.server";
 import { encodeBinaryContent, mimeForPath } from "@/lib/file-content";
 import { applyFiles, saveVersion } from "@/lib/project.server";
 
-const MAX_TOTAL = 200 * 1024 * 1024;
+const MAX_TOTAL = 500 * 1024 * 1024;
 const MAX_FILES = 500;
-const MAX_FILE = 200 * 1024 * 1024;
+const MAX_FILE = 500 * 1024 * 1024;
 
 const TEXT_EXTENSIONS = new Set([
   "js","mjs","cjs","ts","tsx","jsx","json","html","htm","css","scss","py","txt","md","yml","yaml","env","sh","xml","sql","toml","ini","gitignore","babelrc",
