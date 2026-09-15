@@ -1,21 +1,23 @@
 import { postJson } from "./api";
 
-const KEY = (projectId: string) => `adi-pin-token:${projectId}`;
+const tokens = new Map<string, string>();
 
 export function getPinToken(projectId: string) {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(KEY(projectId));
+  const workspacePath = `/projects/${projectId}`;
+  if (!window.location.pathname.startsWith(workspacePath)) {
+    tokens.delete(projectId);
+    return null;
+  }
+  return tokens.get(projectId) ?? null;
 }
 
 export function savePinToken(projectId: string, token: string | null) {
-  if (typeof window === "undefined") return;
-  if (token) window.localStorage.setItem(KEY(projectId), token);
-  else window.localStorage.removeItem(KEY(projectId));
+  if (token) tokens.set(projectId, token);
+  else tokens.delete(projectId);
 }
 
 export async function pinStatus(projectId: string) {
-  // PIN metadata is intentionally kept server-side. The status RPC only
-  // returns locked/unlocked state and never exposes the PIN hash or salt.
   return postJson<{ locked: boolean; unlocked: boolean }>("/api/project/pin", {
     projectId,
     action: "status",
