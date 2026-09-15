@@ -3,14 +3,7 @@ import { toast } from "sonner";
 import { AlertTriangle, KeyRound, Lock, LockOpen, Pencil, ShieldCheck, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  lockProject,
-  removeProject,
-  removeProjectPin,
-  renameProject,
-  setProjectPin,
-  unlockProject,
-} from "@/lib/pin";
+import { removeProject, removeProjectPin, renameProject, setProjectPin, unlockProject } from "@/lib/pin";
 
 /** Layar buka PIN sebelum workspace ditampilkan. */
 export function UnlockScreen({
@@ -40,9 +33,7 @@ export function UnlockScreen({
     <div className="mx-auto mt-10 max-w-sm rounded-2xl border bg-card p-6 text-center shadow-sm">
       <Lock className="mx-auto size-8 text-primary" />
       <h1 className="mt-3 text-lg font-bold">Project terkunci</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Masukkan PIN project untuk membuka workspace.
-      </p>
+      <p className="mt-1 text-sm text-muted-foreground">Masukkan PIN project untuk membuka workspace.</p>
       <Input
         className="mt-4 text-center tracking-[0.4em]"
         inputMode="numeric"
@@ -62,21 +53,19 @@ export function UnlockScreen({
   );
 }
 
-/** Panel pengaturan: ganti nama, atur/hapus PIN, kunci ulang. */
+/** Panel pengaturan: ganti nama dan atur/hapus PIN. */
 export function ProjectSettings({
   projectId,
   name,
   locked,
   onRenamed,
   onLockChange,
-  onLocked,
 }: {
   projectId: string;
   name: string;
   locked: boolean;
   onRenamed: (name: string) => void;
   onLockChange: (locked: boolean) => void;
-  onLocked: () => void;
 }) {
   const [newName, setNewName] = useState(name);
   const [oldPin, setOldPin] = useState("");
@@ -172,39 +161,22 @@ export function ProjectSettings({
               {locked ? "Ganti PIN" : "Aktifkan PIN"}
             </Button>
             {locked && (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="rounded-xl"
-                  disabled={busy || oldPin.length < 4}
-                  onClick={() =>
-                    void run(async () => {
-                      await removeProjectPin(projectId, oldPin);
-                      setOldPin("");
-                      onLockChange(false);
-                      toast.success("PIN dihapus");
-                    })
-                  }
-                >
-                  Hapus PIN
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="rounded-xl"
-                  disabled={busy}
-                  onClick={() =>
-                    void run(async () => {
-                      await lockProject(projectId);
-                      onLocked();
-                    })
-                  }
-                >
-                  <Lock className="size-4" />
-                  Kunci sekarang
-                </Button>
-              </>
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-xl"
+                disabled={busy || oldPin.length < 4}
+                onClick={() =>
+                  void run(async () => {
+                    await removeProjectPin(projectId, oldPin);
+                    setOldPin("");
+                    onLockChange(false);
+                    toast.success("PIN dihapus");
+                  })
+                }
+              >
+                Hapus PIN
+              </Button>
             )}
           </div>
           <p className="text-xs text-muted-foreground">
@@ -257,33 +229,15 @@ export function ProjectSettings({
                 <X className="size-5" />
               </Button>
             </div>
-
             <div className="mt-5">
-              <h2 id="delete-project-title" className="text-xl font-bold tracking-tight">
-                Yakin ingin menghapus project?
-              </h2>
+              <h2 id="delete-project-title" className="text-xl font-bold tracking-tight">Yakin ingin menghapus project?</h2>
               <p id="delete-project-description" className="mt-2 text-sm leading-6 text-muted-foreground">
                 Project <span className="font-semibold text-foreground">“{name}”</span> akan dihapus secara permanen. Data dan workspace project ini tidak dapat dipulihkan setelah dihapus.
               </p>
             </div>
-
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-xl"
-                disabled={busy}
-                onClick={() => setDeleteConfirmOpen(false)}
-              >
-                Batal
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                className="rounded-xl"
-                disabled={busy}
-                onClick={() => void confirmDelete()}
-              >
+              <Button type="button" variant="outline" className="rounded-xl" disabled={busy} onClick={() => setDeleteConfirmOpen(false)}>Batal</Button>
+              <Button type="button" variant="destructive" className="rounded-xl" disabled={busy} onClick={() => void confirmDelete()}>
                 <Trash2 className="size-4" />
                 {busy ? "Menghapus..." : "Ya, hapus permanen"}
               </Button>
