@@ -41,12 +41,11 @@ type PinRow = { pin_hash: string | null; pin_salt: string | null };
 
 export async function projectPinRow(projectId: string): Promise<PinRow | null> {
   const db = await admin();
-  const { data, error } = await db
+  const { data } = await db
     .from("projects")
     .select("pin_hash, pin_salt")
     .eq("id", projectId)
     .maybeSingle();
-  if (error) throw new Error(`PIN project tidak dapat diperiksa: ${error.message}`);
   return (data as PinRow) ?? null;
 }
 
@@ -61,13 +60,12 @@ export async function hasAccess(projectId: string, token?: string | null) {
   if (!row?.pin_hash) return true;
   if (!token) return false;
   const db = await admin();
-  const { data, error } = await db
+  const { data } = await db
     .from("project_sessions")
     .select("id, expires_at")
     .eq("project_id", projectId)
     .eq("token_hash", await sha256(token))
     .maybeSingle();
-  if (error) throw new Error(`Sesi PIN tidak dapat diperiksa: ${error.message}`);
   if (!data) return false;
   if (new Date(data.expires_at as string).getTime() < Date.now()) return false;
   return true;
@@ -82,44 +80,35 @@ export async function verifyPin(projectId: string, pin: string) {
 export async function createSession(projectId: string) {
   const db = await admin();
   const token = randomHex(24);
-  const { error } = await db.from("project_sessions").insert({
-    project_id: projectId,
-    token_hash: await sha256(token),
-  });
-  if (error) throw new Error(`Sesi PIN tidak dapat dibuat: ${error.message}`);
+  await db.from("project_sessions").insert({ project_id: projectId, token_hash: await sha256(token) });
   return token;
 }
 
 export async function dropSession(projectId: string, token?: string | null) {
   if (!token) return;
   const db = await admin();
-  const { error } = await db
+  await db
     .from("project_sessions")
     .delete()
     .eq("project_id", projectId)
     .eq("token_hash", await sha256(token));
-  if (error) throw new Error(`Sesi PIN tidak dapat ditutup: ${error.message}`);
 }
 
 export async function setPin(projectId: string, pin: string) {
   const db = await admin();
   const salt = randomHex(16);
-  const { error } = await db
+  await db
     .from("projects")
     .update({ pin_hash: await hashPin(pin, salt), pin_salt: salt, pin_set_at: new Date().toISOString() })
     .eq("id", projectId);
-  if (error) throw new Error(`PIN project tidak dapat disimpan: ${error.message}`);
-  const { error: sessionError } = await db.from("project_sessions").delete().eq("project_id", projectId);
-  if (sessionError) throw new Error(`Sesi PIN lama tidak dapat dibersihkan: ${sessionError.message}`);
+  await db.from("project_sessions").delete().eq("project_id", projectId);
 }
 
 export async function clearPin(projectId: string) {
   const db = await admin();
-  const { error } = await db
+  await db
     .from("projects")
     .update({ pin_hash: null, pin_salt: null, pin_set_at: null })
     .eq("id", projectId);
-  if (error) throw new Error(`PIN project tidak dapat dihapus: ${error.message}`);
-  const { error: sessionError } = await db.from("project_sessions").delete().eq("project_id", projectId);
-  if (sessionError) throw new Error(`Sesi PIN tidak dapat dibersihkan: ${sessionError.message}`);
+  await db.from("project_sessions").delete().eq("project_id", projectId);
 }
