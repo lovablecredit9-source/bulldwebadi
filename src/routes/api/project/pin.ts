@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { safeJson } from "@/lib/ai.server";
 import {
   clearPin,
+  createSession,
   dropSession,
   hasAccess,
   isProtected,
@@ -47,8 +48,6 @@ export const Route = createFileRoute("/api/project/pin")({
           if (!id) return safeJson({ error: "Project tidak ditemukan." }, 400);
 
           if (body.action === "status") {
-            // Jangan biarkan RPC schema-cache yang stale membuat project
-            // tanpa PIN terlihat terkunci.
             let locked = false;
             try {
               locked = await isProtected(id);
@@ -90,7 +89,11 @@ export const Route = createFileRoute("/api/project/pin")({
               }
             }
             await setPin(id, body.newPin);
-            return safeJson({ ok: true, token: null });
+
+            // Setelah PIN baru dibuat/ganti, sesi saat ini tetap dianggap
+            // terbuka. Jadi user tidak langsung terpental ke layar PIN.
+            // Token ini disimpan client dan dipakai saat masuk kembali.
+            return safeJson({ ok: true, token: await createSession(id) });
           }
 
           if (body.action === "remove") {
