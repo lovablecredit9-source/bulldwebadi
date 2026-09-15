@@ -52,23 +52,47 @@ async function rpc<T>(fn: string, args: Record<string, unknown>) {
 
 type PinRow = { pin_hash: string | null; pin_salt: string | null };
 
+async function legacyProjectPin(projectId: string): Promise<PinRow | null> {
+  const { data, error } = await supabaseServer
+    .from("projects")
+    .select("pin_hash, pin_salt")
+    .eq("id", projectId)
+    .maybeSingle();
+  if (error || !data) return null;
+  const row = data as PinRow;
+  return row.pin_hash && row.pin_salt ? row : null;
+}
+
 export async function projectPinRow(projectId: string): Promise<PinRow | null> {
-  const salt = await rpc<string | null>("pin_get_salt", { p_project_id: projectId });
-  if (!salt) return null;
-  return { pin_hash: "protected", pin_salt: salt };
+  try {
+    const salt = await rpc<string | null>("pin_get_salt", { p_project_id: projectId });
+    if (!salt) return null;
+    return { pin_hash: "protected", pin_salt: salt };
+  } catch {
+    // Fallback untuk deployment yang PostgREST schema cache belum mengenali RPC.
+    return legacyProjectPin(projectId);
+  }
 }
 
 export async function isProtected(projectId: string) {
-  return Boolean(await rpc<boolean>("pin_is_protected", { p_project_id: projectId }));
+  try {
+    return Boolean(await rpc<boolean>("pin_is_protected", { p_project_id: projectId }));
+  } catch {
+    return Boolean(await legacyProjectPin(projectId));
+  }
 }
 
 export async function hasAccess(projectId: string, token?: string | null) {
   if (!(await isProtected(projectId))) return true;
   if (!token) return false;
-  return Boolean(await rpc<boolean>("pin_session_valid", {
-    p_project_id: projectId,
-    p_token_hash: await sha256(token),
-  }));
+  try {
+    return Boolean(await rpc<boolean>("pin_session_valid", {
+      p_project_id: projectId,
+      p_token_hash: await sha256(token),
+    }));
+  } catch {
+    return false;
+  }
 }
 
 export async function verifyPin(projectId: string, pin: string) {
@@ -76,13 +100,25 @@ export async function verifyPin(projectId: string, pin: string) {
   const row = await projectPinRow(projectId);
   if (!row?.pin_salt) return false;
   const hash = await hashPin(pin, row.pin_salt);
-  return Boolean(await rpc<boolean>("pin_verify_hash", { p_project_id: projectId, p_hash: hash }));
+  try {
+    return Boolean(await rpc<boolean>("pin_verify_hash", { p_project_id: projectId, p_hash: hash }));
+  } catch {
+    const { data, error } = await supabaseServer
+      .from("projects")
+      .select("id")
+      .eq("id", projectId)
+      .eq("pin_hash", hash)
+      .maybeSingle();
+    return Boolean(data && !error);
+  }
 }
 
 export async function createSession(projectId: string) {
   const token = randomHex(24);
-  const tokenHash = await sha256(token);
-  await rpc<boolean>("pin_session_create", { p_project_id: projectId, p_token_hash: tokenHash });
+  await rpc<boolean>("pin_session_create", {
+    p_project_id: projectId,
+    p_token_hash: await sha256(token),
+  });
   return token;
 }
 
@@ -97,13 +133,32 @@ export async function dropSession(projectId: string, token?: string | null) {
 export async function setPin(projectId: string, pin: string) {
   const salt = randomHex(16);
   const hash = await hashPin(pin, salt);
-  await rpc<boolean>("pin_set_hash", {
-    p_project_id: projectId,
-    p_hash: hash,
-    p_salt: salt,
-  });
+  try {
+    await rpc<boolean>("pin_set_hash", {
+      p_project_id: projectId,
+      p_hash: hash,
+      p_salt: salt,
+    });
+    return;
+  } catch {
+    // Backward-compatible fallback. This is server-side only; the PIN is still stored as a hash.
+    const { error } = await supabaseServer
+      .from("projects")
+      .update({ pin_hash: hash, pin_salt: salt, pin_set_at: new Date().toISOString() })
+      .eq("id", projectId);
+    if (error) throw error;
+  }
 }
 
 export async function clearPin(projectId: string) {
-  await rpc<boolean>("pin_clear", { p_project_id: projectId });
+  try {
+    await rpc<boolean>("pin_clear", { p_project_id: projectId });
+    return;
+  } catch {
+    const { error } = await supabaseServer
+      .from("projects")
+      .update({ pin_hash: null, pin_salt: null, pin_set_at: null })
+      .eq("id", projectId);
+    if (error) throw error;
+  }
 }
