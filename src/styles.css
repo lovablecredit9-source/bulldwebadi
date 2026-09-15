@@ -141,3 +141,40 @@
 }
 
 #lovable-badge { display: none !important; }
+
+/* Compact dual upload controls in the workspace Fix panel. */
+.rounded-2xl.border.bg-card.p-4:has(> .mt-3 + .mt-3 input[type="file"]) > .mt-3:has(input[type="file"]) {
+  display: inline-block;
+  vertical-align: top;
+  width: calc(50% - 0.4rem);
+}
+
+.rounded-2xl.border.bg-card.p-4:has(> .mt-3 + .mt-3 input[type="file"]) > .mt-3:has(input[type="file"]):first-of-type {
+  margin-right: 0.75rem;
+}
+
+.rounded-2xl.border.bg-card.p-4:has(> .mt-3 + .mt-3 input[type="file"]) > .mt-3:has(input[type="file"]) .text-muted-foreground {
+  display: none;
+}
+
+.rounded-2xl.border.bg-card.p-4:has(> .mt-3 + .mt-3 input[type="file"]) > .mt-3:has(input[type="file"]) input[type="file"] {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.72rem;
+}
+
+.rounded-2xl.border.bg-card.p-4:has(> .mt-3 + .mt-3 input[type="file"]) > .mt-3:has(input[type="file"]) input[type="file"]::file-selector-button {
+  margin-right: 0.4rem;
+  border: 0;
+  border-radius: 0.65rem;
+  padding: 0.35rem 0.55rem;
+  font-weight: 600;
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+@media (max-width: 520px) {
+  .rounded-2xl.border.bg-card.p-4:has(> .mt-3 + .mt-3 input[type="file"]) > .mt-3:has(input[type="file"]) {
+    width: calc(50% - 0.35rem);
+  }
+}
