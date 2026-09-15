@@ -1,27 +1,51 @@
 /** Keamanan PIN proyek: hash PBKDF2 + token sesi, PIN asli tidak pernah disimpan. */
 
-import { createClient } from "@supabase/supabase-js";
-
-// Untuk PIN, URL/key Vite yang terikat ke project aplikasi harus diprioritaskan.
-// Ini mencegah runtime server memakai SUPABASE_URL lama dari environment deployment.
+// URL + publishable key ini adalah konfigurasi publik Supabase aplikasi.
+// Tidak pernah gunakan service-role/secret key untuk PIN.
 const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL ||
   process.env["VITE_SUPABASE_URL"] ||
-  process.env["SUPABASE_URL"];
+  process.env["SUPABASE_URL"] ||
+  "https://ochqpzpsfqytemrgsdir.supabase.co";
 const SUPABASE_KEY =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
   process.env["SUPABASE_PUBLISHABLE_KEY"] ||
-  process.env["SUPABASE_SECRET_KEY"] ||
-  process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  "sb_publishable_Wmfpinvf5ZPzf7dmRoNtMw_1L1H1qfC";
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   throw new Error("Konfigurasi Supabase untuk PIN belum tersedia di server.");
 }
 
-const supabaseServer = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+// Gunakan REST RPC langsung agar sb_publishable_* dikirim sebagai apikey,
+// bukan Authorization: Bearer <publishable-key>.
+async function rpc<T>(fn: string, args: Record<string, unknown>) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(args),
+  });
+
+  const text = await response.text();
+  let data: unknown = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
+
+  if (!response.ok) {
+    const message = typeof data === "object" && data && "message" in data
+      ? String((data as { message: unknown }).message)
+      : `HTTP ${response.status}`;
+    throw new Error(`Supabase RPC ${fn} gagal: ${message}`);
+  }
+
+  return data as T;
+}
 
 // Web Crypto pada runtime deployment ini membatasi PBKDF2 sampai 100.000 iterasi.
 const PBKDF2_ITERATIONS = 100_000;
@@ -49,23 +73,15 @@ export function randomHex(bytes = 16) {
   return toHex(crypto.getRandomValues(new Uint8Array(bytes)).buffer);
 }
 
-async function rpc<T>(fn: string, args: Record<string, unknown>) {
-  const { data, error } = await supabaseServer.rpc(fn, args);
-  if (error) throw new Error(`Supabase RPC ${fn} gagal: ${error.message}`);
-  return data as T;
-}
-
 type PinRow = { pin_hash: string | null; pin_salt: string | null };
 
 async function legacyProjectPin(projectId: string): Promise<PinRow | null> {
-  const { data, error } = await supabaseServer
-    .from("projects")
-    .select("pin_hash, pin_salt")
-    .eq("id", projectId)
-    .maybeSingle();
-  if (error || !data) return null;
-  const row = data as PinRow;
-  return row.pin_hash && row.pin_salt ? row : null;
+  try {
+    const data = await rpc<PinRow | null>("pin_legacy_project", { p_project_id: projectId });
+    return data?.pin_hash && data?.pin_salt ? data : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function projectPinRow(projectId: string): Promise<PinRow | null> {
@@ -107,13 +123,7 @@ export async function verifyPin(projectId: string, pin: string) {
   try {
     return Boolean(await rpc<boolean>("pin_verify_hash", { p_project_id: projectId, p_hash: hash }));
   } catch {
-    const { data, error } = await supabaseServer
-      .from("projects")
-      .select("id")
-      .eq("id", projectId)
-      .eq("pin_hash", hash)
-      .maybeSingle();
-    return Boolean(data && !error);
+    return false;
   }
 }
 
@@ -143,7 +153,6 @@ export async function setPin(projectId: string, pin: string) {
     p_salt: salt,
   });
 
-  // Pastikan write selesai dan bisa dibaca kembali dari project Supabase yang sama.
   const savedSalt = await rpc<string | null>("pin_get_salt", { p_project_id: projectId });
   if (!savedSalt || savedSalt !== salt) {
     throw new Error("PIN belum tersimpan di server. Silakan coba lagi.");
