@@ -6,7 +6,6 @@ export type Project = {
   type: string;
   description: string | null;
   model: string | null;
-  pin_set_at?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -23,7 +22,7 @@ export type ProjectVersion = {
 export async function listProjects(): Promise<Project[]> {
   const { data, error } = await supabase
     .from("projects")
-    .select("id, name, type, description, model, pin_set_at, created_at, updated_at")
+    .select("id, name, type, description, model, created_at, updated_at")
     .order("updated_at", { ascending: false });
   if (error) throw new Error("Koneksi bermasalah.");
   return (data ?? []) as Project[];
@@ -32,7 +31,7 @@ export async function listProjects(): Promise<Project[]> {
 export async function getProject(id: string): Promise<Project | null> {
   const { data } = await supabase
     .from("projects")
-    .select("id, name, type, description, model, pin_set_at, created_at, updated_at")
+    .select("id, name, type, description, model, created_at, updated_at")
     .eq("id", id)
     .maybeSingle();
   return (data as Project) ?? null;
