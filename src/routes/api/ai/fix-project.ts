@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AiError, SYSTEM_PROMPT, callAI, errorResponse, parseJsonLoose, safeJson, type MsgContent } from "@/lib/ai.server";
 import { buildTree, contextBlock, getFiles, getProject, getRecentActivities, logChatExchange, pickRelevantFiles } from "@/lib/project.server";
+import { hasAccess } from "@/lib/pin.server";
 
 export const Route = createFileRoute("/api/ai/fix-project")({
   server: {
@@ -13,20 +14,21 @@ export const Route = createFileRoute("/api/ai/fix-project")({
           targetFiles?: string[];
           images?: string[];
           attachments?: { name?: string; content?: string }[];
+          token?: string;
         };
         try {
           if (!body.projectId) throw new AiError("Project tidak ditemukan.");
+          if (!(await hasAccess(body.projectId, body.token))) throw new AiError("Masukkan PIN project terlebih dahulu.", 401);
           const project = await getProject(body.projectId);
           if (!project) throw new AiError("Project tidak ditemukan.");
           const files = await getFiles(body.projectId);
           if (!files.length) throw new AiError("Project belum memiliki file.");
 
           const instruction = body.instruction?.trim() || "Perbaiki semua error pada project ini.";
-          const images = (body.images ?? []).filter((image) => typeof image === "string" && image.startsWith("data:image/")).slice(0, 4);
+          const images = (body.images ?? []).filter((image) => typeof image === "string" && image.startsWith("data:image/"));
           const attachments = (body.attachments ?? [])
             .filter((a) => a && typeof a.content === "string" && a.content.trim())
-            .slice(0, 4)
-            .map((a) => ({ name: String(a.name ?? "lampiran").slice(0, 120), content: String(a.content).slice(0, 20000) }));
+            .map((a) => ({ name: String(a.name ?? "lampiran").slice(0, 120), content: String(a.content).slice(0, 250000) }));
           const attachmentBlock = attachments.length
             ? `FILE CONTOH DARI PENGGUNA (tiru gaya/strukturnya bila relevan):\n${attachments
                 .map((a) => `--- LAMPIRAN: ${a.name} ---\n${a.content}`)

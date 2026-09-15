@@ -35,9 +35,7 @@ export const Route = createFileRoute("/api/ai/generate-project")({
           if (description.length < 5) throw new AiError("Deskripsi project terlalu pendek.");
 
           const meta = body.meta ?? {};
-          const images = (body.images ?? [])
-            .filter((image) => typeof image === "string" && image.startsWith("data:image/"))
-            .slice(0, 4);
+          const images = (body.images ?? []).filter((image) => typeof image === "string" && image.startsWith("data:image/"));
           const secretNote = meta["telegramToken"]
             ? "Token bot tersimpan di config lewat environment variable, JANGAN tulis token asli di kode."
             : "";

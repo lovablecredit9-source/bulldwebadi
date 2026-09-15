@@ -42,8 +42,8 @@ const MANIFESTS = [
   "requirements.txt",
 ];
 
-const MAX_CONTEXT_CHARS = 36000;
-const MAX_CONTEXT_FILES = 12;
+const MAX_CONTEXT_CHARS = 180000;
+const MAX_CONTEXT_FILES = 40;
 const SOURCE_EXTENSIONS = new Set([
   "js",
   "jsx",
