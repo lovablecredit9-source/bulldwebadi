@@ -1,11 +1,13 @@
+import { supabase } from "@/integrations/supabase/client";
 import { sanitizePath } from "./ai.server";
 import { parseBinaryContent } from "./file-content";
 
 export type FileRow = { path: string; content: string };
 
 async function admin() {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return supabaseAdmin;
+  // Project data is protected by Supabase RLS. Use the publishable client here
+  // so normal workspace persistence does not depend on a service-role secret.
+  return supabase;
 }
 
 export async function getProject(id: string) {
