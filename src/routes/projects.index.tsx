@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Archive, FolderTree, Lock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Archive, Bookmark, FolderTree, Heart, Lock } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/projects/")({
   component: ProjectsPage,
 });
 
-type View = "all" | "saved" | "liked" | "archived";
+type View = "all" | "archived";
 const emptyState = (id: string): ProjectLibraryState => ({ project_id: id, archived: false, saved: false, liked: false });
 
 function ProjectsPage() {
@@ -51,8 +51,6 @@ function ProjectsPage() {
     if (!items) return null;
     return items.filter((project) => {
       const state = library[project.id] ?? emptyState(project.id);
-      if (view === "saved") return state.saved && !state.archived;
-      if (view === "liked") return state.liked && !state.archived;
       if (view === "archived") return state.archived;
       return !state.archived;
     });
@@ -63,14 +61,18 @@ function ProjectsPage() {
       <h1 className="text-2xl font-bold">Project Files</h1>
       <p className="mt-1 text-sm text-muted-foreground">Project tetap tersimpan. Arsip project dilakukan dari Pengaturan di dalam Workspace.</p>
       <div className="mt-5 flex flex-wrap gap-2">
-        {(["all", "saved", "liked", "archived"] as View[]).map((key) => (
-          <Button key={key} size="sm" variant={view === key ? "default" : "outline"} className="rounded-xl" onClick={() => setView(key)}>
-            {key === "all" ? "Semua" : key === "saved" ? <><Bookmark className="size-4" />Tersimpan</> : key === "liked" ? <><Heart className="size-4" />Disukai</> : <><Archive className="size-4" />Arsip</>}
-          </Button>
-        ))}
+        <Button size="sm" variant={view === "all" ? "default" : "outline"} className="rounded-xl" onClick={() => setView("all")}>
+          Semua
+        </Button>
+      </div>
+      <div className="mt-2">
+        <Button size="sm" variant={view === "archived" ? "default" : "outline"} className="rounded-xl" onClick={() => setView("archived")}>
+          <Archive className="size-4" />
+          Arsip
+        </Button>
       </div>
       {!items && <div className="mt-6 grid gap-3"><Skeleton className="h-20 w-full rounded-2xl" /><Skeleton className="h-20 w-full rounded-2xl" /></div>}
-      {visible && visible.length === 0 && <p className="mt-6 rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">{view === "archived" ? "Belum ada project di Arsip." : view === "saved" ? "Belum ada project Tersimpan." : view === "liked" ? "Belum ada project Disukai." : "Belum ada project. Buat lewat AI Builder atau Upload Project."}</p>}
+      {visible && visible.length === 0 && <p className="mt-6 rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">{view === "archived" ? "Belum ada project di Arsip." : "Belum ada project. Buat lewat AI Builder atau Upload Project."}</p>}
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
         {visible?.map((p) => (
           <div key={p.id} className="rounded-2xl border bg-card p-4 shadow-sm">
