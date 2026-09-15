@@ -27,19 +27,27 @@ export const Route = createFileRoute("/api/settings")({
           model?: string;
         };
         const update: {
+          id: number;
           updated_at: string;
           base_url?: string;
           model?: string;
           api_key?: string;
-        } = { updated_at: new Date().toISOString() };
-        if (body.baseUrl && /^https?:\/\//.test(body.baseUrl)) update.base_url = body.baseUrl;
-        if (body.model) update.model = body.model;
+        } = { id: 1, updated_at: new Date().toISOString() };
+
+        if (body.baseUrl && /^https?:\/\//.test(body.baseUrl)) {
+          update.base_url = body.baseUrl.trim().replace(/\/+$/, "");
+        }
+        if (body.model) update.model = body.model.trim();
         if (typeof body.apiKey === "string" && body.apiKey.trim().length > 0) {
           update.api_key = body.apiKey.trim();
         }
+
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { error } = await supabaseAdmin.from("ai_settings").update(update).eq("id", 1);
+        const { error } = await supabaseAdmin
+          .from("ai_settings")
+          .upsert(update, { onConflict: "id" });
         if (error) return safeJson({ error: "Konfigurasi gagal disimpan." }, 400);
+
         const cfg = await loadConfig();
         return safeJson({
           ok: true,
