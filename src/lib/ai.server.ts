@@ -78,6 +78,15 @@ export type MsgContent =
   | ({ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } })[];
 type Msg = { role: string; content: MsgContent };
 
+function routerEndpoints(baseUrl: string) {
+  const base = baseUrl.trim().replace(/\/+$/, "");
+  const withoutV1 = base.replace(/\/v1$/i, "");
+  const candidates = base.toLowerCase().endsWith("/v1")
+    ? [`${base}/chat/completions`, `${withoutV1}/chat/completions`]
+    : [`${base}/v1/chat/completions`, `${base}/chat/completions`];
+  return [...new Set(candidates)];
+}
+
 export async function callAI(
   messages: Msg[],
   opts: { model?: string; json?: boolean; config?: AiConfig } = {},
@@ -86,39 +95,50 @@ export async function callAI(
   if (!config.apiKey) {
     throw new AiError("API Key belum dikonfigurasi. Buka Settings → AI Configuration.");
   }
-  const base = config.baseUrl.replace(/\/+$/, "");
   const model = normalizeModel(opts.model || config.model);
-  let res: Response | undefined;
+  let lastResponse: Response | undefined;
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      res = await fetch(`${base}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${config.apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          stream: true,
-          ...(opts.json ? { response_format: { type: "json_object" } } : {}),
-        }),
-      });
-    } catch {
-      if (attempt === 0) {
-        await wait(1_000);
-        continue;
+  for (const endpoint of routerEndpoints(config.baseUrl)) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        lastResponse = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${config.apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages,
+            stream: true,
+            ...(opts.json ? { response_format: { type: "json_object" } } : {}),
+          }),
+        });
+      } catch {
+        if (attempt === 0) {
+          await wait(1_000);
+          continue;
+        }
+        throw new AiError("Koneksi ke router terputus sebelum jawaban selesai.");
       }
-      throw new AiError("Koneksi ke router terputus sebelum jawaban selesai.");
+
+      // If the configured URL is root vs /v1, automatically try the alternate
+      // OpenAI-compatible path when the router returns a plain 404 page.
+      if (lastResponse.status === 404) {
+        await lastResponse.body?.cancel();
+        break;
+      }
+
+      if (!RETRYABLE_STATUS.has(lastResponse.status) || attempt === 1) break;
+      const retryAfter = Number(lastResponse.headers.get("Retry-After"));
+      await lastResponse.body?.cancel();
+      await wait(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1_000 : 1_500);
     }
 
-    if (!RETRYABLE_STATUS.has(res.status) || attempt === 1) break;
-    const retryAfter = Number(res.headers.get("Retry-After"));
-    await res.body?.cancel();
-    await wait(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1_000 : 1_500);
+    if (lastResponse?.ok) break;
   }
 
+  const res = lastResponse;
   if (!res) throw new AiError("Router tidak memberikan respons.");
 
   if (!res.ok) {
@@ -130,7 +150,9 @@ export async function callAI(
       throw new AiError("Terlalu banyak permintaan ke AI. Coba lagi sebentar lagi.");
     }
     if (res.status === 404 || res.status === 400) {
-      throw new AiError(`Permintaan ditolak router (${res.status}). ${detail}`.trim());
+      throw new AiError(
+        `Endpoint router tidak ditemukan atau request tidak kompatibel (${res.status}). Periksa Base URL router; gunakan host API dengan atau tanpa /v1, bukan halaman web dashboard. ${detail}`.trim(),
+      );
     }
     throw new AiError(`Router menolak model ${model} (${res.status}). ${detail}`.trim());
   }
