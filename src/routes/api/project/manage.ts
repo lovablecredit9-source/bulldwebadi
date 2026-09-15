@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { safeJson } from "@/lib/ai.server";
+import { supabase } from "@/integrations/supabase/client";
 import { hasAccess } from "@/lib/pin.server";
 
 type Body = {
@@ -20,20 +21,20 @@ export const Route = createFileRoute("/api/project/manage")({
           return safeJson({ error: "Masukkan PIN proyek terlebih dahulu." }, 401);
         }
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
         if (body.action === "rename") {
           const name = String(body.name ?? "").trim().slice(0, 80);
           if (!name) return safeJson({ error: "Nama project tidak boleh kosong." }, 400);
-          await supabaseAdmin
+          const { error } = await supabase
             .from("projects")
             .update({ name, updated_at: new Date().toISOString() })
             .eq("id", id);
+          if (error) return safeJson({ error: "Nama project gagal diperbarui." }, 500);
           return safeJson({ ok: true, name });
         }
 
         if (body.action === "delete") {
-          await supabaseAdmin.from("projects").delete().eq("id", id);
+          const { error } = await supabase.from("projects").delete().eq("id", id);
+          if (error) return safeJson({ error: "Project gagal dihapus." }, 500);
           return safeJson({ ok: true });
         }
 
