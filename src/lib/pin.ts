@@ -1,7 +1,6 @@
 import { postJson } from "./api";
 
 const TOKEN_KEY = (projectId: string) => `adi-pin-token:${projectId}`;
-const ENABLED_KEY = (projectId: string) => `adi-pin-enabled:${projectId}`;
 
 export function getPinToken(projectId: string) {
   if (typeof window === "undefined") return null;
@@ -12,17 +11,6 @@ export function savePinToken(projectId: string, token: string | null) {
   if (typeof window === "undefined") return;
   if (token) window.localStorage.setItem(TOKEN_KEY(projectId), token);
   else window.localStorage.removeItem(TOKEN_KEY(projectId));
-}
-
-export function isPinEnabled(projectId: string) {
-  if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(ENABLED_KEY(projectId)) === "1";
-}
-
-function setPinEnabled(projectId: string, enabled: boolean) {
-  if (typeof window === "undefined") return;
-  if (enabled) window.localStorage.setItem(ENABLED_KEY(projectId), "1");
-  else window.localStorage.removeItem(ENABLED_KEY(projectId));
 }
 
 export async function pinStatus(projectId: string) {
@@ -50,8 +38,9 @@ export async function setProjectPin(projectId: string, newPin: string, oldPin?: 
     newPin,
     ...(oldPin ? { pin: oldPin } : {}),
   });
-  setPinEnabled(projectId, true);
   savePinToken(projectId, null);
+  const status = await pinStatus(projectId);
+  if (!status.locked) throw new Error("PIN belum tersimpan di server. Silakan coba lagi.");
   return res;
 }
 
@@ -61,18 +50,8 @@ export async function removeProjectPin(projectId: string, pin: string) {
     action: "remove",
     pin,
   });
-  setPinEnabled(projectId, false);
   savePinToken(projectId, null);
   return res;
-}
-
-export async function lockProject(projectId: string) {
-  await postJson<{ ok: boolean }>("/api/project/pin", {
-    projectId,
-    action: "lock",
-    token: getPinToken(projectId),
-  });
-  savePinToken(projectId, null);
 }
 
 export async function renameProject(projectId: string, name: string) {
