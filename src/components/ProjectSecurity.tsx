@@ -24,6 +24,11 @@ export function UnlockScreen({
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
+    if (!/^\d{4,8}$/.test(pin)) {
+      toast.error("PIN harus 4-8 angka.");
+      return;
+    }
+
     setBusy(true);
     try {
       await unlockProject(projectId, pin);
@@ -56,7 +61,7 @@ export function UnlockScreen({
       />
       <Button className="mt-3 w-full rounded-xl" disabled={busy || pin.length < 4} onClick={() => void submit()}>
         <LockOpen className="size-4" />
-        Buka Project
+        {busy ? "Memverifikasi..." : "Buka Project"}
       </Button>
     </div>
   );
