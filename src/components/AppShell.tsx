@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { ProjectLibraryBar } from "@/components/ProjectLibraryBar";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -85,9 +86,7 @@ function Footer() {
   return (
     <footer className="mt-12 border-t bg-card/50 px-6 py-8">
       <p className="text-base font-semibold">ADI BUILDER BOT</p>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Dibuat dan dikembangkan oleh Agung Adi
-      </p>
+      <p className="mt-1 text-sm text-muted-foreground">Dibuat dan dikembangkan oleh Agung Adi</p>
       <div className="mt-4 flex flex-wrap gap-2">
         {socials.map(({ href, label, icon: Icon }) => (
           <Button key={href} asChild variant="outline" size="sm" className="rounded-full">
@@ -150,6 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <main className="flex-1">{children}</main>
         <Footer />
+        <ProjectLibraryBar />
       </div>
     </div>
   );
