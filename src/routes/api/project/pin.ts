@@ -90,10 +90,9 @@ export const Route = createFileRoute("/api/project/pin")({
             }
             await setPin(id, body.newPin);
 
-            // Setelah PIN baru dibuat/ganti, sesi saat ini tetap dianggap
-            // terbuka. Jadi user tidak langsung terpental ke layar PIN.
-            // Token ini disimpan client dan dipakai saat masuk kembali.
-            return safeJson({ ok: true, token: await createSession(id) });
+            // Aktivasi/ganti PIN tidak membuat sesi baru.
+            // PIN tetap tersimpan; saat workshop dibuka kembali, user diminta PIN.
+            return safeJson({ ok: true, token: null });
           }
 
           if (body.action === "remove") {
