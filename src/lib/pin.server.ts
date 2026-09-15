@@ -21,6 +21,9 @@ const supabaseServer = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
+// Web Crypto pada runtime deployment ini membatasi PBKDF2 sampai 100.000 iterasi.
+const PBKDF2_ITERATIONS = 100_000;
+
 function toHex(buf: ArrayBuffer) {
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
@@ -29,7 +32,7 @@ export async function hashPin(pin: string, saltHex: string) {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt: enc.encode(saltHex), iterations: 120_000 },
+    { name: "PBKDF2", hash: "SHA-256", salt: enc.encode(saltHex), iterations: PBKDF2_ITERATIONS },
     key,
     256,
   );
@@ -69,7 +72,6 @@ export async function projectPinRow(projectId: string): Promise<PinRow | null> {
     if (!salt) return null;
     return { pin_hash: "protected", pin_salt: salt };
   } catch {
-    // Fallback untuk deployment yang PostgREST schema cache belum mengenali RPC.
     return legacyProjectPin(projectId);
   }
 }
@@ -141,7 +143,6 @@ export async function setPin(projectId: string, pin: string) {
     });
     return;
   } catch {
-    // Backward-compatible fallback. This is server-side only; the PIN is still stored as a hash.
     const { error } = await supabaseServer
       .from("projects")
       .update({ pin_hash: hash, pin_salt: salt, pin_set_at: new Date().toISOString() })
