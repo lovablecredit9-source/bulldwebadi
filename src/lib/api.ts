@@ -1,10 +1,20 @@
 export async function postJson<T>(url: string, body: unknown): Promise<T> {
+  const payload =
+    typeof window !== "undefined" && body && typeof body === "object" && "projectId" in body
+      ? {
+          ...body,
+          token:
+            "token" in body
+              ? (body as { token?: unknown }).token
+              : window.localStorage.getItem(`adi-pin-token:${String((body as { projectId?: unknown }).projectId ?? "")}`),
+        }
+      : body;
   let res: Response;
   try {
     res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
     });
   } catch {
     throw new Error("Koneksi bermasalah.");

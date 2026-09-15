@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AiError, errorResponse, safeJson } from "@/lib/ai.server";
 import { getFiles } from "@/lib/project.server";
+import { hasAccess } from "@/lib/pin.server";
 
 type Issue = { level: "error" | "warning"; file: string; message: string };
 
@@ -8,9 +9,10 @@ export const Route = createFileRoute("/api/ai/validate-project")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const body = (await request.json().catch(() => ({}))) as { projectId?: string };
+        const body = (await request.json().catch(() => ({}))) as { projectId?: string; token?: string };
         try {
           if (!body.projectId) throw new AiError("Project tidak ditemukan.");
+          if (!(await hasAccess(body.projectId, body.token))) throw new AiError("Masukkan PIN project terlebih dahulu.", 401);
           const files = await getFiles(body.projectId);
           if (!files.length) throw new AiError("Project belum memiliki file.");
 

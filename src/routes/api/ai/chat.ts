@@ -8,6 +8,7 @@ import {
   type MsgContent,
 } from "@/lib/ai.server";
 import { buildTree, contextBlock, getFiles, getProject, pickRelevantFiles } from "@/lib/project.server";
+import { hasAccess } from "@/lib/pin.server";
 
 export const Route = createFileRoute("/api/ai/chat")({
   server: {
@@ -19,11 +20,11 @@ export const Route = createFileRoute("/api/ai/chat")({
           message?: string;
           model?: string;
           images?: string[];
+          token?: string;
         };
         try {
-          const images = (body.images ?? [])
-            .filter((u) => typeof u === "string" && u.startsWith("data:image/"))
-            .slice(0, 4);
+          if (body.projectId && !(await hasAccess(body.projectId, body.token))) throw new AiError("Masukkan PIN project terlebih dahulu.", 401);
+          const images = (body.images ?? []).filter((u) => typeof u === "string" && u.startsWith("data:image/"));
           const message = (body.message ?? "").trim() || (images.length ? "Tiru desain pada foto ini semirip mungkin, lalu rangkum isi fotonya." : "");
           if (!message) throw new AiError("Pesan kosong.");
           if (!body.chatId) throw new AiError("Chat tidak ditemukan.");

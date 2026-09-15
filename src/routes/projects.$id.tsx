@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ModelSelect } from "@/components/ModelSelect";
 import { ReferenceImages } from "@/components/ReferenceImages";
 import { ReferenceFiles, type ReferenceFile } from "@/components/ReferenceFiles";
@@ -95,8 +96,9 @@ function Workspace() {
       const status = await pinStatus(id);
       setLocked(status.locked);
       setGate(status.locked && !status.unlocked ? "locked" : "open");
-    } catch {
-      setGate("open");
+    } catch (error) {
+      setGate("locked");
+      toast.error(error instanceof Error ? error.message : "Status PIN tidak dapat diperiksa.");
     }
   }, [id]);
 
@@ -184,8 +186,7 @@ function Workspace() {
         <TabsList className="flex w-full flex-wrap justify-start">
           <TabsTrigger value="files">Files</TabsTrigger>
           <TabsTrigger value="chat">AI Chat</TabsTrigger>
-          <TabsTrigger value="analyze">Analyze</TabsTrigger>
-          <TabsTrigger value="fix">Fix / Add Feature</TabsTrigger>
+          <TabsTrigger value="fix">Perubahan AI</TabsTrigger>
           <TabsTrigger value="versions">Versions</TabsTrigger>
           <TabsTrigger value="history">Riwayat</TabsTrigger>
         </TabsList>
@@ -196,11 +197,8 @@ function Workspace() {
         <TabsContent value="chat">
           <ChatTab projectId={id} model={model} files={files} />
         </TabsContent>
-        <TabsContent value="analyze">
-          <AnalyzeTab projectId={id} model={model} busy={busy} setBusy={setBusy} />
-        </TabsContent>
         <TabsContent value="fix">
-          <FixTab projectId={id} model={model} onApplied={reload} />
+          <FixTab projectId={id} model={model} onApplied={reload} busy={busy} setBusy={setBusy} />
         </TabsContent>
         <TabsContent value="versions">
           <VersionsTab projectId={id} onRestored={reload} />
@@ -495,28 +493,38 @@ function FixTab({
   projectId,
   model,
   onApplied,
+  busy,
+  setBusy,
 }: {
   projectId: string;
   model: string;
   onApplied: () => Promise<void>;
+  busy: string;
+  setBusy: (value: string) => void;
 }) {
   const [instruction, setInstruction] = useState("");
   const [proposal, setProposal] = useState<Proposal | null>(null);
-  const [busy, setBusy] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<ReferenceFile[]>([]);
-
+  const [mode, setMode] = useState<"build" | "fix-project" | "add-feature" | "analyze">("fix-project");
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [lastAction, setLastAction] = useState("fix-project");
 
-  const request = async (endpoint: "fix-project" | "add-feature") => {
-    setBusy(endpoint);
-    setLastAction(endpoint);
+  const request = async () => {
+    setBusy(mode);
+    setLastAction(mode === "build" ? "add-feature" : mode);
     setProposal(null);
+    setAnalysis(null);
     try {
+      if (mode === "analyze") {
+        setAnalysis(await postJson<Analysis>("/api/ai/analyze-project", { projectId, model, focus: instruction }));
+        return;
+      }
+      const endpoint = mode === "build" ? "add-feature" : mode;
       setProposal(
         await postJson<Proposal>(`/api/ai/${endpoint}`, {
           projectId,
-          instruction,
+          instruction: mode === "build" ? `Bangun dan lengkapi kode berikut: ${instruction}` : instruction,
           model,
           images,
           attachments,
@@ -558,11 +566,22 @@ function FixTab({
   return (
     <div className="grid gap-4">
       <div className="rounded-2xl border bg-card p-4">
+        <Select value={mode} onValueChange={(value) => setMode(value as typeof mode)} disabled={busy !== ""}>
+          <SelectTrigger className="mb-3 w-full sm:w-64">
+            <SelectValue placeholder="Pilih pekerjaan AI" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="build">Build</SelectItem>
+            <SelectItem value="fix-project">Fix</SelectItem>
+            <SelectItem value="add-feature">Tambah Fitur</SelectItem>
+            <SelectItem value="analyze">Analisis Error</SelectItem>
+          </SelectContent>
+        </Select>
         <Textarea
           rows={4}
           value={instruction}
           onChange={(e) => setInstruction(e.target.value)}
-          placeholder="Contoh: perbaiki semua error, atau tambahkan dark mode dan tombol download."
+          placeholder="Jelaskan kode, perbaikan, fitur, atau error yang ingin dianalisis."
         />
         <div className="mt-3">
           <ReferenceImages images={images} onChange={setImages} disabled={busy !== ""} />
@@ -571,29 +590,28 @@ function FixTab({
           <ReferenceFiles files={attachments} onChange={setAttachments} disabled={busy !== ""} />
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button onClick={() => request("fix-project")} disabled={busy !== ""} className="rounded-xl">
-            {busy === "fix-project" ? (
+          <Button onClick={() => void request()} disabled={busy !== ""} className="rounded-xl">
+            {busy === mode ? (
               <Loader2 className="size-4 animate-spin" />
-            ) : (
+            ) : mode === "analyze" ? (
+              <Search className="size-4" />
+            ) : mode === "fix-project" ? (
               <Wrench className="size-4" />
-            )}
-            {busy === "fix-project" ? "Sedang memperbaiki…" : "AI Fix"}
-          </Button>
-          <Button
-            onClick={() => request("add-feature")}
-            disabled={busy !== ""}
-            variant="outline"
-            className="rounded-xl"
-          >
-            {busy === "add-feature" ? (
-              <Loader2 className="size-4 animate-spin" />
             ) : (
               <Sparkles className="size-4" />
             )}
-            {busy === "add-feature" ? "Sedang menambahkan…" : "AI Add Feature"}
+            {busy === mode
+              ? "Sedang memproses…"
+              : mode === "build"
+                ? "Buat Rencana Build"
+                : mode === "fix-project"
+                  ? "Buat Rencana Fix"
+                  : mode === "add-feature"
+                    ? "Buat Rencana Fitur"
+                    : "Analisis Error"}
           </Button>
         </div>
-        {busy === "fix-project" && (
+        {(busy === "fix-project" || busy === "build") && (
           <div className="mt-3">
             <AiWorkStatus kind="fix" />
           </div>
@@ -604,6 +622,24 @@ function FixTab({
           </div>
         )}
       </div>
+
+      {analysis && (
+        <div className="rounded-2xl border bg-card p-4 text-sm">
+          <p className="font-semibold">Hasil Analisis</p>
+          {analysis.summary && <p className="mt-1 text-muted-foreground">{analysis.summary}</p>}
+          {!!analysis.errors?.length && (
+            <div className="mt-3 border-l-4 border-destructive pl-3">
+              <p className="font-bold text-destructive">Error ditemukan</p>
+              {analysis.errors.map((error, index) => (
+                <p key={`${error.file}-${index}`} className="mt-1 font-semibold text-destructive">
+                  {error.file}{error.line ? `:${error.line}` : ""} — {error.message}
+                </p>
+              ))}
+            </div>
+          )}
+          {!analysis.errors?.length && <p className="mt-3 text-primary">Tidak ada error yang terdeteksi.</p>}
+        </div>
+      )}
 
       {proposal && (
         <div className="rounded-2xl border bg-card p-4">
