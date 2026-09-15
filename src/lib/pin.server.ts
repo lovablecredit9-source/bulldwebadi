@@ -2,16 +2,18 @@
 
 import { createClient } from "@supabase/supabase-js";
 
+// Untuk PIN, URL/key Vite yang terikat ke project aplikasi harus diprioritaskan.
+// Ini mencegah runtime server memakai SUPABASE_URL lama dari environment deployment.
 const SUPABASE_URL =
-  process.env["SUPABASE_URL"] ||
+  import.meta.env.VITE_SUPABASE_URL ||
   process.env["VITE_SUPABASE_URL"] ||
-  import.meta.env.VITE_SUPABASE_URL;
+  process.env["SUPABASE_URL"];
 const SUPABASE_KEY =
-  process.env["SUPABASE_SERVICE_ROLE_KEY"] ||
-  process.env["SUPABASE_SECRET_KEY"] ||
-  process.env["SUPABASE_PUBLISHABLE_KEY"] ||
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  process.env["SUPABASE_PUBLISHABLE_KEY"] ||
+  process.env["SUPABASE_SECRET_KEY"] ||
+  process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
   throw new Error("Konfigurasi Supabase untuk PIN belum tersedia di server.");
@@ -135,31 +137,19 @@ export async function dropSession(projectId: string, token?: string | null) {
 export async function setPin(projectId: string, pin: string) {
   const salt = randomHex(16);
   const hash = await hashPin(pin, salt);
-  try {
-    await rpc<boolean>("pin_set_hash", {
-      p_project_id: projectId,
-      p_hash: hash,
-      p_salt: salt,
-    });
-    return;
-  } catch {
-    const { error } = await supabaseServer
-      .from("projects")
-      .update({ pin_hash: hash, pin_salt: salt, pin_set_at: new Date().toISOString() })
-      .eq("id", projectId);
-    if (error) throw error;
+  await rpc<boolean>("pin_set_hash", {
+    p_project_id: projectId,
+    p_hash: hash,
+    p_salt: salt,
+  });
+
+  // Pastikan write selesai dan bisa dibaca kembali dari project Supabase yang sama.
+  const savedSalt = await rpc<string | null>("pin_get_salt", { p_project_id: projectId });
+  if (!savedSalt || savedSalt !== salt) {
+    throw new Error("PIN belum tersimpan di server. Silakan coba lagi.");
   }
 }
 
 export async function clearPin(projectId: string) {
-  try {
-    await rpc<boolean>("pin_clear", { p_project_id: projectId });
-    return;
-  } catch {
-    const { error } = await supabaseServer
-      .from("projects")
-      .update({ pin_hash: null, pin_salt: null, pin_set_at: null })
-      .eq("id", projectId);
-    if (error) throw error;
-  }
+  await rpc<boolean>("pin_clear", { p_project_id: projectId });
 }
