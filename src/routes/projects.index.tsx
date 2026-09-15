@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { listProjects, type Project } from "@/lib/db";
+import { pinStatus } from "@/lib/pin";
 import { projectTypeLabel } from "@/lib/models";
 
 export const Route = createFileRoute("/projects/")({
@@ -21,13 +22,31 @@ export const Route = createFileRoute("/projects/")({
 
 function ProjectsPage() {
   const [items, setItems] = useState<Project[] | null>(null);
+  const [protectedIds, setProtectedIds] = useState<Set<string>>(new Set());
 
-  const load = () => {
-    listProjects()
-      .then(setItems)
-      .catch(() => setItems([]));
+  const load = async () => {
+    try {
+      const projects = await listProjects();
+      setItems(projects);
+      const states = await Promise.all(
+        projects.map(async (project) => {
+          try {
+            const status = await pinStatus(project.id);
+            return [project.id, status.locked] as const;
+          } catch {
+            return [project.id, false] as const;
+          }
+        }),
+      );
+      setProtectedIds(new Set(states.filter(([, locked]) => locked).map(([id]) => id)));
+    } catch {
+      setItems([]);
+    }
   };
-  useEffect(load, []);
+
+  useEffect(() => {
+    void load();
+  }, []);
 
   return (
     <AppShell>
@@ -53,7 +72,7 @@ function ProjectsPage() {
             <div className="flex items-start gap-2">
               <div className="min-w-0">
                 <p className="flex items-center gap-1.5 truncate font-semibold">
-                  {p.pin_set_at && <Lock className="size-3.5 shrink-0 text-primary" />}
+                  {protectedIds.has(p.id) && <Lock className="size-3.5 shrink-0 text-primary" />}
                   {p.name}
                 </p>
                 <p className="text-xs text-muted-foreground">{projectTypeLabel(p.type)}</p>
