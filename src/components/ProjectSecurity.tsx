@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { removeProject, removeProjectPin, renameProject, setProjectPin, unlockProject } from "@/lib/pin";
 import { getProjectLibraryState, setProjectLibraryState } from "@/lib/db";
 
-export function UnlockScreen({ projectId, onUnlocked, onBack }: { projectId: string; onUnlocked: () => void; onBack: () => void }) {
+export function UnlockScreen({ projectId, onUnlocked, onBack = () => window.history.back() }: { projectId: string; onUnlocked: () => void; onBack?: () => void }) {
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
   const submit = async () => {
