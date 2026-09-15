@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { Component, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
 import {
   Bot,
   Bug,
@@ -84,6 +84,34 @@ function Footer() {
   );
 }
 
+type BoundaryState = { hasError: boolean };
+
+class AppErrorBoundary extends Component<{ children: ReactNode }, BoundaryState> {
+  state: BoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): BoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("Workspace render error", error, info);
+  }
+
+  render() {
+    if (!this.state.hasError) return this.props.children;
+    return (
+      <div className="mx-auto max-w-3xl p-6 sm:p-8">
+        <div className="rounded-2xl border border-destructive/30 bg-card p-6 text-center shadow-sm">
+          <Bug className="mx-auto size-10 text-destructive" />
+          <h2 className="mt-3 text-lg font-semibold">Bagian Workspace mengalami error</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Tab yang dibuka mengalami masalah. Workspace tetap aman dan tidak perlu keluar dari project.</p>
+          <Button className="mt-4 rounded-xl" onClick={() => this.setState({ hasError: false })}>Coba lagi</Button>
+        </div>
+      </div>
+    );
+  }
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { dark, toggle } = useTheme();
   const [open, setOpen] = useState(false);
@@ -100,7 +128,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="font-bold tracking-tight">ADI BUILDER BOT</span>
           <div className="ml-auto flex items-center gap-2"><Button asChild variant="ghost" size="sm"><Link to="/projects"><Search className="size-4" /><span className="hidden sm:inline">Project</span></Link></Button><Button variant="ghost" size="icon" onClick={toggle} aria-label="Ganti tema">{dark ? <Sun className="size-4" /> : <Moon className="size-4" />}</Button></div>
         </header>
-        <main className="flex-1">{children}</main>
+        <main className="flex-1"><AppErrorBoundary>{children}</AppErrorBoundary></main>
         <Footer />
       </div>
     </div>
