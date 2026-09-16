@@ -15,3 +15,8 @@
 - [x] Satukan Build, Fix, Tambah Fitur, dan Analisis Error dalam satu pilihan mode
 - [ ] Selesaikan unggahan bertahap sampai 1 GB dan 10.000 file
 - [ ] Verifikasi ulang PIN, perubahan AI, riwayat, dan unggahan besar
+- [ ] Hapus panel Generate Gambar yang dilingkari
+- [ ] Tampilkan tanggal pembuatan workshop
+- [ ] Tampilkan dan kelola daftar perangkat aktif workshop
+- [ ] Tambahkan tes HTML online dari file atau ZIP dengan pratinjau langsung
+- [ ] Tambahkan banner kredit “Hasil project by Agung Adi” pada hasil project
