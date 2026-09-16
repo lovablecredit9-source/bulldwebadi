@@ -1,7 +1,6 @@
-/** Keamanan PIN proyek: hash PBKDF2 + token sesi, PIN asli tidak pernah disimpan. */
+/** Keamanan PIN proyek: hash PBKDF2 + token sesi. */
 
-// URL + publishable key ini adalah konfigurasi publik Supabase aplikasi.
-// Tidak pernah gunakan service-role/secret key untuk PIN.
+// PIN memakai Supabase aplikasi sendiri. Tidak memakai service-role/secret key.
 const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL ||
   process.env["VITE_SUPABASE_URL"] ||
@@ -33,6 +32,15 @@ async function rpc<T>(fn: string, args: Record<string, unknown>) {
   return data as T;
 }
 
+async function pinRows(projectId: string) {
+  const url = new URL(`${SUPABASE_URL}/rest/v1/project_pins`);
+  url.searchParams.set("select", "project_id,pin_hash,pin_salt");
+  url.searchParams.set("project_id", `eq.${projectId}`);
+  const response = await fetch(url, { headers: { apikey: SUPABASE_KEY } });
+  if (!response.ok) throw new Error(`Supabase project_pins gagal: HTTP ${response.status}`);
+  return (await response.json()) as PinRow[];
+}
+
 const PBKDF2_ITERATIONS = 100_000;
 
 function toHex(buf: ArrayBuffer) {
@@ -54,21 +62,27 @@ export function randomHex(bytes = 16) {
   return toHex(crypto.getRandomValues(new Uint8Array(bytes)).buffer);
 }
 
-type PinRow = { pin_hash: string | null; pin_salt: string | null };
+type PinRow = { project_id?: string; pin_hash: string | null; pin_salt: string | null };
 type PinStatus = { locked: boolean; unlocked: boolean };
 
 export async function projectPinRow(projectId: string): Promise<PinRow | null> {
-  const salt = await rpc<string | null>("pin_get_salt", { p_project_id: projectId });
-  if (!salt) return null;
-  return { pin_hash: "protected", pin_salt: salt };
+  const rows = await pinRows(projectId);
+  const row = rows[0];
+  if (!row?.pin_salt || !row?.pin_hash) return null;
+  return row;
 }
 
 export async function getPinStatus(projectId: string, token?: string | null): Promise<PinStatus> {
-  const rows = await rpc<PinStatus[]>("pin_status_v2", {
+  // Jangan panggil RPC status di sini. Endpoint RPC pernah tertahan schema-cache
+  // dan membuat project tanpa PIN tampak terkunci. Baca metadata PIN langsung.
+  const row = await projectPinRow(projectId);
+  const locked = Boolean(row?.pin_hash && row?.pin_salt);
+  if (!locked) return { locked: false, unlocked: true };
+  const unlocked = Boolean(token && await rpc<boolean>("pin_session_valid", {
     p_project_id: projectId,
-    p_token_hash: token ? await sha256(token) : null,
-  });
-  return rows[0] ?? { locked: false, unlocked: true };
+    p_token_hash: await sha256(token),
+  }));
+  return { locked: true, unlocked };
 }
 
 export async function isProtected(projectId: string) {
@@ -80,11 +94,10 @@ export async function hasAccess(projectId: string, token?: string | null) {
 }
 
 export async function verifyPin(projectId: string, pin: string) {
-  if (!(await isProtected(projectId))) return true;
   const row = await projectPinRow(projectId);
-  if (!row?.pin_salt) return false;
+  if (!row?.pin_salt || !row.pin_hash) return true;
   const hash = await hashPin(pin, row.pin_salt);
-  return Boolean(await rpc<boolean>("pin_verify_hash", { p_project_id: projectId, p_hash: hash }));
+  return hash === row.pin_hash;
 }
 
 export async function createSession(projectId: string, deviceLabel = "Perangkat") {
