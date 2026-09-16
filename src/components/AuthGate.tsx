@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Loader2, LogIn, UserPlus, ShieldCheck } from "lucide-react";
+import { Loader2, LogIn, UserPlus, ShieldCheck, MailCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,12 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
+// Email verification must return to the real app URL, not a developer's localhost.
+const AUTH_REDIRECT_URL = "https://badi.lovable.app/";
+
 export function AuthGate() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -45,17 +49,19 @@ export function AuthGate() {
           email: normalizedEmail,
           password,
           options: {
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: AUTH_REDIRECT_URL,
           },
         });
         if (error) throw error;
+
         if (data.session) {
           toast.success("Akun berhasil dibuat dan kamu sudah masuk.");
         } else {
-          toast.success("Akun berhasil dibuat. Cek email untuk konfirmasi, lalu login.");
+          setVerificationSent(true);
           setMode("login");
           setPassword("");
           setConfirmPassword("");
+          toast.success("Email verifikasi sudah dikirim. Buka link di email untuk mengaktifkan akun.");
         }
       }
     } catch (error) {
@@ -69,12 +75,16 @@ export function AuthGate() {
     <div className="flex min-h-[70vh] items-center justify-center px-4 py-10">
       <div className="w-full max-w-md rounded-3xl border bg-card p-6 shadow-sm sm:p-8">
         <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-primary text-primary-foreground">
-          <ShieldCheck className="size-6" />
+          {verificationSent ? <MailCheck className="size-6" /> : <ShieldCheck className="size-6" />}
         </div>
         <div className="mt-4 text-center">
           <h1 className="text-2xl font-bold tracking-tight">ADI BUILDER BOT</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {mode === "login" ? "Login untuk masuk ke AI Builder." : "Daftar akun baru untuk mulai menggunakan AI Builder."}
+            {verificationSent
+              ? "Cek email kamu dan klik link verifikasi untuk mengaktifkan akun."
+              : mode === "login"
+                ? "Login untuk masuk ke AI Builder."
+                : "Daftar akun baru untuk mulai menggunakan AI Builder."}
           </p>
         </div>
 
@@ -100,10 +110,15 @@ export function AuthGate() {
           )}
           <Button type="submit" disabled={loading} className="h-11 w-full rounded-xl">
             {loading ? <Loader2 className="animate-spin" /> : mode === "login" ? <LogIn /> : <UserPlus />}
-            {mode === "login" ? "Masuk ke AI Builder" : "Daftar & Masuk"}
+            {mode === "login" ? "Masuk ke AI Builder" : "Daftar & Kirim Verifikasi"}
           </Button>
         </form>
 
+        {verificationSent && (
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Setelah verifikasi, kembali ke BADI lalu login dengan email dan password yang sama.
+          </p>
+        )}
         <p className="mt-5 text-center text-xs text-muted-foreground">Akun dan sesi login dikelola oleh Supabase Auth.</p>
       </div>
     </div>
