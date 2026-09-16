@@ -55,6 +55,7 @@ export function randomHex(bytes = 16) {
 }
 
 type PinRow = { pin_hash: string | null; pin_salt: string | null };
+type PinStatus = { locked: boolean; unlocked: boolean };
 
 export async function projectPinRow(projectId: string): Promise<PinRow | null> {
   const salt = await rpc<string | null>("pin_get_salt", { p_project_id: projectId });
@@ -62,14 +63,20 @@ export async function projectPinRow(projectId: string): Promise<PinRow | null> {
   return { pin_hash: "protected", pin_salt: salt };
 }
 
+export async function getPinStatus(projectId: string, token?: string | null): Promise<PinStatus> {
+  const rows = await rpc<PinStatus[]>("pin_status_v2", {
+    p_project_id: projectId,
+    p_token_hash: token ? await sha256(token) : null,
+  });
+  return rows[0] ?? { locked: false, unlocked: true };
+}
+
 export async function isProtected(projectId: string) {
-  return Boolean(await rpc<boolean>("pin_is_protected", { p_project_id: projectId }));
+  return (await getPinStatus(projectId)).locked;
 }
 
 export async function hasAccess(projectId: string, token?: string | null) {
-  if (!(await isProtected(projectId))) return true;
-  if (!token) return false;
-  return Boolean(await rpc<boolean>("pin_session_valid", { p_project_id: projectId, p_token_hash: await sha256(token) }));
+  return (await getPinStatus(projectId, token)).unlocked;
 }
 
 export async function verifyPin(projectId: string, pin: string) {
