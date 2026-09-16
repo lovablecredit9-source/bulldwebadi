@@ -19,14 +19,8 @@ function deviceLabel() {
   return `${mobile ? "Mobile" : "Desktop"} · ${platform}`;
 }
 
-export function getPinToken(projectId: string) {
-  return tokens.get(projectId) ?? null;
-}
-
-export function savePinToken(projectId: string, token: string | null) {
-  if (token) tokens.set(projectId, token);
-  else tokens.delete(projectId);
-}
+export function getPinToken(projectId: string) { return tokens.get(projectId) ?? null; }
+export function savePinToken(projectId: string, token: string | null) { if (token) tokens.set(projectId, token); else tokens.delete(projectId); }
 
 export async function pinStatus(projectId: string) {
   if (typeof window !== "undefined" && window.location.pathname !== `/projects/${projectId}`) savePinToken(projectId, null);
@@ -42,14 +36,14 @@ export async function unlockProject(projectId: string, pin: string) {
 export async function listProjectSessions(projectId: string) {
   const token = getPinToken(projectId);
   if (!token) return [];
-  const res = await postJson<{ sessions: ProjectSession[] }>("/api/project/sessions", { projectId, token, action: "list" });
+  const res = await postJson<{ sessions: ProjectSession[] }>("/api/project/pin", { projectId, token, action: "sessions" });
   return res.sessions;
 }
 
 export async function revokeProjectSession(projectId: string, sessionId: string) {
   const token = getPinToken(projectId);
   if (!token) throw new Error("Sesi project tidak ditemukan.");
-  return postJson<{ ok: boolean }>("/api/project/sessions", { projectId, token, action: "revoke", sessionId });
+  return postJson<{ ok: boolean }>("/api/project/pin", { projectId, token, action: "revoke-session", sessionId });
 }
 
 export async function setProjectPin(projectId: string, newPin: string, oldPin?: string) {
@@ -66,10 +60,5 @@ export async function removeProjectPin(projectId: string) {
   return res;
 }
 
-export async function renameProject(projectId: string, name: string) {
-  return postJson<{ ok: boolean; name: string }>("/api/project/manage", { projectId, token: getPinToken(projectId), action: "rename", name });
-}
-
-export async function removeProject(projectId: string) {
-  return postJson<{ ok: boolean }>("/api/project/manage", { projectId, token: getPinToken(projectId), action: "delete" });
-}
+export async function renameProject(projectId: string, name: string) { return postJson<{ ok: boolean; name: string }>("/api/project/manage", { projectId, token: getPinToken(projectId), action: "rename", name }); }
+export async function removeProject(projectId: string) { return postJson<{ ok: boolean }>("/api/project/manage", { projectId, token: getPinToken(projectId), action: "delete" }); }
