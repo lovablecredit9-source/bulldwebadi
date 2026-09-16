@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { safeJson } from "@/lib/ai.server";
 import { clearPin, createSession, dropSession, hasAccess, isProtected, setPin, verifyPin } from "@/lib/pin.server";
 
-type Body = { projectId?: string; action?: "status" | "verify" | "set" | "change" | "remove" | "lock"; pin?: string; newPin?: string; token?: string };
+type Body = { projectId?: string; action?: "status" | "verify" | "set" | "change" | "remove" | "lock"; pin?: string; newPin?: string; token?: string; deviceLabel?: string };
 
 function validPin(pin?: string) { return typeof pin === "string" && /^\d{4,8}$/.test(pin); }
 function errorMessage(error: unknown) { return error instanceof Error && error.message ? error.message : "Permintaan PIN tidak dapat diproses."; }
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/api/project/pin")({
         if (!locked) return safeJson({ ok: true, token: null });
         if (!validPin(body.pin)) return safeJson({ error: "PIN tidak valid." }, 400);
         if (!body.pin || !(await verifyPin(id, body.pin))) return safeJson({ error: "PIN salah." }, 401);
-        return safeJson({ ok: true, token: await createSession(id) });
+        return safeJson({ ok: true, token: await createSession(id, body.deviceLabel || "Perangkat") });
       }
 
       if (body.action === "lock") {
@@ -51,8 +51,6 @@ export const Route = createFileRoute("/api/project/pin")({
 
       if (body.action === "remove") {
         if (!locked) return safeJson({ ok: true });
-        // Nonaktifkan PIN hanya boleh dari workspace yang sudah berhasil dibuka.
-        // Tidak perlu meminta PIN lagi; token sesi menjadi bukti bahwa workspace sudah dibuka.
         if (!(await hasAccess(id, body.token))) return safeJson({ error: "Buka workspace dengan PIN terlebih dahulu." }, 401);
         await clearPin(id);
         await dropSession(id, body.token);
