@@ -2,6 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { loadConfig, safeJson } from "@/lib/ai.server";
 import { normalizeModel } from "@/lib/models";
 
+function routerEndpoints(baseUrl: string) {
+  const base = baseUrl.trim().replace(/\/+$/, "");
+  const withoutV1 = base.replace(/\/v1$/i, "");
+  const candidates = base.toLowerCase().endsWith("/v1")
+    ? [`${base}/chat/completions`, `${withoutV1}/chat/completions`]
+    : [`${base}/v1/chat/completions`, `${base}/chat/completions`];
+  return [...new Set(candidates)];
+}
+
 function routerModelEndpoints(baseUrl: string) {
   const base = baseUrl.trim().replace(/\/+$/, "");
   const withoutV1 = base.replace(/\/v1$/i, "");
@@ -24,101 +33,121 @@ function readModelIds(payload: unknown): string[] {
   return [];
 }
 
+async function readError(response: Response) {
+  try {
+    const raw = await response.text();
+    if (!raw) return "";
+    try {
+      const json = JSON.parse(raw) as { error?: { message?: string } | string; message?: string };
+      return String(typeof json.error === "string" ? json.error : json.error?.message ?? json.message ?? raw).slice(0, 220);
+    } catch {
+      return raw.slice(0, 220);
+    }
+  } catch {
+    return "";
+  }
+}
+
+async function probeModel(baseUrl: string, apiKey: string, model: string) {
+  let lastStatus = 0;
+  let lastError = "";
+  let lastLatency = 0;
+
+  for (const endpoint of routerEndpoints(baseUrl)) {
+    const started = performance.now();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12_000);
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "user", content: "ping" }],
+          max_tokens: 1,
+          stream: false,
+        }),
+      });
+      const latencyMs = Math.max(1, Math.round(performance.now() - started));
+      lastStatus = response.status;
+      lastLatency = latencyMs;
+
+      if (response.ok) {
+        await response.body?.cancel();
+        return { ok: true, latencyMs, httpStatus: response.status, error: "" };
+      }
+
+      const detail = await readError(response);
+      lastError = detail || `Router merespons HTTP ${response.status}.`;
+      if (response.status === 404) continue;
+      return { ok: false, latencyMs, httpStatus: response.status, error: lastError };
+    } catch (error) {
+      lastLatency = Math.max(1, Math.round(performance.now() - started));
+      lastError = error instanceof Error && error.name === "AbortError"
+        ? "Model tidak merespons dalam 12 detik."
+        : "Router tidak dapat dihubungi.";
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  return { ok: false, latencyMs: lastLatency, httpStatus: lastStatus || undefined, error: lastError || "Router tidak dapat dihubungi." };
+}
+
 export const Route = createFileRoute("/api/ai/router-health")({
   server: {
     handlers: {
       POST: async () => {
-        // Selalu gunakan Base URL, API Key, dan model yang tersimpan di server.
         const config = await loadConfig();
         const baseUrl = config.baseUrl.trim().replace(/\/+$/, "");
         const model = normalizeModel(config.model);
 
-        if (!baseUrl) {
-          return safeJson({ online: false, configured: false, modelAvailable: false, error: "Base URL belum dikonfigurasi." }, 200);
-        }
-        if (!config.apiKey) {
-          return safeJson({ online: false, configured: false, modelAvailable: false, error: "API Key belum dikonfigurasi." }, 200);
-        }
+        if (!baseUrl) return safeJson({ online: false, configured: false, modelAvailable: false, error: "Base URL belum dikonfigurasi." });
+        if (!config.apiKey) return safeJson({ online: false, configured: false, modelAvailable: false, error: "API Key belum dikonfigurasi." });
 
-        let lastStatus = 0;
-        let lastLatency = 0;
-        let lastError = "";
+        // GET /models hanya dipakai untuk membedakan model yang tidak terdaftar.
+        // Model dinyatakan benar-benar ONLINE hanya setelah request inference nyata berhasil.
+        let catalogChecked = false;
+        let catalogModelAvailable = false;
+        let catalogStatus = 0;
+        let catalogError = "";
 
         for (const endpoint of routerModelEndpoints(baseUrl)) {
-          const started = performance.now();
           const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 8000);
-
+          const timer = setTimeout(() => controller.abort(), 8_000);
           try {
             const response = await fetch(endpoint, {
               method: "GET",
               signal: controller.signal,
-              headers: {
-                Accept: "application/json",
-                Authorization: `Bearer ${config.apiKey}`,
-              },
+              headers: { Accept: "application/json", Authorization: `Bearer ${config.apiKey}` },
             });
-            const latencyMs = Math.round(performance.now() - started);
-            lastStatus = response.status;
-            lastLatency = latencyMs;
-
+            catalogStatus = response.status;
             if (response.status === 401 || response.status === 403) {
               await response.body?.cancel();
-              return safeJson({
-                online: false,
-                configured: true,
-                modelAvailable: false,
-                latencyMs,
-                httpStatus: response.status,
-                error: "API Key ditolak oleh router. Periksa API Key di Settings.",
-              }, 200);
+              return safeJson({ online: false, configured: true, modelAvailable: false, httpStatus: response.status, error: "API Key ditolak oleh router. Periksa API Key di Settings." });
             }
-
             if (response.status === 404) {
               await response.body?.cancel();
-              lastError = "Endpoint models tidak ditemukan.";
+              catalogError = "Endpoint models tidak ditemukan.";
               continue;
             }
-
             if (!response.ok) {
               await response.body?.cancel();
-              return safeJson({
-                online: false,
-                configured: true,
-                modelAvailable: false,
-                latencyMs,
-                httpStatus: response.status,
-                error: `Router merespons HTTP ${response.status}.`,
-              }, 200);
+              return safeJson({ online: false, configured: true, modelAvailable: false, httpStatus: response.status, error: `Router merespons HTTP ${response.status}.` });
             }
-
             const payload = await response.json().catch(() => null);
-            const modelIds = readModelIds(payload);
-            const modelAvailable = model === "mk/auto" || modelIds.some((id) => id === model);
-
-            if (!modelAvailable) {
-              return safeJson({
-                online: true,
-                configured: true,
-                modelAvailable: false,
-                latencyMs,
-                httpStatus: response.status,
-                model,
-                error: `Model ${model} tidak tersedia di router. Silakan ganti model lain.`,
-              }, 200);
-            }
-
-            return safeJson({
-              online: true,
-              configured: true,
-              modelAvailable: true,
-              latencyMs,
-              httpStatus: response.status,
-              model,
-            }, 200);
+            const ids = readModelIds(payload);
+            catalogChecked = true;
+            catalogModelAvailable = model === "mk/auto" || ids.includes(model);
+            break;
           } catch (error) {
-            lastLatency = Math.round(performance.now() - started);
-            lastError = error instanceof Error && error.name === "AbortError"
+            catalogError = error instanceof Error && error.name === "AbortError"
               ? "Router tidak merespons dalam 8 detik."
               : "Router tidak dapat dihubungi.";
           } finally {
@@ -126,14 +155,31 @@ export const Route = createFileRoute("/api/ai/router-health")({
           }
         }
 
+        if (!catalogChecked) return safeJson({ online: false, configured: true, modelAvailable: false, httpStatus: catalogStatus || undefined, error: catalogError || "Router tidak dapat dihubungi." });
+        if (!catalogModelAvailable) return safeJson({ online: false, configured: true, modelAvailable: false, httpStatus: catalogStatus, model, error: `Server/model gagal: Model ${model} tidak tersedia untuk API Key/router ini. Silakan ganti model lain.` });
+
+        const probe = await probeModel(baseUrl, config.apiKey, model);
+        if (!probe.ok) {
+          return safeJson({
+            online: false,
+            configured: true,
+            modelAvailable: false,
+            latencyMs: probe.latencyMs,
+            httpStatus: probe.httpStatus,
+            model,
+            error: `Server/model gagal: ${probe.error || `Model ${model} gagal dipakai oleh router.`} Silakan ganti model lain.`,
+          });
+        }
+
         return safeJson({
-          online: false,
+          online: true,
           configured: true,
-          modelAvailable: false,
-          latencyMs: lastLatency,
-          httpStatus: lastStatus || undefined,
-          error: lastError || "Router tidak dapat dihubungi.",
-        }, 200);
+          modelAvailable: true,
+          latencyMs: probe.latencyMs,
+          httpStatus: probe.httpStatus,
+          model,
+          probe: "real-model-request",
+        });
       },
     },
   },
