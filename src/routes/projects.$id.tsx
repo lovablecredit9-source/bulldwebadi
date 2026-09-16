@@ -7,6 +7,7 @@ import {
   Copy,
   Download,
   FileCode,
+  ImagePlus,
   Loader2,
   MessageSquarePlus,
   Package,
@@ -77,6 +78,8 @@ type Analysis = {
   recommendations?: string[];
   summary?: string;
 };
+
+type AiMode = "build" | "fix-project" | "add-feature" | "analyze" | "generate-image";
 
 function Workspace() {
   const { id } = Route.useParams();
@@ -166,13 +169,13 @@ function FixTab({ projectId, model, onApplied, busy, setBusy }: { projectId: str
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<ReferenceFile[]>([]);
-  const [mode, setMode] = useState<"build" | "fix-project" | "add-feature" | "analyze">("fix-project");
+  const [mode, setMode] = useState<AiMode>("fix-project");
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [lastAction, setLastAction] = useState("fix-project");
 
   const request = async () => {
     setBusy(mode);
-    setLastAction(mode === "build" ? "add-feature" : mode);
+    setLastAction(mode === "build" ? "add-feature" : mode === "generate-image" ? "add-feature" : mode);
     setProposal(null);
     setAnalysis(null);
     try {
@@ -180,10 +183,15 @@ function FixTab({ projectId, model, onApplied, busy, setBusy }: { projectId: str
         setAnalysis(await postJson<Analysis>("/api/ai/analyze-project", { projectId, model, focus: instruction }));
         return;
       }
-      const endpoint = mode === "build" ? "add-feature" : mode;
+      const endpoint = mode === "build" || mode === "generate-image" ? "add-feature" : mode;
+      const prefix = mode === "build"
+        ? "Bangun dan lengkapi kode berikut:"
+        : mode === "generate-image"
+          ? "Rencanakan dan siapkan gambar/asset visual untuk project ini. Tentukan format asset, nama file, lokasi folder paling tepat, cara pemakaian pada file yang relevan, dan jika gambar perlu diganti atau diletakkan di lokasi lain jelaskan alasannya. Jangan mengubah file sebelum rencana disetujui:"
+          : "";
       setProposal(await postJson<Proposal>(`/api/ai/${endpoint}`, {
         projectId,
-        instruction: mode === "build" ? `Bangun dan lengkapi kode berikut: ${instruction}` : instruction,
+        instruction: prefix ? `${prefix} ${instruction}` : instruction,
         model,
         images,
         attachments,
@@ -216,34 +224,68 @@ function FixTab({ projectId, model, onApplied, busy, setBusy }: { projectId: str
     }
   };
 
+  const modes: { value: AiMode; label: string; icon: typeof Wrench }[] = [
+    { value: "build", label: "Build", icon: Sparkles },
+    { value: "fix-project", label: "Fix", icon: Wrench },
+    { value: "add-feature", label: "Tambah Fitur", icon: Sparkles },
+    { value: "analyze", label: "Analisis Error", icon: Search },
+    { value: "generate-image", label: "Generate Gambar", icon: ImagePlus },
+  ];
+
+  const placeholder = mode === "build"
+    ? "Jelaskan apa yang ingin dibangun..."
+    : mode === "fix-project"
+      ? "Jelaskan error atau perbaikan yang ingin dilakukan..."
+      : mode === "add-feature"
+        ? "Jelaskan fitur yang ingin ditambahkan..."
+        : mode === "analyze"
+          ? "Jelaskan error atau bagian project yang ingin diperiksa..."
+          : "Contoh: buat gambar hero bertema merah hitam, lalu tentukan file dan lokasi yang paling cocok untuk dipakai pada project...";
+
   return (
     <div className="grid gap-4">
       <div className="rounded-2xl border bg-card p-4">
-        <label className="mb-3 block">
-          <span className="sr-only">Pilih pekerjaan AI</span>
-          <select
-            value={mode}
-            onChange={(event) => setMode(event.target.value as typeof mode)}
-            disabled={busy !== ""}
-            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:w-64"
-          >
-            <option value="build">Build</option>
-            <option value="fix-project">Fix</option>
-            <option value="add-feature">Tambah Fitur</option>
-            <option value="analyze">Analisis Error</option>
-          </select>
-        </label>
-        <Textarea rows={4} value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="Jelaskan kode, perbaikan, fitur, atau error yang ingin dianalisis." />
-        <div className="mt-3"><ReferenceImages images={images} onChange={setImages} disabled={busy !== ""} /></div>
-        <div className="mt-3"><ReferenceFiles files={attachments} onChange={setAttachments} disabled={busy !== ""} /></div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {modes.map(({ value, label, icon: Icon }) => (
+            <Button
+              key={value}
+              type="button"
+              variant={mode === value ? "default" : "outline"}
+              disabled={busy !== ""}
+              onClick={() => { setMode(value); setProposal(null); setAnalysis(null); }}
+              className="min-h-11 rounded-xl px-2 text-xs sm:text-sm"
+            >
+              <Icon className="size-4 shrink-0" />
+              <span className="truncate">{label}</span>
+            </Button>
+          ))}
+        </div>
+
+        <div className="mt-4">
+          <Textarea rows={4} value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder={placeholder} />
+        </div>
+
+        {mode === "generate-image" && (
+          <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm">
+            <div className="flex items-center gap-2 font-semibold"><ImagePlus className="size-4 text-primary" />Rencana Generate Gambar</div>
+            <p className="mt-1 text-xs text-muted-foreground">AI akan mengecek struktur project, merekomendasikan file/lokasi gambar, dan menjelaskan apakah asset cocok atau perlu diganti sebelum diterapkan.</p>
+          </div>
+        )}
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <ReferenceImages images={images} onChange={setImages} disabled={busy !== ""} />
+          <ReferenceFiles files={attachments} onChange={setAttachments} disabled={busy !== ""} />
+        </div>
+
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button onClick={() => void request()} disabled={busy !== ""} className="rounded-xl">
-            {busy === mode ? <Loader2 className="size-4 animate-spin" /> : mode === "analyze" ? <Search className="size-4" /> : mode === "fix-project" ? <Wrench className="size-4" /> : <Sparkles className="size-4" />}
-            {busy === mode ? "Sedang memproses…" : mode === "build" ? "Buat Rencana Build" : mode === "fix-project" ? "Buat Rencana Fix" : mode === "add-feature" ? "Buat Rencana Fitur" : "Analisis Error"}
+          <Button onClick={() => void request()} disabled={busy !== "" || !instruction.trim()} className="rounded-xl">
+            {busy === mode ? <Loader2 className="size-4 animate-spin" /> : mode === "analyze" ? <Search className="size-4" /> : mode === "generate-image" ? <ImagePlus className="size-4" /> : mode === "fix-project" ? <Wrench className="size-4" /> : <Sparkles className="size-4" />}
+            {busy === mode ? "Sedang memproses…" : mode === "build" ? "Buat Rencana Build" : mode === "fix-project" ? "Buat Rencana Fix" : mode === "add-feature" ? "Buat Rencana Fitur" : mode === "analyze" ? "Analisis Error" : "Buat Rencana Gambar"}
           </Button>
         </div>
         {(busy === "fix-project" || busy === "build") && <div className="mt-3"><AiWorkStatus kind="fix" /></div>}
         {busy === "add-feature" && <div className="mt-3"><AiWorkStatus kind="add-feature" /></div>}
+        {busy === "generate-image" && <div className="mt-3"><AiWorkStatus kind="add-feature" /></div>}
       </div>
       {analysis && <div className="rounded-2xl border bg-card p-4 text-sm"><p className="font-semibold">Hasil Analisis</p>{analysis.summary && <p className="mt-1 text-muted-foreground">{analysis.summary}</p>}{!!analysis.errors?.length && <div className="mt-3 border-l-4 border-destructive pl-3"><p className="font-bold text-destructive">Error ditemukan</p>{analysis.errors.map((error, index) => <p key={`${error.file}-${index}`} className="mt-1 font-semibold text-destructive">{error.file}{error.line ? `:${error.line}` : ""} — {error.message}</p>)}</div>}{!analysis.errors?.length && <p className="mt-3 text-primary">Tidak ada error yang terdeteksi.</p>}</div>}
       {proposal && <div className="rounded-2xl border bg-card p-4"><p className="font-semibold">Rencana Perubahan</p><p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{proposal.plan}</p><div className="mt-4 space-y-4">{(proposal.files ?? []).map((f) => <div key={f.path} className="rounded-xl border"><div className="border-b px-3 py-2"><p className="font-mono text-xs">{f.path}</p>{f.reason && <p className="text-xs text-muted-foreground">{f.reason}</p>}</div><div className="grid gap-2 p-3 md:grid-cols-2"><div><p className="mb-1 text-xs font-medium text-muted-foreground">Before</p><pre className="max-h-56 overflow-auto rounded-lg bg-muted p-2 text-[11px]">{f.before || "(file baru)"}</pre></div><div><p className="mb-1 text-xs font-medium text-primary">After</p><pre className="max-h-56 overflow-auto rounded-lg bg-muted p-2 text-[11px]">{f.content}</pre></div></div></div>)}</div><Button onClick={apply} disabled={busy !== ""} className="mt-4 rounded-xl">{busy === "apply" ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}Terapkan Perubahan</Button><p className="mt-2 text-xs text-muted-foreground">Backup versi otomatis dibuat sebelum file ditimpa.</p></div>}
