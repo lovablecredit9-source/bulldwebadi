@@ -7,13 +7,6 @@ type Body = { projectId?: string; action?: "status" | "verify" | "set" | "change
 function validPin(pin?: string) { return typeof pin === "string" && /^\d{4,8}$/.test(pin); }
 function errorMessage(error: unknown) { return error instanceof Error && error.message ? error.message : "Permintaan PIN tidak dapat diproses."; }
 
-async function legacyProtectionState(projectId: string) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.from("projects").select("pin_hash, pin_salt").eq("id", projectId).maybeSingle();
-  if (error) throw error;
-  return Boolean(data?.pin_hash && data?.pin_salt);
-}
-
 export const Route = createFileRoute("/api/project/pin")({
   server: { handlers: { POST: async ({ request }) => {
     try {
@@ -21,14 +14,13 @@ export const Route = createFileRoute("/api/project/pin")({
       const id = body.projectId;
       if (!id) return safeJson({ error: "Project tidak ditemukan." }, 400);
 
+      // PIN selalu memakai RPC dari Supabase aplikasi sendiri.
+      // Tidak ada fallback ke service-role/secret key atau database Lovable.
+      const locked = await isProtected(id);
+
       if (body.action === "status") {
-        let locked = false;
-        try { locked = await isProtected(id); } catch { locked = await legacyProtectionState(id); }
         return safeJson({ locked, unlocked: locked ? await hasAccess(id, body.token) : true });
       }
-
-      let locked = false;
-      try { locked = await isProtected(id); } catch { locked = await legacyProtectionState(id); }
 
       if (body.action === "verify") {
         if (!locked) return safeJson({ ok: true, token: null });
