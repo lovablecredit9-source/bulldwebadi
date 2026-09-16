@@ -9,6 +9,7 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
               : window.localStorage.getItem(`adi-pin-token:${String((body as { projectId?: unknown }).projectId ?? "")}`),
         }
       : body;
+  const isAiChat = url.endsWith("/api/ai/chat");
   let res: Response;
   try {
     res = await fetch(url, {
@@ -17,13 +18,19 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
       body: JSON.stringify(payload),
     });
   } catch {
-    throw new Error("Koneksi bermasalah.");
+    throw new Error(isAiChat ? "AGUNG ADI (DITOLAK) — Koneksi bermasalah." : "Koneksi bermasalah.");
   }
-  const data = (await res.json().catch(() => null)) as (T & { error?: string }) | null;
+  const data = (await res.json().catch(() => null)) as (T & { error?: string; reply?: string }) | null;
   if (!res.ok || !data) {
-    throw new Error(data?.error ?? `Permintaan gagal diproses (${res.status || "koneksi"}).`);
+    const message = data?.error ?? `Permintaan gagal diproses (${res.status || "koneksi"}).`;
+    throw new Error(isAiChat ? `AGUNG ADI (DITOLAK) — ${message}` : message);
   }
-  if (data.error) throw new Error(data.error);
+  if (data.error) throw new Error(isAiChat ? `AGUNG ADI (DITOLAK) — ${data.error}` : data.error);
+
+  if (isAiChat && typeof data.reply === "string" && !data.reply.includes("AGUNG ADI (BERHASIL)")) {
+    data.reply = `${data.reply}\n\nAGUNG ADI (BERHASIL)`;
+  }
+
   return data;
 }
 
