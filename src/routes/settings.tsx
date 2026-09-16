@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Eye, EyeOff, Loader2, Save, Zap } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, Loader2, Save, Server, Zap } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ export const Route = createFileRoute("/settings")({
 });
 
 type Cfg = { baseUrl: string; model: string; hasKey: boolean; maskedKey: string };
+type HealthResult = { online: boolean; latencyMs?: number; httpStatus?: number; error?: string };
 
 function SettingsPage() {
   const [baseUrl, setBaseUrl] = useState(DEFAULT_BASE_URL);
@@ -36,6 +37,11 @@ function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [testMinutes, setTestMinutes] = useState("1");
+  const [health, setHealth] = useState<"idle" | "running" | "online" | "offline">("idle");
+  const [elapsed, setElapsed] = useState(0);
+  const [samples, setSamples] = useState<number[]>([]);
+  const healthRun = useRef(false);
 
   useEffect(() => {
     getJson<Cfg>("/api/settings")
@@ -75,6 +81,53 @@ function SettingsPage() {
     }
   };
 
+  const stopHealthTest = () => {
+    healthRun.current = false;
+    setHealth("idle");
+  };
+
+  const runHealthTest = async () => {
+    if (healthRun.current) return;
+    healthRun.current = true;
+    setHealth("running");
+    setElapsed(0);
+    setSamples([]);
+    const duration = Number(testMinutes) * 60;
+    const started = Date.now();
+    const values: number[] = [];
+
+    while (healthRun.current && Date.now() - started < duration * 1000) {
+      const probeStarted = Date.now();
+      try {
+        const result = await postJson<HealthResult>("/api/ai/router-health", { baseUrl });
+        if (result.online && typeof result.latencyMs === "number") {
+          values.push(result.latencyMs);
+          setHealth("online");
+          setSamples([...values]);
+        } else {
+          setHealth("offline");
+        }
+      } catch {
+        setHealth("offline");
+      }
+      setElapsed(Math.min(duration, Math.floor((Date.now() - started) / 1000)));
+      const wait = Math.max(0, 1000 - (Date.now() - probeStarted));
+      if (healthRun.current && Date.now() - started + wait < duration * 1000) {
+        await new Promise((resolve) => setTimeout(resolve, wait));
+      }
+    }
+
+    healthRun.current = false;
+    setElapsed(duration);
+    setHealth(values.length ? "online" : "offline");
+  };
+
+  useEffect(() => () => { healthRun.current = false; }, []);
+
+  const average = samples.length ? Math.round(samples.reduce((a, b) => a + b, 0) / samples.length) : null;
+  const minimum = samples.length ? Math.min(...samples) : null;
+  const maximum = samples.length ? Math.max(...samples) : null;
+
   return (
     <AppShell>
       <h1 className="text-2xl font-bold">Settings</h1>
@@ -103,9 +156,7 @@ function SettingsPage() {
               {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </Button>
           </div>
-          {masked && (
-            <p className="text-xs text-muted-foreground">Tersimpan: {masked}</p>
-          )}
+          {masked && <p className="text-xs text-muted-foreground">Tersimpan: {masked}</p>}
         </div>
 
         <ModelSelect value={model} onChange={setModel} />
@@ -127,6 +178,65 @@ function SettingsPage() {
             API Connected
           </p>
         )}
+
+        <div className="rounded-2xl border bg-background/40 p-4">
+          <div className="flex items-center gap-2 font-semibold">
+            <Server className="size-5" />
+            Test Kecepatan Router
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Menguji respons server router secara ringan tanpa menjalankan request AI berulang.
+          </p>
+
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="health-duration">Durasi pengujian</Label>
+              <select
+                id="health-duration"
+                value={testMinutes}
+                onChange={(e) => setTestMinutes(e.target.value)}
+                disabled={health === "running"}
+                className="h-10 rounded-xl border bg-background px-3 text-sm"
+              >
+                <option value="1">1 menit</option>
+                <option value="3">3 menit</option>
+                <option value="5">5 menit</option>
+              </select>
+            </div>
+            {health === "running" ? (
+              <Button onClick={stopHealthTest} variant="outline" className="rounded-xl">Hentikan Tes</Button>
+            ) : (
+              <Button onClick={() => void runHealthTest()} className="rounded-xl">
+                <Zap className="size-4" /> Mulai Tes Kecepatan
+              </Button>
+            )}
+          </div>
+
+          {health !== "idle" && (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border p-3">
+                <p className="text-xs text-muted-foreground">Status server</p>
+                <p className="mt-1 font-semibold">
+                  {health === "running" && "⏳ Sedang diuji"}
+                  {health === "online" && "🟢 Router Online"}
+                  {health === "offline" && "🔴 Router Offline"}
+                </p>
+              </div>
+              <div className="rounded-xl border p-3">
+                <p className="text-xs text-muted-foreground">Progress</p>
+                <p className="mt-1 font-semibold">{Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")} / {testMinutes}:00</p>
+              </div>
+              <div className="rounded-xl border p-3">
+                <p className="text-xs text-muted-foreground">Kecepatan rata-rata</p>
+                <p className="mt-1 text-lg font-bold">{average !== null ? `${average} ms` : "—"}</p>
+              </div>
+              <div className="rounded-xl border p-3">
+                <p className="text-xs text-muted-foreground">Sampel / min / max</p>
+                <p className="mt-1 font-semibold">{samples.length} / {minimum ?? "—"} / {maximum ?? "—"} ms</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </AppShell>
   );
