@@ -29,8 +29,10 @@ type Cfg = { baseUrl: string; model: string; hasKey: boolean; maskedKey: string 
 type HealthResult = {
   online: boolean;
   configured?: boolean;
+  modelAvailable?: boolean;
   latencyMs?: number;
   httpStatus?: number;
+  model?: string;
   error?: string;
 };
 
@@ -62,17 +64,43 @@ function SettingsPage() {
       .catch(() => undefined);
   }, []);
 
+  const verifySavedConfig = async () => {
+    try {
+      const result = await postJson<HealthResult>("/api/ai/router-health", {});
+      const ok = Boolean(result.online && result.modelAvailable);
+      setConnected(ok);
+      if (!ok) {
+        setHealth("offline");
+        setHealthError(result.error || "Router atau model tidak tersedia.");
+      } else {
+        setHealth("online");
+        setHealthError("");
+      }
+      return result;
+    } catch (e) {
+      setConnected(false);
+      setHealth("offline");
+      setHealthError(e instanceof Error ? e.message : "Router tidak dapat diverifikasi.");
+      return null;
+    }
+  };
+
   const save = async () => {
     setSaving(true);
+    setConnected(false);
     try {
       const c = await postJson<Cfg>("/api/settings", { baseUrl, model, apiKey });
       setMasked(c.maskedKey);
       setHasKey(Boolean(c.hasKey));
       setApiKey("");
-      setConnected(false);
-      setHealth("idle");
-      setHealthError("");
-      toast.success("Konfigurasi tersimpan di server");
+
+      // Setelah Save Configuration, langsung verifikasi konfigurasi yang baru disimpan.
+      const result = await verifySavedConfig();
+      if (result?.online && result.modelAvailable) {
+        toast.success("Konfigurasi tersimpan dan router/model siap digunakan");
+      } else {
+        toast.error(result?.error || "Konfigurasi tersimpan, tetapi router/model belum siap.");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Konfigurasi gagal disimpan.");
     } finally {
@@ -81,16 +109,26 @@ function SettingsPage() {
   };
 
   const test = async () => {
+    if (!hasKey) return;
     setTesting(true);
     setConnected(false);
     setHealth("idle");
     setHealthError("");
     try {
-      await postJson("/api/ai/test", { model });
-      setConnected(true);
-      toast.success("✓ API Connected — API Key aktif");
+      const result = await postJson<HealthResult>("/api/ai/router-health", {});
+      if (result.online && result.modelAvailable) {
+        setConnected(true);
+        setHealth("online");
+        toast.success("✓ Router Online — API Key dan model aktif");
+      } else {
+        setHealth("offline");
+        setHealthError(result.error || "API Key, router, atau model tidak tersedia.");
+        toast.error(result.error || "Router/model tidak tersedia.");
+      }
     } catch (e) {
       setConnected(false);
+      setHealth("offline");
+      setHealthError(e instanceof Error ? e.message : "API Key/Base URL tidak dapat diverifikasi.");
       toast.error(e instanceof Error ? e.message : "API Key/Base URL tidak dapat diverifikasi.");
     } finally {
       setTesting(false);
@@ -100,10 +138,13 @@ function SettingsPage() {
   const stopHealthTest = () => {
     healthRun.current = false;
     setHealth("idle");
+    setHealthError("Tes dihentikan.");
   };
 
   const runHealthTest = async () => {
-    if (healthRun.current || !hasKey || !connected) return;
+    // Tidak perlu menekan Test Connection lebih dulu.
+    // Tes ini selalu melakukan verifikasi nyata terhadap konfigurasi tersimpan.
+    if (healthRun.current) return;
 
     healthRun.current = true;
     setHealth("running");
@@ -115,45 +156,40 @@ function SettingsPage() {
     const started = Date.now();
     const values: number[] = [];
 
-    while (healthRun.current && Date.now() - started < duration * 1000) {
-      const probeStarted = Date.now();
-      try {
-        // Tes nyata ke /models dengan kredensial yang tersimpan di server.
-        // Tidak menjalankan chat AI berulang.
+    try {
+      while (healthRun.current && Date.now() - started < duration * 1000) {
         const result = await postJson<HealthResult>("/api/ai/router-health", {});
-        const latency = typeof result.latencyMs === "number"
-          ? result.latencyMs
-          : Math.round(Date.now() - probeStarted);
 
-        if (result.online) {
-          values.push(latency);
-          setHealth("online");
-          setSamples([...values]);
-          setHealthError("");
-        } else {
+        if (!result.online || !result.modelAvailable) {
           setHealth("offline");
-          setHealthError(result.error || "Router tidak dapat diverifikasi.");
-          healthRun.current = false;
+          setHealthError(result.error || "Router atau model tidak tersedia.");
           break;
         }
-      } catch (e) {
-        setHealth("offline");
-        setHealthError(e instanceof Error ? e.message : "Router tidak dapat diverifikasi.");
-        healthRun.current = false;
-        break;
-      }
 
-      setElapsed(Math.min(duration, Math.floor((Date.now() - started) / 1000)));
-      const wait = Math.max(0, 1000 - (Date.now() - probeStarted));
-      if (healthRun.current && Date.now() - started + wait < duration * 1000) {
-        await new Promise((resolve) => setTimeout(resolve, wait));
+        const latency = typeof result.latencyMs === "number" ? result.latencyMs : 0;
+        values.push(latency);
+        setConnected(true);
+        setHealth("online");
+        setSamples([...values]);
+        setHealthError("");
+        setElapsed(Math.min(duration, Math.floor((Date.now() - started) / 1000)));
+
+        const wait = Math.max(0, 1000 - (Date.now() - started - values.length * 1000));
+        if (healthRun.current && Date.now() - started + wait < duration * 1000) {
+          await new Promise((resolve) => setTimeout(resolve, wait));
+        }
+      }
+    } catch (e) {
+      setHealth("offline");
+      setHealthError(e instanceof Error ? e.message : "Router tidak dapat diverifikasi.");
+    } finally {
+      const finishedNormally = Date.now() - started >= duration * 1000;
+      healthRun.current = false;
+      if (finishedNormally) {
+        setElapsed(duration);
+        if (values.length > 0) setHealth("online");
       }
     }
-
-    const finishedNormally = Date.now() - started >= duration * 1000;
-    healthRun.current = false;
-    if (finishedNormally) setElapsed(duration);
-    if (values.length > 0) setHealth("online");
   };
 
   useEffect(() => () => { healthRun.current = false; }, []);
@@ -161,20 +197,18 @@ function SettingsPage() {
   const average = samples.length ? Math.round(samples.reduce((a, b) => a + b, 0) / samples.length) : null;
   const minimum = samples.length ? Math.min(...samples) : null;
   const maximum = samples.length ? Math.max(...samples) : null;
-  const canRunSpeedTest = hasKey && connected;
 
   return (
     <AppShell>
       <h1 className="text-2xl font-bold">Settings</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        AI Configuration — Marketku Router. API Key disimpan di server dan tidak pernah dikirim
-        lengkap ke browser.
+        AI Configuration — Marketku Router. API Key disimpan di server dan tidak pernah dikirim lengkap ke browser.
       </p>
 
       <div className="mt-6 grid max-w-2xl gap-4 rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
         <div className="space-y-2">
           <Label>Base URL</Label>
-          <Input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+          <Input value={baseUrl} onChange={(e) => { setBaseUrl(e.target.value); setConnected(false); }} />
         </div>
 
         <div className="space-y-2">
@@ -183,7 +217,7 @@ function SettingsPage() {
             <Input
               type={show ? "text" : "password"}
               value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
+              onChange={(e) => { setApiKey(e.target.value); setConnected(false); }}
               placeholder={masked || "Masukkan API Key"}
               autoComplete="off"
             />
@@ -194,7 +228,15 @@ function SettingsPage() {
           {masked && <p className="text-xs text-muted-foreground">Tersimpan: {masked}</p>}
         </div>
 
-        <ModelSelect value={model} onChange={setModel} />
+        <ModelSelect
+          value={model}
+          onChange={(value) => {
+            setModel(value);
+            setConnected(false);
+            setHealth("idle");
+            setHealthError("");
+          }}
+        />
 
         <div className="flex flex-wrap gap-2">
           <Button onClick={test} variant="outline" disabled={testing || !hasKey} className="rounded-xl">
@@ -210,7 +252,7 @@ function SettingsPage() {
         {connected && (
           <p className="flex items-center gap-2 rounded-xl bg-primary/10 px-3 py-2 text-sm font-medium text-primary">
             <CheckCircle2 className="size-4" />
-            API Connected — API Key aktif
+            API Connected — Router dan model aktif
           </p>
         )}
 
@@ -220,7 +262,7 @@ function SettingsPage() {
             Test Kecepatan Router
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Tes nyata ke endpoint models router menggunakan Base URL dan API Key tersimpan. Tidak menjalankan chat AI berulang.
+            Bisa langsung dimulai tanpa Test Connection. Sistem akan memeriksa API Key, router, dan model yang tersimpan sebelum menghitung latency nyata.
           </p>
 
           <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -230,7 +272,7 @@ function SettingsPage() {
                 id="health-duration"
                 value={testMinutes}
                 onChange={(e) => setTestMinutes(e.target.value)}
-                disabled={health === "running" || !canRunSpeedTest}
+                disabled={health === "running"}
                 className="h-10 rounded-xl border bg-background px-3 text-sm"
               >
                 <option value="1">1 menit</option>
@@ -243,9 +285,9 @@ function SettingsPage() {
             ) : (
               <Button
                 onClick={() => void runHealthTest()}
-                disabled={!canRunSpeedTest}
+                disabled={!hasKey}
                 className="rounded-xl"
-                title={!canRunSpeedTest ? "Test Connection harus berhasil terlebih dahulu" : undefined}
+                title={!hasKey ? "Simpan API Key terlebih dahulu" : undefined}
               >
                 <Zap className="size-4" /> Mulai Tes Kecepatan
               </Button>
@@ -257,20 +299,15 @@ function SettingsPage() {
               Simpan API Key terlebih dahulu. Tes kecepatan tidak bisa dijalankan tanpa API Key.
             </p>
           )}
-          {hasKey && !connected && (
-            <p className="mt-3 text-sm text-muted-foreground">
-              Jalankan <strong>Test Connection</strong> sampai API Key/Base URL terverifikasi sebelum memulai tes.
-            </p>
-          )}
 
           {health !== "idle" && (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border p-3">
-                <p className="text-xs text-muted-foreground">Status server</p>
+                <p className="text-xs text-muted-foreground">Status server / model</p>
                 <p className="mt-1 font-semibold">
                   {health === "running" && "⏳ Sedang diuji"}
-                  {health === "online" && "🟢 Router Online"}
-                  {health === "offline" && "🔴 Router Offline"}
+                  {health === "online" && "🟢 Router Online — Model tersedia"}
+                  {health === "offline" && "🔴 Router/Model Offline"}
                 </p>
                 {healthError && <p className="mt-1 text-xs text-destructive">{healthError}</p>}
               </div>
