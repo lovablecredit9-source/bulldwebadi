@@ -48,7 +48,7 @@ export function AuthGate() {
         if (error) throw error;
 
         if (!data.session) {
-          toast.error("Pendaftaran belum bisa langsung masuk. Aktifkan Confirm Email di Supabase Auth.");
+          toast.error("Pendaftaran belum bisa langsung masuk. Pastikan Confirm Email di Supabase Auth sudah dimatikan.");
           return;
         }
 
@@ -96,10 +96,10 @@ export function AuthGate() {
           )}
           <Button type="submit" disabled={loading} className="h-11 w-full rounded-xl">
             {loading ? <Loader2 className="animate-spin" /> : mode === "login" ? <LogIn /> : <UserPlus />}
-            {mode === "login" ? "Masuk ke AI Builder" : "Daftar & Masuk"}
+            {mode === "login" ? "Masuk ke AI Builder" : "Daftar"}
           </Button>
         </form>
-        <p className="mt-5 text-center text-xs text-muted-foreground">Akun dan sesi login dikelola oleh Supabase Auth.</p>
+        <p className="mt-5 text-center text-xs text-muted-foreground">Akun dan sesi login dikelola dan dicek oleh Agung Adi.</p>
       </div>
     </div>
   );
