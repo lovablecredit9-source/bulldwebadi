@@ -175,22 +175,28 @@ export type Database = {
       project_sessions: {
         Row: {
           created_at: string
+          device_label: string
           expires_at: string
           id: string
+          last_seen_at: string
           project_id: string
           token_hash: string
         }
         Insert: {
           created_at?: string
+          device_label?: string
           expires_at?: string
           id?: string
+          last_seen_at?: string
           project_id: string
           token_hash: string
         }
         Update: {
           created_at?: string
+          device_label?: string
           expires_at?: string
           id?: string
+          last_seen_at?: string
           project_id?: string
           token_hash?: string
         }
@@ -286,7 +292,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      pin_session_create: {
+        Args: {
+          p_device_label?: string
+          p_project_id: string
+          p_token_hash: string
+        }
+        Returns: boolean
+      }
+      pin_session_list: {
+        Args: { p_project_id: string; p_token_hash: string }
+        Returns: {
+          created_at: string
+          current_device: boolean
+          device_label: string
+          expires_at: string
+          id: string
+          last_seen_at: string
+        }[]
+      }
+      pin_session_revoke: {
+        Args: {
+          p_project_id: string
+          p_session_id: string
+          p_token_hash: string
+        }
+        Returns: boolean
+      }
+      pin_session_valid: {
+        Args: { p_project_id: string; p_token_hash: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
