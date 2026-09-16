@@ -36,21 +36,45 @@ function ProjectsPage() {
   const [view, setView] = useState<View>("all");
 
   useEffect(() => {
+    let cancelled = false;
+
     void (async () => {
       try {
         const projects = await listProjects();
+        if (cancelled) return;
         setItems(projects);
-        const states = await listProjectLibraryStates(projects.map((project) => project.id));
-        const normalized: Record<string, ProjectLibraryState> = {};
-        projects.forEach((project) => { normalized[project.id] = states[project.id] ?? emptyState(project.id); });
-        setLibrary(normalized);
+
+        try {
+          const states = await listProjectLibraryStates(projects.map((project) => project.id));
+          if (!cancelled) {
+            const normalized: Record<string, ProjectLibraryState> = {};
+            projects.forEach((project) => {
+              normalized[project.id] = states[project.id] ?? emptyState(project.id);
+            });
+            setLibrary(normalized);
+          }
+        } catch {
+          // Library metadata is optional for rendering the project history.
+          if (!cancelled) {
+            const normalized: Record<string, ProjectLibraryState> = {};
+            projects.forEach((project) => { normalized[project.id] = emptyState(project.id); });
+            setLibrary(normalized);
+          }
+        }
+
         const pinStates = await Promise.all(projects.map(async (project) => {
           try { return [project.id, (await pinStatus(project.id)).locked] as const; }
           catch { return [project.id, false] as const; }
         }));
-        setProtectedIds(new Set(pinStates.filter(([, locked]) => locked).map(([id]) => id)));
-      } catch { setItems([]); }
+        if (!cancelled) {
+          setProtectedIds(new Set(pinStates.filter(([, locked]) => locked).map(([id]) => id)));
+        }
+      } catch {
+        if (!cancelled) setItems([]);
+      }
     })();
+
+    return () => { cancelled = true; };
   }, []);
 
   const visible = useMemo(() => {
