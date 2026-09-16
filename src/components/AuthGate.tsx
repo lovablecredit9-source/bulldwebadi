@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-// Email verification must return to the real app URL, not a developer's localhost.
-const AUTH_REDIRECT_URL = "https://badi.lovable.app/";
+// Email verification must return to the real deployed app.
+const AUTH_REDIRECT_URL = "https://bulldwebadi.lovable.app/";
 
 export function AuthGate() {
   const [mode, setMode] = useState<"login" | "register">("login");
