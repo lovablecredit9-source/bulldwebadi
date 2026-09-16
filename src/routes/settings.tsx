@@ -82,13 +82,16 @@ function SettingsPage() {
 
   const test = async () => {
     setTesting(true);
+    setConnected(false);
+    setHealth("idle");
+    setHealthError("");
     try {
       await postJson("/api/ai/test", { model });
       setConnected(true);
-      toast.success("✓ API Connected");
+      toast.success("✓ API Connected — API Key aktif");
     } catch (e) {
       setConnected(false);
-      toast.error(e instanceof Error ? e.message : "Koneksi bermasalah.");
+      toast.error(e instanceof Error ? e.message : "API Key/Base URL tidak dapat diverifikasi.");
     } finally {
       setTesting(false);
     }
@@ -100,7 +103,7 @@ function SettingsPage() {
   };
 
   const runHealthTest = async () => {
-    if (healthRun.current || !hasKey) return;
+    if (healthRun.current || !hasKey || !connected) return;
 
     healthRun.current = true;
     setHealth("running");
@@ -115,8 +118,8 @@ function SettingsPage() {
     while (healthRun.current && Date.now() - started < duration * 1000) {
       const probeStarted = Date.now();
       try {
-        // Endpoint ini memakai Base URL + API Key yang tersimpan di server.
-        // Tidak mengirim request chat/AI sehingga tes tidak memakai kredit model.
+        // Tes nyata ke /models dengan kredensial yang tersimpan di server.
+        // Tidak menjalankan chat AI berulang.
         const result = await postJson<HealthResult>("/api/ai/router-health", {});
         const latency = typeof result.latencyMs === "number"
           ? result.latencyMs
@@ -130,7 +133,6 @@ function SettingsPage() {
         } else {
           setHealth("offline");
           setHealthError(result.error || "Router tidak dapat diverifikasi.");
-          // API Key salah / router tidak valid tidak perlu mengulang tes selama menit penuh.
           healthRun.current = false;
           break;
         }
@@ -151,7 +153,7 @@ function SettingsPage() {
     const finishedNormally = Date.now() - started >= duration * 1000;
     healthRun.current = false;
     if (finishedNormally) setElapsed(duration);
-    if (values.length > 0 && health !== "offline") setHealth("online");
+    if (values.length > 0) setHealth("online");
   };
 
   useEffect(() => () => { healthRun.current = false; }, []);
@@ -159,6 +161,7 @@ function SettingsPage() {
   const average = samples.length ? Math.round(samples.reduce((a, b) => a + b, 0) / samples.length) : null;
   const minimum = samples.length ? Math.min(...samples) : null;
   const maximum = samples.length ? Math.max(...samples) : null;
+  const canRunSpeedTest = hasKey && connected;
 
   return (
     <AppShell>
@@ -207,7 +210,7 @@ function SettingsPage() {
         {connected && (
           <p className="flex items-center gap-2 rounded-xl bg-primary/10 px-3 py-2 text-sm font-medium text-primary">
             <CheckCircle2 className="size-4" />
-            API Connected
+            API Connected — API Key aktif
           </p>
         )}
 
@@ -227,7 +230,7 @@ function SettingsPage() {
                 id="health-duration"
                 value={testMinutes}
                 onChange={(e) => setTestMinutes(e.target.value)}
-                disabled={health === "running" || !hasKey}
+                disabled={health === "running" || !canRunSpeedTest}
                 className="h-10 rounded-xl border bg-background px-3 text-sm"
               >
                 <option value="1">1 menit</option>
@@ -240,9 +243,9 @@ function SettingsPage() {
             ) : (
               <Button
                 onClick={() => void runHealthTest()}
-                disabled={!hasKey}
+                disabled={!canRunSpeedTest}
                 className="rounded-xl"
-                title={!hasKey ? "Simpan API Key terlebih dahulu" : undefined}
+                title={!canRunSpeedTest ? "Test Connection harus berhasil terlebih dahulu" : undefined}
               >
                 <Zap className="size-4" /> Mulai Tes Kecepatan
               </Button>
@@ -251,7 +254,12 @@ function SettingsPage() {
 
           {!hasKey && (
             <p className="mt-3 text-sm text-muted-foreground">
-              Simpan API Key yang valid terlebih dahulu untuk menjalankan tes router.
+              Simpan API Key terlebih dahulu. Tes kecepatan tidak bisa dijalankan tanpa API Key.
+            </p>
+          )}
+          {hasKey && !connected && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Jalankan <strong>Test Connection</strong> sampai API Key/Base URL terverifikasi sebelum memulai tes.
             </p>
           )}
 
