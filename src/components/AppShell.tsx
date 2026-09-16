@@ -1,24 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Component, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
-import {
-  Bug,
-  Bot,
-  FolderTree,
-  Home,
-  Instagram,
-  Menu,
-  MessageCircle,
-  Moon,
-  Puzzle,
-  Search,
-  Settings,
-  Smartphone,
-  Sun,
-  Upload,
-  Youtube,
-} from "lucide-react";
+import { Bug, Bot, FolderTree, Home, Instagram, Menu, MessageCircle, Moon, Puzzle, Search, Settings, Smartphone, Sun, Upload, Youtube } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { HtmlLiveTester } from "@/components/HtmlLiveTester";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -33,14 +18,7 @@ const NAV = [
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  return (
-    <nav className="flex flex-col gap-1 p-3">
-      {NAV.map(({ to, label, icon: Icon }) => {
-        const active = to === "/" ? pathname === "/" : pathname.startsWith(to);
-        return <Link key={to} to={to} onClick={onNavigate} className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors", active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground")}><Icon className="size-4" />{label}</Link>;
-      })}
-    </nav>
-  );
+  return <nav className="flex flex-col gap-1 p-3">{NAV.map(({ to, label, icon: Icon }) => { const active = to === "/" ? pathname === "/" : pathname.startsWith(to); return <Link key={to} to={to} onClick={onNavigate} className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors", active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground")}><Icon className="size-4" />{label}</Link>; })}</nav>;
 }
 
 function useTheme() {
@@ -65,23 +43,13 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, BoundaryState>
   state: BoundaryState = { hasError: false };
   static getDerivedStateFromError(): BoundaryState { return { hasError: true }; }
   componentDidCatch(error: Error, info: ErrorInfo) { console.error("Workspace render error", error, info); }
-  render() {
-    if (!this.state.hasError) return this.props.children;
-    return <div className="mx-auto max-w-3xl p-6 sm:p-8"><div className="rounded-2xl border border-destructive/30 bg-card p-6 text-center shadow-sm"><Bug className="mx-auto size-10 text-destructive" /><h2 className="mt-3 text-lg font-semibold">Bagian Workspace mengalami error</h2><p className="mt-1 text-sm text-muted-foreground">Tab yang dibuka mengalami masalah. Workspace tetap aman dan tidak perlu keluar dari project.</p><Button className="mt-4 rounded-xl" onClick={() => this.setState({ hasError: false })}>Coba lagi</Button></div></div>;
-  }
+  render() { if (!this.state.hasError) return this.props.children; return <div className="mx-auto max-w-3xl p-6 sm:p-8"><div className="rounded-2xl border border-destructive/30 bg-card p-6 text-center shadow-sm"><Bug className="mx-auto size-10 text-destructive" /><h2 className="mt-3 text-lg font-semibold">Bagian Workspace mengalami error</h2><p className="mt-1 text-sm text-muted-foreground">Tab yang dibuka mengalami masalah. Workspace tetap aman dan tidak perlu keluar dari project.</p><Button className="mt-4 rounded-xl" onClick={() => this.setState({ hasError: false })}>Coba lagi</Button></div></div>; }
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { dark, toggle } = useTheme();
   const [open, setOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-
-  return <div className="min-h-screen bg-background lg:grid lg:grid-cols-[260px_1fr]">
-    <aside className="sticky top-0 hidden h-screen flex-col border-r bg-sidebar lg:flex"><Link to="/" className="flex items-center gap-2 px-5 py-5"><span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Bug className="size-5" /></span><span className="text-sm font-bold leading-tight">ADI BUILDER<span className="block text-xs font-normal text-muted-foreground">BOT</span></span></Link><NavList /></aside>
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-30 flex items-center gap-3 border-b bg-background/80 px-4 py-3 backdrop-blur lg:px-8"><Sheet open={open} onOpenChange={setOpen}><SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden"><Menu className="size-5" /></Button></SheetTrigger><SheetContent side="left" className="w-72 p-0"><SheetTitle className="px-5 pt-5 text-sm font-bold">ADI BUILDER BOT</SheetTitle><NavList onNavigate={() => setOpen(false)} /></SheetContent></Sheet><span className="font-bold tracking-tight">ADI BUILDER BOT</span><div className="ml-auto flex items-center gap-2"><Button asChild variant="ghost" size="sm"><Link to="/projects"><Search className="size-4" /><span className="hidden sm:inline">Project</span></Link></Button><Button variant="ghost" size="icon" onClick={toggle} aria-label="Ganti tema">{dark ? <Sun className="size-4" /> : <Moon className="size-4" />}</Button></div></header>
-      <main className="flex-1"><AppErrorBoundary>{children}</AppErrorBoundary></main>
-      <Footer />
-    </div>
-  </div>;
+  const workspaceMatch = pathname.match(/^\/projects\/([^/]+)$/);
+  return <div className="min-h-screen bg-background lg:grid lg:grid-cols-[260px_1fr]"><aside className="sticky top-0 hidden h-screen flex-col border-r bg-sidebar lg:flex"><Link to="/" className="flex items-center gap-2 px-5 py-5"><span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Bug className="size-5" /></span><span className="text-sm font-bold leading-tight">ADI BUILDER<span className="block text-xs font-normal text-muted-foreground">BOT</span></span></Link><NavList /></aside><div className="flex min-h-screen flex-col"><header className="sticky top-0 z-30 flex items-center gap-3 border-b bg-background/80 px-4 py-3 backdrop-blur lg:px-8"><Sheet open={open} onOpenChange={setOpen}><SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden"><Menu className="size-5" /></Button></SheetTrigger><SheetContent side="left" className="w-72 p-0"><SheetTitle className="px-5 pt-5 text-sm font-bold">ADI BUILDER BOT</SheetTitle><NavList onNavigate={() => setOpen(false)} /></SheetContent></Sheet><span className="font-bold tracking-tight">ADI BUILDER BOT</span><div className="ml-auto flex items-center gap-2"><Button asChild variant="ghost" size="sm"><Link to="/projects"><Search className="size-4" /><span className="hidden sm:inline">Project</span></Link></Button><Button variant="ghost" size="icon" onClick={toggle} aria-label="Ganti tema">{dark ? <Sun className="size-4" /> : <Moon className="size-4" />}</Button></div></header><main className="flex-1"><AppErrorBoundary>{children}</AppErrorBoundary>{workspaceMatch && <div className="mx-auto w-full max-w-7xl px-4 pb-6 sm:px-6 lg:px-8"><HtmlLiveTester /></div>}</main><Footer /></div></div>;
 }
