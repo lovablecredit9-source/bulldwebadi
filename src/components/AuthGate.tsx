@@ -7,8 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-const AUTH_REDIRECT_URL = "https://bulldwebadi.lovable.app/";
-
 export function AuthGate() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -46,15 +44,15 @@ export function AuthGate() {
         const { data, error } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
-          options: { emailRedirectTo: AUTH_REDIRECT_URL },
         });
         if (error) throw error;
 
-        if (data.session) {
-          toast.success("Akun berhasil dibuat dan kamu sudah masuk.");
-        } else {
-          toast.success("Akun berhasil dibuat. Cek email untuk verifikasi sebelum login.");
+        if (!data.session) {
+          toast.error("Pendaftaran belum bisa langsung masuk. Aktifkan Confirm Email di Supabase Auth.");
+          return;
         }
+
+        toast.success("Akun berhasil dibuat dan langsung masuk.");
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Autentikasi gagal.");
@@ -72,7 +70,7 @@ export function AuthGate() {
         <div className="mt-4 text-center">
           <h1 className="text-2xl font-bold tracking-tight">ADI BUILDER BOT</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {mode === "login" ? "Login untuk masuk ke AI Builder." : "Daftar akun baru dan verifikasi email untuk mulai menggunakan AI Builder."}
+            {mode === "login" ? "Login untuk masuk ke AI Builder." : "Daftar akun baru untuk langsung masuk ke AI Builder."}
           </p>
         </div>
 
@@ -98,7 +96,7 @@ export function AuthGate() {
           )}
           <Button type="submit" disabled={loading} className="h-11 w-full rounded-xl">
             {loading ? <Loader2 className="animate-spin" /> : mode === "login" ? <LogIn /> : <UserPlus />}
-            {mode === "login" ? "Masuk ke AI Builder" : "Daftar & Verifikasi Email"}
+            {mode === "login" ? "Masuk ke AI Builder" : "Daftar & Masuk"}
           </Button>
         </form>
         <p className="mt-5 text-center text-xs text-muted-foreground">Akun dan sesi login dikelola oleh Supabase Auth.</p>
