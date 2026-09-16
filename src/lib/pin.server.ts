@@ -17,37 +17,22 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
   throw new Error("Konfigurasi Supabase untuk PIN belum tersedia di server.");
 }
 
-// Gunakan REST RPC langsung agar sb_publishable_* dikirim sebagai apikey,
-// bukan Authorization: Bearer <publishable-key>.
 async function rpc<T>(fn: string, args: Record<string, unknown>) {
   const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
     method: "POST",
-    headers: {
-      apikey: SUPABASE_KEY,
-      "Content-Type": "application/json",
-    },
+    headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
     body: JSON.stringify(args),
   });
-
   const text = await response.text();
   let data: unknown = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
-  }
-
+  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
   if (!response.ok) {
-    const message = typeof data === "object" && data && "message" in data
-      ? String((data as { message: unknown }).message)
-      : `HTTP ${response.status}`;
+    const message = typeof data === "object" && data && "message" in data ? String((data as { message: unknown }).message) : `HTTP ${response.status}`;
     throw new Error(`Supabase RPC ${fn} gagal: ${message}`);
   }
-
   return data as T;
 }
 
-// Web Crypto pada runtime deployment ini membatasi PBKDF2 sampai 100.000 iterasi.
 const PBKDF2_ITERATIONS = 100_000;
 
 function toHex(buf: ArrayBuffer) {
@@ -57,11 +42,7 @@ function toHex(buf: ArrayBuffer) {
 export async function hashPin(pin: string, saltHex: string) {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt: enc.encode(saltHex), iterations: PBKDF2_ITERATIONS },
-    key,
-    256,
-  );
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: enc.encode(saltHex), iterations: PBKDF2_ITERATIONS }, key, 256);
   return toHex(bits);
 }
 
@@ -88,10 +69,7 @@ export async function isProtected(projectId: string) {
 export async function hasAccess(projectId: string, token?: string | null) {
   if (!(await isProtected(projectId))) return true;
   if (!token) return false;
-  return Boolean(await rpc<boolean>("pin_session_valid", {
-    p_project_id: projectId,
-    p_token_hash: await sha256(token),
-  }));
+  return Boolean(await rpc<boolean>("pin_session_valid", { p_project_id: projectId, p_token_hash: await sha256(token) }));
 }
 
 export async function verifyPin(projectId: string, pin: string) {
@@ -102,36 +80,51 @@ export async function verifyPin(projectId: string, pin: string) {
   return Boolean(await rpc<boolean>("pin_verify_hash", { p_project_id: projectId, p_hash: hash }));
 }
 
-export async function createSession(projectId: string) {
+export async function createSession(projectId: string, deviceLabel = "Perangkat") {
   const token = randomHex(24);
   await rpc<boolean>("pin_session_create", {
     p_project_id: projectId,
     p_token_hash: await sha256(token),
+    p_device_label: deviceLabel.slice(0, 120),
   });
   return token;
 }
 
-export async function dropSession(projectId: string, token?: string | null) {
-  if (!token) return;
-  await rpc<boolean>("pin_session_drop", {
+export type ProjectSession = {
+  id: string;
+  device_label: string;
+  created_at: string;
+  last_seen_at: string;
+  expires_at: string;
+  current_device: boolean;
+};
+
+export async function listSessions(projectId: string, token: string) {
+  return rpc<ProjectSession[]>("pin_session_list", {
     p_project_id: projectId,
     p_token_hash: await sha256(token),
   });
+}
+
+export async function revokeSession(projectId: string, token: string, sessionId: string) {
+  return Boolean(await rpc<boolean>("pin_session_revoke", {
+    p_project_id: projectId,
+    p_token_hash: await sha256(token),
+    p_session_id: sessionId,
+  }));
+}
+
+export async function dropSession(projectId: string, token?: string | null) {
+  if (!token) return;
+  await rpc<boolean>("pin_session_drop", { p_project_id: projectId, p_token_hash: await sha256(token) });
 }
 
 export async function setPin(projectId: string, pin: string) {
   const salt = randomHex(16);
   const hash = await hashPin(pin, salt);
-  await rpc<boolean>("pin_set_hash", {
-    p_project_id: projectId,
-    p_hash: hash,
-    p_salt: salt,
-  });
-
+  await rpc<boolean>("pin_set_hash", { p_project_id: projectId, p_hash: hash, p_salt: salt });
   const savedSalt = await rpc<string | null>("pin_get_salt", { p_project_id: projectId });
-  if (!savedSalt || savedSalt !== salt) {
-    throw new Error("PIN belum tersimpan di server. Silakan coba lagi.");
-  }
+  if (!savedSalt || savedSalt !== salt) throw new Error("PIN belum tersimpan di server. Silakan coba lagi.");
 }
 
 export async function clearPin(projectId: string) {
