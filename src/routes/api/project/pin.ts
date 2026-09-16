@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { safeJson } from "@/lib/ai.server";
-import { clearPin, createSession, dropSession, hasAccess, isProtected, setPin, verifyPin } from "@/lib/pin.server";
+import { clearPin, createSession, dropSession, hasAccess, isProtected, listSessions, revokeSession, setPin, verifyPin } from "@/lib/pin.server";
 
-type Body = { projectId?: string; action?: "status" | "verify" | "set" | "change" | "remove" | "lock"; pin?: string; newPin?: string; token?: string; deviceLabel?: string };
+type Body = { projectId?: string; action?: "status" | "verify" | "set" | "change" | "remove" | "lock" | "sessions" | "revoke-session"; pin?: string; newPin?: string; token?: string; deviceLabel?: string; sessionId?: string };
 
 function validPin(pin?: string) { return typeof pin === "string" && /^\d{4,8}$/.test(pin); }
 function errorMessage(error: unknown) { return error instanceof Error && error.message ? error.message : "Permintaan PIN tidak dapat diproses."; }
@@ -35,6 +35,16 @@ export const Route = createFileRoute("/api/project/pin")({
         if (!validPin(body.pin)) return safeJson({ error: "PIN tidak valid." }, 400);
         if (!body.pin || !(await verifyPin(id, body.pin))) return safeJson({ error: "PIN salah." }, 401);
         return safeJson({ ok: true, token: await createSession(id, body.deviceLabel || "Perangkat") });
+      }
+
+      if (body.action === "sessions" || body.action === "revoke-session") {
+        if (!body.token || !(await hasAccess(id, body.token))) return safeJson({ error: "Sesi project sudah tidak valid." }, 401);
+        if (body.action === "revoke-session") {
+          if (!body.sessionId) return safeJson({ error: "Perangkat tidak ditemukan." }, 400);
+          const ok = await revokeSession(id, body.token, body.sessionId);
+          return ok ? safeJson({ ok: true }) : safeJson({ error: "Perangkat tidak dapat dicabut." }, 400);
+        }
+        return safeJson({ sessions: await listSessions(id, body.token) });
       }
 
       if (body.action === "lock") {
