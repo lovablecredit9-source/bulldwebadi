@@ -1,20 +1,10 @@
 /** Keamanan PIN proyek: hash PBKDF2 + token sesi. */
 
-// PIN memakai Supabase aplikasi sendiri. Tidak memakai service-role/secret key.
-const SUPABASE_URL =
-  import.meta.env.VITE_SUPABASE_URL ||
-  process.env["VITE_SUPABASE_URL"] ||
-  process.env["SUPABASE_URL"] ||
-  "https://ochqpzpsfqytemrgsdir.supabase.co";
-const SUPABASE_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
-  process.env["SUPABASE_PUBLISHABLE_KEY"] ||
-  "sb_publishable_Wmfpinvf5ZPzf7dmRoNtMw_1L1H1qfC";
-
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  throw new Error("Konfigurasi Supabase untuk PIN belum tersedia di server.");
-}
+// PIN harus selalu memakai Supabase aplikasi sendiri.
+// Jangan mengambil URL/key dari environment deployment Lovable karena itu
+// dapat mengarahkan request PIN ke project Supabase yang berbeda.
+const SUPABASE_URL = "https://ochqpzpsfqytemrgsdir.supabase.co";
+const SUPABASE_KEY = "sb_publishable_Wmfpinvf5ZPzf7dmRoNtMw_1L1H1qfC";
 
 async function rpc<T>(fn: string, args: Record<string, unknown>) {
   const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
