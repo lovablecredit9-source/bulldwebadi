@@ -1,5 +1,5 @@
+import { Archive, CalendarDays, FolderTree, Lock } from "lucide-react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Archive, FolderTree, Lock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,12 @@ export const Route = createFileRoute("/projects/")({
 
 type View = "all" | "archived";
 const emptyState = (id: string): ProjectLibraryState => ({ project_id: id, archived: false, saved: false, liked: false });
+
+function formatCreatedAt(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Tanggal tidak tersedia";
+  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
 
 function ProjectsPage() {
   const [items, setItems] = useState<Project[] | null>(null);
@@ -78,6 +84,7 @@ function ProjectsPage() {
           <div key={p.id} className="rounded-2xl border bg-card p-4 shadow-sm">
             <p className="flex items-center gap-1.5 truncate font-semibold">{protectedIds.has(p.id) && <Lock className="size-3.5 shrink-0 text-primary" />}{p.name}</p>
             <p className="text-xs text-muted-foreground">{projectTypeLabel(p.type)}</p>
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarDays className="size-3.5" />Dibuat {formatCreatedAt(p.created_at)}</p>
             <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{p.description}</p>
             <div className="mt-3"><Button asChild size="sm" className="rounded-xl"><Link to="/projects/$id" params={{ id: p.id }}><FolderTree className="size-4" />Buka Workspace</Link></Button></div>
           </div>
