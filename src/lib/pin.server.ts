@@ -1,7 +1,6 @@
 /** Keamanan PIN proyek: hash PBKDF2 + token sesi. */
 
 // PIN memakai Supabase aplikasi sendiri. Tidak memakai service-role/secret key.
-// Deployment marker: PIN status reads the application's project_pins table directly.
 const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL ||
   process.env["VITE_SUPABASE_URL"] ||
@@ -27,22 +26,17 @@ async function rpc<T>(fn: string, args: Record<string, unknown>) {
   let data: unknown = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
   if (!response.ok) {
-    const message = typeof data === "object" && data && "message" in data ? String((data as { message: unknown }).message) : `HTTP ${response.status}`;
+    const message = typeof data === "object" && data && "message" in data
+      ? String((data as { message: unknown }).message)
+      : `HTTP ${response.status}`;
     throw new Error(`Supabase RPC ${fn} gagal: ${message}`);
   }
   return data as T;
 }
 
-async function pinRows(projectId: string) {
-  const url = new URL(`${SUPABASE_URL}/rest/v1/project_pins`);
-  url.searchParams.set("select", "project_id,pin_hash,pin_salt");
-  url.searchParams.set("project_id", `eq.${projectId}`);
-  const response = await fetch(url, { headers: { apikey: SUPABASE_KEY } });
-  if (!response.ok) throw new Error(`Supabase project_pins gagal: HTTP ${response.status}`);
-  return (await response.json()) as PinRow[];
-}
-
 const PBKDF2_ITERATIONS = 100_000;
+
+type PinStatus = { locked: boolean; unlocked: boolean };
 
 function toHex(buf: ArrayBuffer) {
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -51,7 +45,11 @@ function toHex(buf: ArrayBuffer) {
 export async function hashPin(pin: string, saltHex: string) {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: enc.encode(saltHex), iterations: PBKDF2_ITERATIONS }, key, 256);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", hash: "SHA-256", salt: enc.encode(saltHex), iterations: PBKDF2_ITERATIONS },
+    key,
+    256,
+  );
   return toHex(bits);
 }
 
@@ -63,19 +61,8 @@ export function randomHex(bytes = 16) {
   return toHex(crypto.getRandomValues(new Uint8Array(bytes)).buffer);
 }
 
-type PinRow = { project_id?: string; pin_hash: string | null; pin_salt: string | null };
-type PinStatus = { locked: boolean; unlocked: boolean };
-
-export async function projectPinRow(projectId: string): Promise<PinRow | null> {
-  const rows = await pinRows(projectId);
-  const row = rows[0];
-  if (!row?.pin_salt || !row?.pin_hash) return null;
-  return row;
-}
-
 export async function getPinStatus(projectId: string, token?: string | null): Promise<PinStatus> {
-  const row = await projectPinRow(projectId);
-  const locked = Boolean(row?.pin_hash && row?.pin_salt);
+  const locked = Boolean(await rpc<boolean>("pin_is_protected", { p_project_id: projectId }));
   if (!locked) return { locked: false, unlocked: true };
   const unlocked = Boolean(token && await rpc<boolean>("pin_session_valid", {
     p_project_id: projectId,
@@ -93,10 +80,10 @@ export async function hasAccess(projectId: string, token?: string | null) {
 }
 
 export async function verifyPin(projectId: string, pin: string) {
-  const row = await projectPinRow(projectId);
-  if (!row?.pin_salt || !row.pin_hash) return true;
-  const hash = await hashPin(pin, row.pin_salt);
-  return hash === row.pin_hash;
+  const salt = await rpc<string | null>("pin_get_salt", { p_project_id: projectId });
+  if (!salt) return true;
+  const hash = await hashPin(pin, salt);
+  return Boolean(await rpc<boolean>("pin_verify_hash", { p_project_id: projectId, p_hash: hash }));
 }
 
 export async function createSession(projectId: string, deviceLabel = "Perangkat") {
