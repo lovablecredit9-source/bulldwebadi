@@ -32,15 +32,6 @@ async function rpc<T>(fn: string, args: Record<string, unknown>) {
   return data as T;
 }
 
-async function pinRows(projectId: string) {
-  const url = new URL(`${SUPABASE_URL}/rest/v1/project_pins`);
-  url.searchParams.set("select", "project_id,pin_hash,pin_salt");
-  url.searchParams.set("project_id", `eq.${projectId}`);
-  const response = await fetch(url, { headers: { apikey: SUPABASE_KEY } });
-  if (!response.ok) throw new Error(`Supabase project_pins gagal: HTTP ${response.status}`);
-  return (await response.json()) as PinRow[];
-}
-
 const PBKDF2_ITERATIONS = 100_000;
 
 function toHex(buf: ArrayBuffer) {
@@ -62,21 +53,12 @@ export function randomHex(bytes = 16) {
   return toHex(crypto.getRandomValues(new Uint8Array(bytes)).buffer);
 }
 
-type PinRow = { project_id?: string; pin_hash: string | null; pin_salt: string | null };
 type PinStatus = { locked: boolean; unlocked: boolean };
 
-export async function projectPinRow(projectId: string): Promise<PinRow | null> {
-  const rows = await pinRows(projectId);
-  const row = rows[0];
-  if (!row?.pin_salt || !row?.pin_hash) return null;
-  return row;
-}
-
 export async function getPinStatus(projectId: string, token?: string | null): Promise<PinStatus> {
-  // Jangan panggil RPC status di sini. Endpoint RPC pernah tertahan schema-cache
-  // dan membuat project tanpa PIN tampak terkunci. Baca metadata PIN langsung.
-  const row = await projectPinRow(projectId);
-  const locked = Boolean(row?.pin_hash && row?.pin_salt);
+  // Jangan membaca project_pins melalui REST. Tabel tersebut tidak harus diekspos
+  // ke PostgREST; fungsi SECURITY DEFINER adalah jalur yang aman dan stabil.
+  const locked = Boolean(await rpc<boolean>("pin_state", { p_project_id: projectId }));
   if (!locked) return { locked: false, unlocked: true };
   const unlocked = Boolean(token && await rpc<boolean>("pin_session_valid", {
     p_project_id: projectId,
@@ -94,10 +76,10 @@ export async function hasAccess(projectId: string, token?: string | null) {
 }
 
 export async function verifyPin(projectId: string, pin: string) {
-  const row = await projectPinRow(projectId);
-  if (!row?.pin_salt || !row.pin_hash) return true;
-  const hash = await hashPin(pin, row.pin_salt);
-  return hash === row.pin_hash;
+  const salt = await rpc<string | null>("pin_get_salt", { p_project_id: projectId });
+  if (!salt) return true;
+  const hash = await hashPin(pin, salt);
+  return Boolean(await rpc<boolean>("pin_verify", { p_project_id: projectId, p_pin_hash: hash }));
 }
 
 export async function createSession(projectId: string, deviceLabel = "Perangkat") {
