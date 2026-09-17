@@ -34,7 +34,7 @@ function ExtensionPage() {
     <AppShell>
       <h1 className="text-2xl font-bold">Extension Builder</h1>
       <p className="mt-1 text-sm text-muted-foreground">Selalu memakai Manifest V3 dengan permission seminimal mungkin.</p>
-      <div className="mt-6"><SiteBanner bannerType="browser-extension" /></div>
+      <div className="mt-6"><SiteBanner bannerType="extension" /></div>
       <div className="mt-6">
         <BuilderForm
           fixedType="browser-extension"
