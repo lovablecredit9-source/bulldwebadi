@@ -62,7 +62,14 @@ export function BuilderForm({
   };
 
   return (
-    <div className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+    <div
+      className="relative isolate overflow-hidden rounded-2xl border border-white/15 bg-card p-5 shadow-sm sm:p-6 before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:p-px before:content-[''] before:[background:conic-gradient(from_0deg,transparent_0deg,transparent_300deg,rgba(125,211,252,0.10)_325deg,rgba(255,255,255,0.95)_348deg,rgba(125,211,252,0.22)_356deg,transparent_360deg)] before:[-webkit-mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[-webkit-mask-composite:xor] before:[mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] before:[mask-composite:exclude] before:[filter:drop-shadow(0_0_6px_rgba(125,211,252,0.45))] before:animate-[adiPromptBorder_7s_linear_infinite]"
+    >
+      <style>{`
+        @keyframes adiPromptBorder {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
       <h2 className="text-lg font-semibold">{title}</h2>
       <p className="mt-1 text-sm text-muted-foreground">{description}</p>
 
