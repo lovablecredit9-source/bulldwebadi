@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Eye, EyeOff, Loader2, LogIn, Mail, UserPlus } from "lucide-react";
+import { Eye, EyeOff, Loader2, LockKeyhole, LogIn, Mail, UserPlus, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
@@ -110,19 +110,211 @@ export function AuthGate() {
 
   const closeForgot = () => { if (loading) return; setShowForgotPassword(false); setResetStep("email"); setResetCode(""); setNewPassword(""); setConfirmNewPassword(""); setResendCooldown(0); };
 
-  return <div className="flex min-h-[70vh] items-center justify-center px-4 py-10">
-    <div className="w-full max-w-md rounded-3xl border bg-card p-6 shadow-sm sm:p-8">
-      <div className="mx-auto flex size-16 items-center justify-center overflow-hidden rounded-2xl bg-black ring-1 ring-primary/30 shadow-lg"><img src="/logo-agung-adi.webp" alt="Agung Adi" className="size-full object-cover" /></div>
-      <div className="mt-4 text-center"><h1 className="text-2xl font-bold tracking-tight">ADI BUILDER BOT</h1><p className="mt-2 text-sm text-muted-foreground">{mode === "login" ? "Silakan login ADI BUILDER BOT." : "Buat akun pengguna untuk menggunakan AI Builder."}</p></div>
-      <div className="mt-6 grid grid-cols-2 rounded-xl bg-muted p-1"><button type="button" onClick={() => setMode("login")} className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${mode === "login" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>Masuk</button><button type="button" onClick={() => setMode("register")} className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${mode === "register" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>Daftar</button></div>
-      <form onSubmit={submit} className="mt-5 space-y-4">
-        {mode === "register" && <div className="space-y-2"><Label htmlFor="auth-username">Username</Label><Input id="auth-username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Nama pengguna" autoComplete="username" disabled={loading} /></div>}
-        <div className="space-y-2"><Label htmlFor="auth-email">Email</Label><Input id="auth-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" autoComplete="email" disabled={loading} /></div>
-        <div className="space-y-2"><Label htmlFor="auth-password">Password</Label><div className="relative"><Input id="auth-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password akun" autoComplete={mode === "login" ? "current-password" : "new-password"} disabled={loading} className="pr-11" /><button type="button" aria-label="Lihat password" onClick={() => setShowPassword((v) => !v)} disabled={loading} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted">{showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button></div></div>
-        {mode === "register" && <div className="space-y-2"><Label htmlFor="auth-confirm-password">Konfirmasi Password</Label><div className="relative"><Input id="auth-confirm-password" type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Ulangi password" autoComplete="new-password" disabled={loading} className="pr-11" /><button type="button" aria-label="Lihat konfirmasi password" onClick={() => setShowConfirmPassword((v) => !v)} disabled={loading} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted">{showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button></div></div>}
-        {mode === "login" && <button type="button" onClick={() => { setShowForgotPassword(true); setResetStep("email"); setEmail(normalizedEmail); }} disabled={loading} className="w-full text-right text-sm font-medium text-primary hover:underline">Lupa Password?</button>}
-        <Button type="submit" disabled={loading} className="h-11 w-full rounded-xl">{loading ? <Loader2 className="animate-spin" /> : mode === "login" ? <LogIn /> : <UserPlus />} {mode === "login" ? "Masuk ke AI Builder" : "Buat Akun"}</Button>
-      </form>
+  return <div className="adi-auth-page relative flex min-h-[70vh] w-full items-center justify-center overflow-hidden px-3 py-8 sm:px-4 sm:py-12">
+    <style>{`
+      @keyframes adiAuthCardIn {
+        from { opacity: 0; transform: translate3d(0, 18px, 0) scale(.985); }
+        to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+      }
+      @keyframes adiAuthAmbient {
+        0%, 100% { transform: translate3d(-8%, -3%, 0) scale(1); opacity: .5; }
+        50% { transform: translate3d(8%, 4%, 0) scale(1.08); opacity: .72; }
+      }
+      @keyframes adiAuthAmbientTwo {
+        0%, 100% { transform: translate3d(7%, 4%, 0) scale(1); opacity: .28; }
+        50% { transform: translate3d(-6%, -5%, 0) scale(1.12); opacity: .5; }
+      }
+      @keyframes adiAuthLogoGlow {
+        0%, 100% { box-shadow: 0 0 18px rgba(56,189,248,.18), 0 0 34px rgba(37,99,235,.08); }
+        50% { box-shadow: 0 0 24px rgba(56,189,248,.32), 0 0 46px rgba(37,99,235,.14); }
+      }
+      @keyframes adiAuthBorder {
+        0%, 100% { opacity: .45; }
+        50% { opacity: .8; }
+      }
+      .adi-auth-page { isolation: isolate; }
+      .adi-auth-page::before,
+      .adi-auth-page::after {
+        content: "";
+        position: absolute;
+        width: min(62vw, 560px);
+        height: min(62vw, 560px);
+        border-radius: 999px;
+        pointer-events: none;
+        filter: blur(55px);
+        z-index: -2;
+      }
+      .adi-auth-page::before {
+        left: -18%;
+        top: -25%;
+        background: radial-gradient(circle, rgba(37,99,235,.2), transparent 68%);
+        animation: adiAuthAmbient 15s ease-in-out infinite;
+      }
+      .adi-auth-page::after {
+        right: -18%;
+        bottom: -30%;
+        background: radial-gradient(circle, rgba(34,211,238,.14), transparent 68%);
+        animation: adiAuthAmbientTwo 18s ease-in-out infinite;
+      }
+      .adi-auth-card {
+        position: relative;
+        width: 100%;
+        max-width: 430px;
+        overflow: hidden;
+        border: 1px solid rgba(96,165,250,.2);
+        background: linear-gradient(145deg, rgba(23,30,46,.94), rgba(10,16,29,.96));
+        box-shadow: 0 24px 70px rgba(0,0,0,.32), 0 0 36px rgba(37,99,235,.07);
+        animation: adiAuthCardIn .55s cubic-bezier(.2,.8,.2,1) both;
+      }
+      .adi-auth-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: 1px;
+        pointer-events: none;
+        background: linear-gradient(135deg, rgba(56,189,248,.38), transparent 28%, transparent 70%, rgba(37,99,235,.25));
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        animation: adiAuthBorder 3.8s ease-in-out infinite;
+      }
+      .adi-auth-logo {
+        animation: adiAuthLogoGlow 4s ease-in-out infinite;
+      }
+      .adi-auth-input {
+        border-color: rgba(100,116,139,.34);
+        background: rgba(7,13,25,.58);
+        transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease, transform .2s ease;
+      }
+      .adi-auth-input:focus-within {
+        border-color: rgba(56,189,248,.7);
+        background: rgba(8,17,31,.8);
+        box-shadow: 0 0 0 3px rgba(56,189,248,.07), 0 0 18px rgba(37,99,235,.1);
+      }
+      .adi-auth-input input {
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+      }
+      .adi-auth-input input:focus {
+        box-shadow: none !important;
+      }
+      .adi-auth-primary {
+        background: linear-gradient(110deg, #2563eb, #0ea5e9 52%, #06b6d4);
+        box-shadow: 0 9px 24px rgba(37,99,235,.22), inset 0 1px 0 rgba(255,255,255,.13);
+        transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+      }
+      .adi-auth-primary:hover:not(:disabled) {
+        transform: translateY(-1px);
+        filter: brightness(1.05);
+        box-shadow: 0 12px 30px rgba(37,99,235,.3), inset 0 1px 0 rgba(255,255,255,.16);
+      }
+      .adi-auth-primary:active:not(:disabled) {
+        transform: translateY(0);
+      }
+      .adi-auth-tab {
+        transition: color .25s ease, background-color .25s ease, box-shadow .25s ease, transform .25s ease;
+      }
+      .adi-auth-tab-active {
+        background: linear-gradient(135deg, rgba(37,99,235,.24), rgba(14,165,233,.12));
+        box-shadow: inset 0 0 0 1px rgba(96,165,250,.18), 0 5px 18px rgba(37,99,235,.08);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .adi-auth-card, .adi-auth-logo, .adi-auth-page::before, .adi-auth-page::after { animation: none; }
+        .adi-auth-tab, .adi-auth-input, .adi-auth-primary { transition: none; }
+      }
+    `}</style>
+
+    <div className="pointer-events-none absolute inset-0 -z-10 opacity-50" aria-hidden="true">
+      <div className="absolute left-1/2 top-1/2 size-[min(90vw,720px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(30,64,175,.1),transparent_65%)]" />
+      <div className="absolute left-[12%] top-[22%] size-1 rounded-full bg-cyan-300/40 shadow-[0_0_10px_rgba(103,232,249,.7)]" />
+      <div className="absolute right-[16%] top-[34%] size-1 rounded-full bg-blue-300/35 shadow-[0_0_10px_rgba(147,197,253,.6)]" />
+      <div className="absolute left-[20%] bottom-[24%] size-1 rounded-full bg-sky-300/30 shadow-[0_0_9px_rgba(125,211,252,.5)]" />
+    </div>
+
+    <div className="adi-auth-card rounded-[30px] p-5 sm:p-7">
+      <div className="relative z-10">
+        <div className="mx-auto grid size-[76px] place-items-center rounded-[22px] border border-cyan-300/15 bg-black/80 p-1 ring-1 ring-primary/25 adi-auth-logo sm:size-[82px]">
+          <img src="/logo-agung-adi.webp" alt="Agung Adi" className="size-full rounded-[18px] object-cover" />
+        </div>
+
+        <div className="mt-5 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/10 bg-cyan-400/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[.18em] text-cyan-200/70">
+            <span className="size-1.5 rounded-full bg-cyan-300 shadow-[0_0_8px_rgba(103,232,249,.9)]" />
+            AI Builder
+          </div>
+          <h1 className="mt-3 bg-gradient-to-r from-white via-sky-100 to-cyan-200 bg-clip-text text-[28px] font-extrabold tracking-tight text-transparent sm:text-[30px]">ADI BUILDER BOT</h1>
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-400">{mode === "login" ? "Silakan login untuk melanjutkan ke AI Builder." : "Buat akun untuk mulai menggunakan AI Builder."}</p>
+        </div>
+
+        <div className="mt-6 grid grid-cols-2 rounded-2xl border border-white/5 bg-black/20 p-1.5">
+          <button type="button" onClick={() => setMode("login")} className={`adi-auth-tab rounded-xl px-3 py-2.5 text-sm font-semibold ${mode === "login" ? "adi-auth-tab-active text-white" : "text-slate-500 hover:text-slate-300"}`}>Masuk</button>
+          <button type="button" onClick={() => setMode("register")} className={`adi-auth-tab rounded-xl px-3 py-2.5 text-sm font-semibold ${mode === "register" ? "adi-auth-tab-active text-white" : "text-slate-500 hover:text-slate-300"}`}>Daftar</button>
+        </div>
+
+        <form onSubmit={submit} className="mt-6 space-y-4">
+          {mode === "register" && (
+            <div className="space-y-2">
+              <Label htmlFor="auth-username" className="text-slate-200">Username</Label>
+              <div className="adi-auth-input flex min-h-12 items-center rounded-2xl border px-3">
+                <UserRound className="mr-2.5 size-4.5 shrink-0 text-slate-500" />
+                <Input id="auth-username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Nama pengguna" autoComplete="username" disabled={loading} className="h-11 min-w-0 px-0 text-slate-100 placeholder:text-slate-600" />
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="auth-email" className="text-slate-200">Email</Label>
+            <div className="adi-auth-input flex min-h-12 items-center rounded-2xl border px-3">
+              <Mail className="mr-2.5 size-4.5 shrink-0 text-slate-500" />
+              <Input id="auth-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" autoComplete="email" disabled={loading} className="h-11 min-w-0 px-0 text-slate-100 placeholder:text-slate-600" />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="auth-password" className="text-slate-200">Password</Label>
+            <div className="adi-auth-input flex min-h-12 items-center rounded-2xl border px-3">
+              <LockKeyhole className="mr-2.5 size-4.5 shrink-0 text-slate-500" />
+              <Input id="auth-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password akun" autoComplete={mode === "login" ? "current-password" : "new-password"} disabled={loading} className="h-11 min-w-0 flex-1 px-0 text-slate-100 placeholder:text-slate-600" />
+              <button type="button" aria-label="Lihat password" onClick={() => setShowPassword((v) => !v)} disabled={loading} className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-400 transition hover:bg-white/5 hover:text-cyan-200">{showPassword ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}</button>
+            </div>
+          </div>
+
+          {mode === "register" && (
+            <div className="space-y-2">
+              <Label htmlFor="auth-confirm-password" className="text-slate-200">Konfirmasi Password</Label>
+              <div className="adi-auth-input flex min-h-12 items-center rounded-2xl border px-3">
+                <LockKeyhole className="mr-2.5 size-4.5 shrink-0 text-slate-500" />
+                <Input id="auth-confirm-password" type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Ulangi password" autoComplete="new-password" disabled={loading} className="h-11 min-w-0 flex-1 px-0 text-slate-100 placeholder:text-slate-600" />
+                <button type="button" aria-label="Lihat konfirmasi password" onClick={() => setShowConfirmPassword((v) => !v)} disabled={loading} className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-400 transition hover:bg-white/5 hover:text-cyan-200">{showConfirmPassword ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}</button>
+              </div>
+            </div>
+          )}
+
+          {mode === "login" && (
+            <button type="button" onClick={() => { setShowForgotPassword(true); setResetStep("email"); setEmail(normalizedEmail); }} disabled={loading} className="w-full text-right text-sm font-medium text-cyan-300 transition hover:text-cyan-200 hover:underline">Lupa Password?</button>
+          )}
+
+          <Button type="submit" disabled={loading} className="adi-auth-primary h-11 w-full rounded-2xl border-0 text-sm font-bold text-white">
+            {loading ? <Loader2 className="size-5 animate-spin" /> : mode === "login" ? <LogIn className="size-5" /> : <UserPlus className="size-5" />}
+            {mode === "login" ? "Masuk ke AI Builder" : "Buat Akun"}
+          </Button>
+
+          <p className="pt-1 text-center text-xs text-slate-500">
+            {mode === "login" ? "Belum punya akun? " : "Sudah punya akun? "}
+            <button type="button" onClick={() => setMode(mode === "login" ? "register" : "login")} disabled={loading} className="font-semibold text-cyan-300 transition hover:text-cyan-200 hover:underline">
+              {mode === "login" ? "Daftar sekarang" : "Masuk sekarang"}
+            </button>
+          </p>
+        </form>
+
+        <div className="mt-5 flex items-center justify-center gap-2 text-[10px] uppercase tracking-[.14em] text-slate-600">
+          <span className="h-px flex-1 bg-white/5" />
+          <span>Secure AI Workspace</span>
+          <span className="h-px flex-1 bg-white/5" />
+        </div>
+      </div>
     </div>
 
     {showForgotPassword && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm"><div className="w-full max-w-md rounded-3xl border bg-card p-6 shadow-2xl sm:p-8">
