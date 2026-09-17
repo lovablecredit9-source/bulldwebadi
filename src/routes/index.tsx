@@ -23,30 +23,10 @@ export const Route = createFileRoute("/")({
 });
 
 const SHORTCUTS = [
-  {
-    to: "/telegram",
-    label: "Telegram Bot",
-    description: "Buat bot dengan AI",
-    icon: Bot,
-  },
-  {
-    to: "/whatsapp",
-    label: "WhatsApp Bot",
-    description: "Buat bot dengan AI",
-    icon: Smartphone,
-  },
-  {
-    to: "/extension",
-    label: "Extension Builder",
-    description: "Buat ekstensi dengan AI",
-    icon: Puzzle,
-  },
-  {
-    to: "/upload",
-    label: "Upload Project",
-    description: "Upload dan kelola project",
-    icon: Upload,
-  },
+  { to: "/telegram", label: "Telegram Bot", description: "Buat bot dengan AI", icon: Bot },
+  { to: "/whatsapp", label: "WhatsApp Bot", description: "Buat bot dengan AI", icon: Smartphone },
+  { to: "/extension", label: "Extension Builder", description: "Buat ekstensi dengan AI", icon: Puzzle },
+  { to: "/upload", label: "Upload Project", description: "Upload dan kelola project", icon: Upload },
 ] as const;
 
 function Index() {
@@ -55,9 +35,12 @@ function Index() {
       <div className="mx-auto w-full max-w-7xl px-0 sm:px-2">
         <section className="relative overflow-hidden rounded-[28px] border border-primary/30 bg-card shadow-xl shadow-primary/10">
           <img
-            src="/adi-welcome-banner.jpg?v=20260917"
+            src="/adi-welcome-banner.jpg"
             alt="Selamat datang di ADI BUILDER BOT"
-            className="block h-auto w-full object-cover"
+            width={1536}
+            height={864}
+            className="block h-auto w-full"
+            style={{ width: "100%", height: "auto" }}
             loading="eager"
             decoding="async"
           />
@@ -84,9 +67,7 @@ function Index() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-base font-semibold sm:text-lg">{label}</span>
-                  <span className="mt-1 block text-xs text-muted-foreground sm:text-sm">
-                    {description}
-                  </span>
+                  <span className="mt-1 block text-xs text-muted-foreground sm:text-sm">{description}</span>
                 </span>
                 <ArrowRight className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
               </Link>
