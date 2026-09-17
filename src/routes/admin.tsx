@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ImagePlus, Loader2, Trash2, CheckCircle2 } from "lucide-react";
+import { ImagePlus, Loader2, Trash2, CheckCircle2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [{ title: "Admin — ADI BUILDER BOT" }] }),
+  head: () => ({ meta: [{ title: "Panel Admin — ADI BUILDER BOT" }] }),
   component: AdminPage,
 });
 
@@ -87,18 +87,30 @@ function AdminPage() {
   if (!allowed) return <AppShell><div className="mx-auto max-w-xl rounded-3xl border bg-card p-8 text-center"><h1 className="text-2xl font-bold">Akses Admin Ditolak</h1><p className="mt-2 text-sm text-muted-foreground">Halaman ini hanya untuk akun administrator.</p></div></AppShell>;
 
   return <AppShell>
-    <div className="mx-auto w-full max-w-4xl">
-      <h1 className="text-2xl font-bold">Admin Banner</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Upload, pasang, ganti, atau hapus banner dashboard.</p>
-      <section className="mt-6 rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
-        <div className="flex items-center gap-3"><div className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary"><ImagePlus className="size-5" /></div><div><h2 className="font-semibold">Upload Banner Baru</h2><p className="text-xs text-muted-foreground">JPG, PNG, WEBP, dan format gambar umum. Maksimal 10 MB.</p></div></div>
-        <input className="mt-5 block w-full rounded-xl border p-3 text-sm" type="file" accept="image/*" disabled={loading} onChange={(e) => setFile(e.target.files?.[0] || null)} />
+    <div className="mx-auto w-full max-w-5xl space-y-5">
+      <header className="overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/15 via-card to-card shadow-lg">
+        <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-7">
+          <div className="flex items-center gap-4">
+            <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-primary/15 text-primary ring-1 ring-primary/30"><ShieldCheck className="size-7" /></div>
+            <div><div className="mb-1 inline-flex rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">Area Administrator</div><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Panel Admin</h1><p className="mt-1 text-sm text-muted-foreground">Kelola banner website dari tempat khusus administrator.</p></div>
+          </div>
+          <div className="rounded-2xl border bg-background/60 px-4 py-3 text-left sm:text-right"><p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Login sebagai</p><p className="mt-1 text-sm font-semibold">Administrator</p></div>
+        </div>
+      </header>
+
+      <section className="rounded-3xl border border-primary/20 bg-card p-5 shadow-sm sm:p-6">
+        <div className="flex items-center gap-3"><div className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary"><ImagePlus className="size-5" /></div><div><h2 className="font-semibold">Kelola Banner Website</h2><p className="text-xs text-muted-foreground">Upload banner baru untuk mengganti banner yang tampil di dashboard user.</p></div></div>
+        <input className="mt-5 block w-full rounded-xl border bg-background p-3 text-sm" type="file" accept="image/*" disabled={loading} onChange={(e) => setFile(e.target.files?.[0] || null)} />
         <Button className="mt-4 rounded-xl" disabled={loading || !file} onClick={() => void upload()}>{loading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />} Upload & Pasang Banner</Button>
       </section>
-      <section className="mt-5 grid gap-4 sm:grid-cols-2">
-        {banners.map((banner) => <article key={banner.id} className="overflow-hidden rounded-2xl border bg-card shadow-sm"><img src={banner.image_url} alt="Banner ADI BUILDER BOT" className="aspect-video w-full object-cover" /><div className="flex items-center justify-between gap-2 p-3"><span className="flex items-center gap-1.5 text-xs font-medium">{banner.is_active && <CheckCircle2 className="size-4 text-primary" />}{banner.is_active ? "Sedang dipasang" : "Tidak aktif"}</span><div className="flex gap-2"><Button size="sm" variant={banner.is_active ? "outline" : "default"} disabled={loading || banner.is_active} onClick={() => void activate(banner)}>{banner.is_active ? "Aktif" : "Pasang"}</Button><Button size="sm" variant="destructive" disabled={loading} onClick={() => void remove(banner)}><Trash2 className="size-4" /> Hapus</Button></div></div></article>)}
+
+      <section className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6">
+        <div className="mb-4"><h2 className="font-semibold">Banner Tersedia</h2><p className="text-xs text-muted-foreground">Pilih banner yang ingin ditampilkan kepada seluruh user.</p></div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {banners.map((banner) => <article key={banner.id} className="overflow-hidden rounded-2xl border bg-background shadow-sm"><img src={banner.image_url} alt="Banner ADI BUILDER BOT" className="aspect-video w-full object-cover" /><div className="flex items-center justify-between gap-2 p-3"><span className="flex items-center gap-1.5 text-xs font-medium">{banner.is_active && <CheckCircle2 className="size-4 text-primary" />}{banner.is_active ? "Sedang dipasang" : "Tidak aktif"}</span><div className="flex gap-2"><Button size="sm" variant={banner.is_active ? "outline" : "default"} disabled={loading || banner.is_active} onClick={() => void activate(banner)}>{banner.is_active ? "Aktif" : "Pasang"}</Button><Button size="sm" variant="destructive" disabled={loading} onClick={() => void remove(banner)}><Trash2 className="size-4" /> Hapus</Button></div></div></article>)}
+        </div>
+        {!banners.length && <p className="mt-5 rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">Belum ada banner yang dikelola dari Panel Admin.</p>}
       </section>
-      {!banners.length && <p className="mt-5 rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">Belum ada banner yang dikelola dari Admin.</p>}
     </div>
   </AppShell>;
 }
