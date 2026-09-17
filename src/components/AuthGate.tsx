@@ -11,6 +11,7 @@ type ResetStep = "email" | "code";
 
 export function AuthGate() {
   const [mode, setMode] = useState<"login" | "register">("login");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -33,10 +34,13 @@ export function AuthGate() {
   }, [resendCooldown]);
 
   const normalizedEmail = email.trim().toLowerCase();
+  const normalizedUsername = username.trim();
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!normalizedEmail || !password) return toast.error("Email dan password wajib diisi.");
+    if (mode === "register" && !normalizedUsername) return toast.error("Username wajib diisi.");
+    if (mode === "register" && !/^[a-zA-Z0-9_]{3,30}$/.test(normalizedUsername)) return toast.error("Username 3-30 karakter dan hanya boleh huruf, angka, atau underscore.");
     if (mode === "register" && password !== confirmPassword) return toast.error("Konfirmasi password tidak sama.");
     if (mode === "register" && password.length < 6) return toast.error("Password minimal 6 karakter.");
     setLoading(true);
@@ -46,13 +50,17 @@ export function AuthGate() {
         if (error) throw error;
         toast.success("Login berhasil.");
       } else {
-        const { data, error } = await supabase.auth.signUp({ email: normalizedEmail, password });
+        const { data, error } = await supabase.auth.signUp({
+          email: normalizedEmail,
+          password,
+          options: { data: { username: normalizedUsername } },
+        });
         if (error) throw error;
         if (!data.session) {
           toast.error("Pendaftaran belum bisa langsung masuk. Pastikan Confirm Email di Supabase Auth sudah dimatikan.");
           return;
         }
-        toast.success("Akun berhasil dibuat dan langsung masuk.");
+        toast.success("Akun berhasil dibuat dan username tersimpan.");
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Autentikasi gagal.");
@@ -123,6 +131,7 @@ export function AuthGate() {
           <button type="button" onClick={() => setMode("register")} className={cn("rounded-lg px-3 py-2 text-sm font-medium transition", mode === "register" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground")}>Daftar Baru</button>
         </div>
         <form onSubmit={submit} className="mt-6 space-y-4">
+          {mode === "register" && <div className="space-y-2"><Label htmlFor="auth-username">Username</Label><Input id="auth-username" type="text" value={username} onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, "").slice(0, 30))} placeholder="username kamu" autoComplete="username" disabled={loading} maxLength={30} /></div>}
           <div className="space-y-2"><Label htmlFor="auth-email">Email</Label><Input id="auth-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" autoComplete="email" disabled={loading} /></div>
           <div className="space-y-2"><Label htmlFor="auth-password">Password</Label><div className="relative"><Input id="auth-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimal 6 karakter" autoComplete={mode === "login" ? "current-password" : "new-password"} disabled={loading} className="pr-11" /><button type="button" aria-label={showPassword ? "Tutup password" : "Lihat password"} onClick={() => setShowPassword((value) => !value)} disabled={loading} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground">{showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button></div></div>
           {mode === "login" && <button type="button" onClick={openForgotPassword} disabled={loading} className="w-full text-right text-sm font-medium text-primary hover:underline">Lupa Password?</button>}
@@ -138,7 +147,7 @@ export function AuthGate() {
           <div className="rounded-xl border bg-muted/50 p-3 text-sm text-muted-foreground">Kode dikirim ke <span className="font-medium text-foreground">{normalizedEmail}</span>. Cek Inbox atau Spam.</div>
           <div className="space-y-2"><Label htmlFor="reset-code">Kode Verifikasi 6 atau 8 Digit</Label><Input id="reset-code" inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={resetCode} onChange={(e) => setResetCode(e.target.value.replace(/\D/g, "").slice(0, 8))} placeholder="12345678" disabled={loading} className="text-center text-xl font-semibold tracking-[0.25em]" /></div>
           <div className="space-y-2"><Label htmlFor="new-password">Password Baru</Label><div className="relative"><Input id="new-password" type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Minimal 6 karakter" autoComplete="new-password" disabled={loading} className="pr-11" /><button type="button" onClick={() => setShowNewPassword((value) => !value)} disabled={loading} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground">{showNewPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button></div></div>
-          <div className="space-y-2"><Label htmlFor="confirm-new-password">Konfirmasi Password Baru</Label><div className="relative"><Input id="confirm-new-password" type={showConfirmNewPassword ? "text" : "password"} value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Ulangi password baru" autoComplete="new-password" disabled={loading} className="pr-11" /><button type="button" onClick={() => setShowConfirmNewPassword((value) => !value)} disabled={loading} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground">{showConfirmNewPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button></div></div>
+          <div className="space-y-2"><Label htmlFor="confirm-new-password">Konfirmasi Password Baru</Label><div className="relative"><Input id="confirm-new-password" type={showConfirmNewPassword ? "text" : "password"} value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Ulangi password baru" autoComplete="new-password" disabled={loading} className="pr-11" /><button type="button" onClick={() => setShowConfirmNewPassword((value) => setShowConfirmNewPassword((value) => !value))} disabled={loading} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground">{showConfirmNewPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button></div></div>
           <Button type="button" onClick={verifyCodeAndReset} disabled={loading} className="h-11 w-full rounded-xl">{loading ? <Loader2 className="animate-spin" /> : <LogIn />}Verifikasi & Ganti Password</Button>
           <div className="flex items-center justify-between gap-3 text-sm"><button type="button" onClick={() => { setResetStep("email"); setResendCooldown(0); }} disabled={loading} className="text-muted-foreground">Ganti Email</button><button type="button" onClick={sendResetCode} disabled={loading || resendCooldown > 0} className="font-medium text-primary disabled:opacity-50">{resendCooldown > 0 ? `Kirim Ulang (${resendCooldown}s)` : "Kirim Ulang Kode"}</button></div>
           <button type="button" onClick={closeForgotPassword} disabled={loading} className="w-full text-sm text-muted-foreground">Batal</button>
