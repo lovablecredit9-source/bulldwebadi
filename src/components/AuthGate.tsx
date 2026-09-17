@@ -67,7 +67,7 @@ export function AuthGate() {
     <div className="flex min-h-[70vh] items-center justify-center px-4 py-10">
       <div className="w-full max-w-md rounded-3xl border bg-card p-6 shadow-sm sm:p-8">
         <div className="mx-auto flex size-16 items-center justify-center overflow-hidden rounded-2xl bg-black ring-1 ring-red-500/40 shadow-lg shadow-red-500/20">
-          <img src="/logo-agung-adi.svg" alt="Agung Adi" className="size-full object-cover" />
+          <img src="/logo-agung-adi.webp" alt="Agung Adi" className="size-full object-cover" />
         </div>
         <div className="mt-4 text-center">
           <h1 className="text-2xl font-bold tracking-tight">ADI BUILDER BOT</h1>
