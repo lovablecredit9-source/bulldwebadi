@@ -1,6 +1,6 @@
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { Component, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
-import { Bug, Bot, FolderTree, Home, Instagram, LogOut, Menu, MessageCircle, Moon, Puzzle, Search, Settings, Smartphone, Sun, Upload, Youtube, Loader2 } from "lucide-react";
+import { Bug, Bot, FolderTree, Home, Instagram, LogOut, Menu, MessageCircle, Moon, Puzzle, Search, Settings, ShieldCheck, Smartphone, Sun, Upload, Youtube, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { HtmlLiveTester } from "@/components/HtmlLiveTester";
@@ -21,9 +21,12 @@ const NAV = [
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
-function NavList({ onNavigate }: { onNavigate?: () => void }) {
+function NavList({ onNavigate, isAdmin }: { onNavigate?: () => void; isAdmin: boolean }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  return <nav className="flex flex-col gap-1 p-3">{NAV.map(({ to, label, icon: Icon }) => { const active = to === "/" ? pathname === "/" : pathname.startsWith(to); return <Link key={to} to={to} onClick={onNavigate} className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors", active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground")}><Icon className="size-4" />{label}</Link>; })}</nav>;
+  const items = isAdmin
+    ? [...NAV, { to: "/admin", label: "Admin", icon: ShieldCheck } as const]
+    : NAV;
+  return <nav className="flex flex-col gap-1 p-3">{items.map(({ to, label, icon: Icon }) => { const active = to === "/" ? pathname === "/" : pathname.startsWith(to); return <Link key={to} to={to} onClick={onNavigate} className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors", active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground")}><Icon className="size-4" />{label}</Link>; })}</nav>;
 }
 
 function useTheme() {
@@ -59,6 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const workspaceMatch = pathname.match(/^\/projects\/([^/]+)$/);
+  const isAdmin = session?.user.email?.trim().toLowerCase() === ADMIN_EMAIL;
 
   useEffect(() => {
     let mounted = true;
@@ -89,5 +93,5 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (authLoading) return <div className="flex min-h-screen items-center justify-center bg-background"><Loader2 className="size-6 animate-spin text-primary" /></div>;
   if (!session) return <div className="min-h-screen bg-background"><AuthGate /></div>;
 
-  return <div className="min-h-screen bg-background lg:grid lg:grid-cols-[260px_1fr]"><aside className="sticky top-0 hidden h-screen flex-col border-r bg-sidebar lg:flex"><Link to="/" className="flex items-center gap-2 px-5 py-5"><span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Bug className="size-5" /></span><span className="text-sm font-bold leading-tight">ADI BUILDER<span className="block text-xs font-normal text-muted-foreground">BOT</span></span></Link><NavList /></aside><div className="flex min-h-screen flex-col"><header className="sticky top-0 z-30 flex items-center gap-3 border-b bg-background/80 px-4 py-3 backdrop-blur lg:px-8"><Sheet open={open} onOpenChange={setOpen}><SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden"><Menu className="size-5" /></Button></SheetTrigger><SheetContent side="left" className="w-72 p-0"><SheetTitle className="px-5 pt-5 text-sm font-bold">ADI BUILDER BOT</SheetTitle><NavList onNavigate={() => setOpen(false)} /></SheetContent></Sheet><span className="font-bold tracking-tight">ADI BUILDER BOT</span><div className="ml-auto flex items-center gap-2"><span className="hidden max-w-48 truncate text-xs text-muted-foreground sm:inline">{session.user.email}</span><Button variant="ghost" size="sm" onClick={() => void logout()} title="Logout"><LogOut className="size-4" /><span className="hidden sm:inline">Logout</span></Button><Button asChild variant="ghost" size="sm"><Link to="/projects"><Search className="size-4" /><span className="hidden sm:inline">Project</span></Link></Button><Button variant="ghost" size="icon" onClick={toggle} aria-label="Ganti tema">{dark ? <Sun className="size-4" /> : <Moon className="size-4" />}</Button></div></header><main className="flex-1"><AppErrorBoundary>{children}</AppErrorBoundary>{workspaceMatch && <div className="mx-auto w-full max-w-7xl px-4 pb-6 sm:px-6 lg:px-8"><HtmlLiveTester /></div>}</main><Footer /></div></div>;
+  return <div className="min-h-screen bg-background lg:grid lg:grid-cols-[260px_1fr]"><aside className="sticky top-0 hidden h-screen flex-col border-r bg-sidebar lg:flex"><Link to="/" className="flex items-center gap-2 px-5 py-5"><span className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground"><Bug className="size-5" /></span><span className="text-sm font-bold leading-tight">ADI BUILDER<span className="block text-xs font-normal text-muted-foreground">BOT</span></span></Link><NavList isAdmin={isAdmin} /></aside><div className="flex min-h-screen flex-col"><header className="sticky top-0 z-30 flex items-center gap-3 border-b bg-background/80 px-4 py-3 backdrop-blur lg:px-8"><Sheet open={open} onOpenChange={setOpen}><SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden"><Menu className="size-5" /></Button></SheetTrigger><SheetContent side="left" className="w-72 p-0"><SheetTitle className="px-5 pt-5 text-sm font-bold">ADI BUILDER BOT</SheetTitle><NavList isAdmin={isAdmin} onNavigate={() => setOpen(false)} /></SheetContent></Sheet><span className="font-bold tracking-tight">ADI BUILDER BOT</span><div className="ml-auto flex items-center gap-2"><span className="hidden max-w-48 truncate text-xs text-muted-foreground sm:inline">{session.user.email}</span><Button variant="ghost" size="sm" onClick={() => void logout()} title="Logout"><LogOut className="size-4" /><span className="hidden sm:inline">Logout</span></Button><Button asChild variant="ghost" size="sm"><Link to="/projects"><Search className="size-4" /><span className="hidden sm:inline">Project</span></Link></Button><Button variant="ghost" size="icon" onClick={toggle} aria-label="Ganti tema">{dark ? <Sun className="size-4" /> : <Moon className="size-4" />}</Button></div></header><main className="flex-1"><AppErrorBoundary>{children}</AppErrorBoundary>{workspaceMatch && <div className="mx-auto w-full max-w-7xl px-4 pb-6 sm:px-6 lg:px-8"><HtmlLiveTester /></div>}</main><Footer /></div></div>;
 }
