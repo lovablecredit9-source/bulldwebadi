@@ -12,6 +12,8 @@ export const Route = createFileRoute("/admin")({
 });
 
 const ADMIN_EMAIL = "panpakarak36@gmail.com";
+const STORAGE_BUCKET = "site-banners";
+const MAX_BANNER_SIZE = 10 * 1024 * 1024;
 
 const BANNER_SLOTS = [
   { type: "dashboard", title: "🏠 Banner Dashboard", description: "Banner utama halaman Dashboard ADI BUILDER BOT." },
@@ -29,6 +31,47 @@ type Banner = {
   created_at: string;
 };
 
+type SupabaseLikeError = {
+  message?: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+  statusCode?: string | number;
+  error?: string;
+};
+
+function errorText(error: unknown) {
+  if (error && typeof error === "object") {
+    const e = error as SupabaseLikeError;
+    const parts = [e.message, e.error, e.details, e.hint].filter(Boolean).map(String);
+    if (e.code && !parts.includes(e.code)) parts.push(`kode ${e.code}`);
+    if (e.statusCode && !parts.some((part) => part.includes(String(e.statusCode)))) parts.push(`status ${e.statusCode}`);
+    if (parts.length) return parts.join(" — ");
+  }
+  return error instanceof Error ? error.message : String(error || "Unknown error");
+}
+
+function toastError(stage: string, error: unknown) {
+  const detail = errorText(error);
+  console.error(`[Banner Admin] ${stage}`, error);
+  toast.error(`${stage}: ${detail}`);
+}
+
+async function requireAdmin() {
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw new Error(`Sesi login tidak dapat diverifikasi: ${error.message}`);
+  const email = data.user?.email?.trim().toLowerCase();
+  if (email !== ADMIN_EMAIL) throw new Error("Akun yang login bukan administrator yang diizinkan.");
+  return data.user;
+}
+
+function publicStoragePath(imageUrl: string) {
+  const marker = `/storage/v1/object/public/${STORAGE_BUCKET}/`;
+  const index = imageUrl.indexOf(marker);
+  if (index < 0) return null;
+  return decodeURIComponent(imageUrl.slice(index + marker.length));
+}
+
 function AdminPage() {
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -44,22 +87,25 @@ function AdminPage() {
   }, [banners]);
 
   const load = async () => {
-    const { data: userData } = await supabase.auth.getUser();
-    const ok = userData.user?.email?.toLowerCase() === ADMIN_EMAIL;
-    setAllowed(ok);
-    if (!ok) return;
+    try {
+      await requireAdmin();
+      setAllowed(true);
 
-    const { data, error } = await (supabase as any)
-      .from("site_banners")
-      .select("id,image_url,banner_type,is_active,created_at")
-      .order("created_at", { ascending: false });
+      const { data, error } = await (supabase as any)
+        .from("site_banners")
+        .select("id,image_url,banner_type,is_active,created_at")
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      toast.error(error.message);
-      return;
+      if (error) throw error;
+      setBanners((data || []) as Banner[]);
+    } catch (error) {
+      setAllowed(false);
+      toastError("Database banner gagal dimuat", error);
+      const message = errorText(error).toLowerCase();
+      if (message.includes("banner_type") || message.includes("column")) {
+        toast.error("Schema site_banners belum sesuai: kolom banner_type belum tersedia di database aktif.");
+      }
     }
-
-    setBanners((data || []) as Banner[]);
   };
 
   useEffect(() => {
@@ -69,43 +115,92 @@ function AdminPage() {
   const upload = async (bannerType: BannerType) => {
     const file = files[bannerType];
     if (!file) return toast.error("Pilih gambar banner terlebih dahulu.");
-    if (!file.type.startsWith("image/")) return toast.error("File harus berupa gambar.");
-    if (file.size > 10 * 1024 * 1024) return toast.error("Ukuran maksimal banner 10 MB.");
+    if (!file.type.startsWith("image/")) return toast.error("File harus berupa gambar JPG/PNG/WebP/GIF.");
+    if (file.size > MAX_BANNER_SIZE) return toast.error("Ukuran maksimal banner 10 MB.");
 
     setLoading(true);
+    let uploadedPath: string | null = null;
+    let insertedId: string | null = null;
+    let previousActiveIds: string[] = [];
+
     try {
+      await requireAdmin();
+
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-      const path = `${bannerType}/banner-${Date.now()}.${ext}`;
+      const safeExt = /^[a-z0-9]+$/.test(ext) ? ext : "jpg";
+      uploadedPath = `${bannerType}/banner-${Date.now()}-${crypto.randomUUID()}.${safeExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("site-banners")
-        .upload(path, file, { upsert: false, contentType: file.type });
-      if (uploadError) throw uploadError;
+      const { data: uploaded, error: uploadError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(uploadedPath, file, {
+          upsert: false,
+          contentType: file.type,
+          cacheControl: "3600",
+        });
+      if (uploadError) throw new Error(`Storage upload gagal: ${errorText(uploadError)}`);
+      if (!uploaded?.path) throw new Error("Storage upload berhasil tetapi path file tidak dikembalikan.");
 
-      const { data: publicData } = supabase.storage.from("site-banners").getPublicUrl(path);
+      const { data: publicData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(uploaded.path);
+      if (!publicData?.publicUrl) throw new Error("Storage berhasil tetapi public URL banner tidak dapat dibuat.");
 
-      // Hanya menonaktifkan banner pada slot yang sedang diedit.
-      const { error: deactivateError } = await (supabase as any)
+      const { data: activeRows, error: activeReadError } = await (supabase as any)
         .from("site_banners")
-        .update({ is_active: false })
+        .select("id")
         .eq("banner_type", bannerType)
         .eq("is_active", true);
-      if (deactivateError) throw deactivateError;
+      if (activeReadError) throw new Error(`Database membaca banner aktif gagal: ${errorText(activeReadError)}`);
+      previousActiveIds = ((activeRows || []) as Array<{ id: string }>).map((row) => row.id);
 
-      const { error: insertError } = await (supabase as any)
+      // Insert sebagai inactive terlebih dahulu agar tidak bentrok dengan unique index
+      // satu-banner-aktif-per-slot. Setelah itu slot lama dimatikan dan banner baru diaktifkan.
+      const { data: inserted, error: insertError } = await (supabase as any)
         .from("site_banners")
         .insert({
           image_url: publicData.publicUrl,
           banner_type: bannerType,
-          is_active: true,
-        });
-      if (insertError) throw insertError;
+          is_active: false,
+        })
+        .select("id")
+        .single();
+      if (insertError) throw new Error(`Database insert banner gagal: ${errorText(insertError)}`);
+      insertedId = inserted?.id || null;
+      if (!insertedId) throw new Error("Database berhasil menyimpan banner tetapi ID record tidak dikembalikan.");
+
+      if (previousActiveIds.length) {
+        const { error: deactivateError } = await (supabase as any)
+          .from("site_banners")
+          .update({ is_active: false })
+          .in("id", previousActiveIds);
+        if (deactivateError) throw new Error(`Database menonaktifkan banner lama gagal: ${errorText(deactivateError)}`);
+      }
+
+      const { error: activateError } = await (supabase as any)
+        .from("site_banners")
+        .update({ is_active: true })
+        .eq("id", insertedId);
+      if (activateError) throw new Error(`Database mengaktifkan banner baru gagal: ${errorText(activateError)}`);
 
       setFiles((current) => ({ ...current, [bannerType]: null }));
       toast.success(`${slotTitle(bannerType)} berhasil dipasang.`);
       await load();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal memasang banner.");
+      toastError("Gagal memasang banner", error);
+
+      if (insertedId) {
+        const { error: cleanupDbError } = await (supabase as any).from("site_banners").delete().eq("id", insertedId);
+        if (cleanupDbError) console.error("[Banner Admin] rollback DB gagal", cleanupDbError);
+      }
+      if (previousActiveIds.length) {
+        const { error: restoreError } = await (supabase as any)
+          .from("site_banners")
+          .update({ is_active: true })
+          .in("id", previousActiveIds);
+        if (restoreError) console.error("[Banner Admin] restore banner lama gagal", restoreError);
+      }
+      if (uploadedPath) {
+        const { error: cleanupStorageError } = await supabase.storage.from(STORAGE_BUCKET).remove([uploadedPath]);
+        if (cleanupStorageError) console.error("[Banner Admin] cleanup Storage gagal", cleanupStorageError);
+      }
     } finally {
       setLoading(false);
     }
@@ -114,24 +209,34 @@ function AdminPage() {
   const activate = async (banner: Banner) => {
     setLoading(true);
     try {
-      // Aktivasi hanya memengaruhi slot banner yang sama.
-      const { error: offError } = await (supabase as any)
+      await requireAdmin();
+
+      const { data: activeRows, error: activeReadError } = await (supabase as any)
         .from("site_banners")
-        .update({ is_active: false })
+        .select("id")
         .eq("banner_type", banner.banner_type)
         .eq("is_active", true);
-      if (offError) throw offError;
+      if (activeReadError) throw new Error(`Database membaca banner aktif gagal: ${errorText(activeReadError)}`);
+
+      const idsToDisable = ((activeRows || []) as Array<{ id: string }>).map((row) => row.id).filter((id) => id !== banner.id);
+      if (idsToDisable.length) {
+        const { error: offError } = await (supabase as any)
+          .from("site_banners")
+          .update({ is_active: false })
+          .in("id", idsToDisable);
+        if (offError) throw new Error(`Database menonaktifkan banner lama gagal: ${errorText(offError)}`);
+      }
 
       const { error } = await (supabase as any)
         .from("site_banners")
         .update({ is_active: true })
         .eq("id", banner.id);
-      if (error) throw error;
+      if (error) throw new Error(`Database mengaktifkan banner gagal: ${errorText(error)}`);
 
       toast.success(`${slotTitle(banner.banner_type)} berhasil diaktifkan.`);
       await load();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal mengaktifkan banner.");
+      toastError("Gagal mengaktifkan banner", error);
     } finally {
       setLoading(false);
     }
@@ -142,23 +247,23 @@ function AdminPage() {
 
     setLoading(true);
     try {
-      const marker = "/site-banners/";
-      const idx = banner.image_url.indexOf(marker);
-      if (idx >= 0) {
-        const storagePath = decodeURIComponent(banner.image_url.slice(idx + marker.length));
-        await supabase.storage.from("site-banners").remove([storagePath]);
+      await requireAdmin();
+      const storagePath = publicStoragePath(banner.image_url);
+      if (storagePath) {
+        const { error: storageError } = await supabase.storage.from(STORAGE_BUCKET).remove([storagePath]);
+        if (storageError) throw new Error(`Storage menghapus file gagal: ${errorText(storageError)}`);
       }
 
       const { error } = await (supabase as any)
         .from("site_banners")
         .delete()
         .eq("id", banner.id);
-      if (error) throw error;
+      if (error) throw new Error(`Database menghapus record banner gagal: ${errorText(error)}`);
 
       toast.success("Banner berhasil dihapus.");
       await load();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Gagal menghapus banner.");
+      toastError("Gagal menghapus banner", error);
     } finally {
       setLoading(false);
     }
