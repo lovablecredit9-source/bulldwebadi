@@ -86,15 +86,13 @@ export function AuthGate() {
       const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
       if (updateError) throw updateError;
 
-      // Jangan logout setelah reset password. Session hasil verifyOtp tetap aktif,
-      // sehingga pengguna langsung masuk ke akun. Logout hanya dilakukan manual.
       setShowForgotPassword(false);
       setResetStep("email");
       setResetCode("");
       setNewPassword("");
       setConfirmNewPassword("");
       setResendCooldown(0);
-      toast.success("Password berhasil diubah. Kamu langsung masuk ke akun.");
+      toast.success("Password berhasil diubah. Selamat datang kembali!");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Kode tidak valid atau gagal mengganti password.");
     } finally { setLoading(false); }
