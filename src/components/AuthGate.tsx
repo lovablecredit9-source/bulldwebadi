@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Eye, EyeOff, Loader2, LogIn, UserPlus, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Loader2, LogIn, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -66,8 +66,8 @@ export function AuthGate() {
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-4 py-10">
       <div className="w-full max-w-md rounded-3xl border bg-card p-6 shadow-sm sm:p-8">
-        <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-primary text-primary-foreground">
-          <ShieldCheck className="size-6" />
+        <div className="mx-auto flex size-16 items-center justify-center overflow-hidden rounded-2xl bg-black ring-1 ring-red-500/40 shadow-lg shadow-red-500/20">
+          <img src="/logo-agung-adi.svg" alt="Agung Adi" className="size-full object-cover" />
         </div>
         <div className="mt-4 text-center">
           <h1 className="text-2xl font-bold tracking-tight">ADI BUILDER BOT</h1>
