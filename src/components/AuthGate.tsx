@@ -113,7 +113,7 @@ export function AuthGate() {
   return <div className="flex min-h-[70vh] items-center justify-center px-4 py-10">
     <div className="w-full max-w-md rounded-3xl border bg-card p-6 shadow-sm sm:p-8">
       <div className="mx-auto flex size-16 items-center justify-center overflow-hidden rounded-2xl bg-black ring-1 ring-primary/30 shadow-lg"><img src="/logo-agung-adi.webp" alt="Agung Adi" className="size-full object-cover" /></div>
-      <div className="mt-4 text-center"><h1 className="text-2xl font-bold tracking-tight">ADI BUILDER BOT</h1><p className="mt-2 text-sm text-muted-foreground">{mode === "login" ? "Masuk untuk menggunakan AI Builder." : "Buat akun pengguna untuk menggunakan AI Builder."}</p></div>
+      <div className="mt-4 text-center"><h1 className="text-2xl font-bold tracking-tight">ADI BUILDER BOT</h1><p className="mt-2 text-sm text-muted-foreground">{mode === "login" ? "Silakan login ADI BUILDER BOT." : "Buat akun pengguna untuk menggunakan AI Builder."}</p></div>
       <div className="mt-6 grid grid-cols-2 rounded-xl bg-muted p-1"><button type="button" onClick={() => setMode("login")} className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${mode === "login" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>Masuk</button><button type="button" onClick={() => setMode("register")} className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${mode === "register" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>Daftar</button></div>
       <form onSubmit={submit} className="mt-5 space-y-4">
         {mode === "register" && <div className="space-y-2"><Label htmlFor="auth-username">Username</Label><Input id="auth-username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Nama pengguna" autoComplete="username" disabled={loading} /></div>}
@@ -123,7 +123,6 @@ export function AuthGate() {
         {mode === "login" && <button type="button" onClick={() => { setShowForgotPassword(true); setResetStep("email"); setEmail(normalizedEmail); }} disabled={loading} className="w-full text-right text-sm font-medium text-primary hover:underline">Lupa Password?</button>}
         <Button type="submit" disabled={loading} className="h-11 w-full rounded-xl">{loading ? <Loader2 className="animate-spin" /> : mode === "login" ? <LogIn /> : <UserPlus />} {mode === "login" ? "Masuk ke AI Builder" : "Buat Akun"}</Button>
       </form>
-      <p className="mt-5 text-center text-xs text-muted-foreground">{mode === "login" ? "Akun user masuk ke dashboard biasa. Akun administrator masuk ke area admin terpisah." : "Pendaftaran hanya untuk akun user biasa."}</p>
     </div>
 
     {showForgotPassword && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm"><div className="w-full max-w-md rounded-3xl border bg-card p-6 shadow-2xl sm:p-8">
