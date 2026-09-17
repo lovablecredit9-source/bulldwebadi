@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Eye, EyeOff, Loader2, Save, Server, User, KeyRound, Zap } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, Loader2, Save, Server, User, KeyRound, Mail, Zap } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,8 @@ export const Route = createFileRoute("/settings")({
 type Cfg = { baseUrl: string; model: string; hasKey: boolean; maskedKey: string };
 type HealthResult = { online: boolean; configured?: boolean; modelAvailable?: boolean; latencyMs?: number; httpStatus?: number; model?: string; error?: string };
 
+type EmailMode = "password" | "code";
+
 function SettingsPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -30,6 +32,15 @@ function SettingsPage() {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
+
+  const [newEmail, setNewEmail] = useState("");
+  const [emailMode, setEmailMode] = useState<EmailMode>("password");
+  const [emailPassword, setEmailPassword] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [emailCodeSent, setEmailCodeSent] = useState(false);
+  const [emailCodeCooldown, setEmailCodeCooldown] = useState(0);
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [showEmailPassword, setShowEmailPassword] = useState(false);
 
   const [baseUrl, setBaseUrl] = useState(DEFAULT_BASE_URL);
   const [model, setModel] = useState(DEFAULT_MODEL);
@@ -56,6 +67,12 @@ function SettingsPage() {
       setBaseUrl(c.baseUrl || DEFAULT_BASE_URL); setModel(c.model || DEFAULT_MODEL); setMasked(c.maskedKey); setHasKey(Boolean(c.hasKey));
     }).catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (emailCodeCooldown <= 0) return;
+    const timer = window.setInterval(() => setEmailCodeCooldown((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [emailCodeCooldown]);
 
   const saveProfile = async () => {
     const value = username.trim();
@@ -89,6 +106,63 @@ function SettingsPage() {
     finally { setPasswordSaving(false); }
   };
 
+  const validateEmail = () => {
+    const value = newEmail.trim().toLowerCase();
+    if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      toast.error("Masukkan alamat email baru yang valid.");
+      return null;
+    }
+    if (value === email.toLowerCase()) {
+      toast.error("Email baru harus berbeda dari email saat ini.");
+      return null;
+    }
+    return value;
+  };
+
+  const sendEmailRecoveryCode = async () => {
+    if (emailCodeCooldown > 0) return;
+    if (!email) return toast.error("Email akun tidak ditemukan.");
+    setEmailSaving(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) throw error;
+      setEmailCodeSent(true);
+      setEmailCodeCooldown(60);
+      toast.success("Kode verifikasi sudah dikirim ke email saat ini.");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Gagal mengirim kode verifikasi."); }
+    finally { setEmailSaving(false); }
+  };
+
+  const changeEmail = async () => {
+    const value = validateEmail();
+    if (!value) return;
+    setEmailSaving(true);
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user?.email) throw userError || new Error("Sesi login tidak ditemukan.");
+      const currentEmail = userData.user.email;
+
+      if (emailMode === "password") {
+        if (!emailPassword) throw new Error("Masukkan password akun saat ini.");
+        const { error: verifyError } = await supabase.auth.signInWithPassword({ email: currentEmail, password: emailPassword });
+        if (verifyError) throw new Error("Password saat ini salah.");
+      } else {
+        if (!emailCodeSent) throw new Error("Kirim kode verifikasi terlebih dahulu.");
+        if (!/^\d{6,8}$/.test(emailCode.trim())) throw new Error("Kode verifikasi harus 6 atau 8 digit.");
+        const { error: verifyError } = await supabase.auth.verifyOtp({ email: currentEmail, token: emailCode.trim(), type: "recovery" });
+        if (verifyError) throw new Error("Kode verifikasi salah atau sudah kedaluwarsa.");
+      }
+
+      const { error } = await supabase.auth.updateUser({ email: value });
+      if (error) throw error;
+      setNewEmail(""); setEmailPassword(""); setEmailCode(""); setEmailCodeSent(false); setEmailCodeCooldown(0);
+      toast.success("Permintaan ubah email berhasil. Cek email baru untuk konfirmasi.");
+      const { data } = await supabase.auth.getUser();
+      setEmail(data.user?.email || value);
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Email gagal diubah."); }
+    finally { setEmailSaving(false); }
+  };
+
   const verifySavedConfig = async () => {
     try { const result = await postJson<HealthResult>("/api/ai/router-health", {}); const ok = Boolean(result.online && result.modelAvailable); setConnected(ok); setHealth(ok ? "online" : "offline"); setHealthError(ok ? "" : (result.error || "Router atau model tidak tersedia.")); setLatency(typeof result.latencyMs === "number" ? result.latencyMs : null); return result; }
     catch (e) { setConnected(false); setHealth("offline"); setHealthError(e instanceof Error ? e.message : "Router tidak dapat diverifikasi."); setLatency(null); return null; }
@@ -119,7 +193,7 @@ function SettingsPage() {
 
   return <AppShell>
     <h1 className="text-2xl font-bold">Settings</h1>
-    <p className="mt-1 text-sm text-muted-foreground">Kelola profil akun, password, dan konfigurasi AI kamu.</p>
+    <p className="mt-1 text-sm text-muted-foreground">Kelola profil akun, password, email, dan konfigurasi AI kamu.</p>
 
     <section className="mt-6 grid max-w-2xl gap-4 rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
       <div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><User className="size-5" /></div><div><h2 className="font-semibold">Profil Akun</h2><p className="text-sm text-muted-foreground">Username dan email akun kamu.</p></div></div>
@@ -127,6 +201,19 @@ function SettingsPage() {
       <div className="space-y-2"><Label>Email</Label><Input value={email} disabled /></div>
       {!username && <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">Username belum dibuat. Username wajib diisi dan disimpan sebelum profil akun dianggap lengkap.</div>}
       <Button onClick={saveProfile} disabled={profileSaving} className="w-full rounded-xl sm:w-fit">{profileSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Simpan Profil</Button>
+    </section>
+
+    <section className="mt-4 grid max-w-2xl gap-4 rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+      <div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><Mail className="size-5" /></div><div><h2 className="font-semibold">Ubah Email</h2><p className="text-sm text-muted-foreground">Kalau ingat password, gunakan password. Kalau lupa password, gunakan kode verifikasi.</p></div></div>
+      <div className="space-y-2"><Label>Email Saat Ini</Label><Input value={email} disabled /></div>
+      <div className="space-y-2"><Label>Email Baru</Label><Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="emailbaru@contoh.com" autoComplete="email" disabled={emailSaving} /></div>
+      <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-1">
+        <Button type="button" variant={emailMode === "password" ? "default" : "ghost"} onClick={() => setEmailMode("password")} disabled={emailSaving} className="rounded-lg">Saya Ingat Password</Button>
+        <Button type="button" variant={emailMode === "code" ? "default" : "ghost"} onClick={() => setEmailMode("code")} disabled={emailSaving} className="rounded-lg">Saya Lupa Password</Button>
+      </div>
+      {emailMode === "password" ? <div className="space-y-2"><Label>Password Saat Ini</Label><div className="relative"><Input type={showEmailPassword ? "text" : "password"} value={emailPassword} onChange={(e) => setEmailPassword(e.target.value)} placeholder="Masukkan password saat ini" autoComplete="current-password" disabled={emailSaving} className="pr-11" /><button type="button" onClick={() => setShowEmailPassword(!showEmailPassword)} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted">{showEmailPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button></div></div> : <div className="space-y-3"><div className="rounded-xl border bg-background/50 p-3 text-sm text-muted-foreground">Kode 6 atau 8 digit akan dikirim ke <span className="font-medium text-foreground">{email}</span>.</div><div className="flex gap-2"><Input inputMode="numeric" maxLength={8} value={emailCode} onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, "").slice(0, 8))} placeholder="Kode verifikasi" disabled={emailSaving || !emailCodeSent} /><Button type="button" variant="outline" onClick={() => void sendEmailRecoveryCode()} disabled={emailSaving || emailCodeCooldown > 0}>{emailCodeCooldown > 0 ? `Kirim ulang (${emailCodeCooldown}s)` : emailCodeSent ? "Kirim ulang kode" : "Kirim kode"}</Button></div></div>}
+      <Button onClick={() => void changeEmail()} disabled={emailSaving || !newEmail.trim()} className="w-full rounded-xl sm:w-fit">{emailSaving ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />} Ubah Email</Button>
+      <p className="text-xs text-muted-foreground">Setelah berhasil, Supabase dapat meminta konfirmasi melalui email baru sebelum alamat baru aktif sepenuhnya.</p>
     </section>
 
     <section className="mt-4 grid max-w-2xl gap-4 rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
