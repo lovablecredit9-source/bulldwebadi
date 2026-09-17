@@ -38,9 +38,12 @@ function Index() {
 
   return (
     <AppShell>
+      <style>{`@keyframes adiBannerLightSpin{to{transform:rotate(360deg)}}@keyframes adiBannerGlow{0%,100%{opacity:.55}50%{opacity:1}}.adi-banner-light{position:absolute;inset:0;border-radius:28px;padding:2px;background:conic-gradient(from 0deg,transparent 0deg,transparent 315deg,#008cff 335deg,#5ee7ff 345deg,#fff 350deg,#7c3aed 356deg,transparent 360deg);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:adiBannerLightSpin 2.8s linear infinite;filter:drop-shadow(0 0 5px #008cff) drop-shadow(0 0 12px #2563eb);pointer-events:none}.adi-banner-glow{position:absolute;inset:-1px;border-radius:28px;box-shadow:0 0 10px rgba(0,150,255,.45),0 0 28px rgba(37,99,235,.2);animation:adiBannerGlow 2s ease-in-out infinite;pointer-events:none}`}</style>
       <div className="mx-auto w-full max-w-7xl px-0 sm:px-2">
         <section className="relative overflow-hidden rounded-[28px] border border-primary/30 bg-card shadow-xl shadow-primary/10">
-          <img src={bannerUrl} alt="Selamat datang di ADI BUILDER BOT" width={1536} height={864} className="block h-auto w-full" style={{ width: "100%", height: "auto" }} loading="eager" decoding="async" />
+          <img src={bannerUrl} alt="Selamat datang di ADI BUILDER BOT" width={1536} height={864} className="relative z-0 block h-auto w-full" style={{ width: "100%", height: "auto" }} loading="eager" decoding="async" />
+          <div className="adi-banner-glow z-10" aria-hidden="true" />
+          <div className="adi-banner-light z-20" aria-hidden="true" />
         </section>
 
         <section className="mt-5 rounded-[28px] border border-primary/20 bg-gradient-to-br from-card via-card to-primary/5 p-5 shadow-lg shadow-primary/5 sm:mt-6 sm:p-8">
