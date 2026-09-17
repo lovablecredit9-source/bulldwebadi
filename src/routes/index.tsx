@@ -33,7 +33,14 @@ function Index() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const { data } = await (supabase as any).from("site_banners").select("image_url").eq("is_active", true).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const { data } = await (supabase as any)
+        .from("site_banners")
+        .select("image_url")
+        .eq("banner_type", "dashboard")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       if (!cancelled && data?.image_url) setBannerUrl(data.image_url);
     })();
     return () => { cancelled = true; };
@@ -63,32 +70,24 @@ function Index() {
             <img src={bannerUrl} alt="Selamat datang di ADI BUILDER BOT" width={1536} height={864} className="relative z-0 block h-auto w-full" style={{ width: "100%", height: "auto" }} loading="eager" decoding="async" />
             <div className="adi-banner-rain" aria-hidden="true">
               {RAIN_DROPS.map((drop) => (
-                <span
-                  key={drop}
-                  className="adi-rain-drop"
-                  style={{
-                    "--rain-x": `${-4 + ((drop * 37) % 108)}%`,
-                    "--rain-width": `${drop % 7 === 0 ? 1.35 : drop % 3 === 0 ? 1.05 : 0.7}px`,
-                    "--rain-height": `${10 + ((drop * 11) % 15)}px`,
-                    "--rain-height-long": `${19 + ((drop * 13) % 25)}px`,
-                    "--rain-duration": `${4.7 + ((drop * 17) % 25) / 10}s`,
-                    "--rain-delay": `${-((drop * 23) % 55) / 10}s`,
-                    "--rain-opacity": `${0.13 + ((drop * 19) % 48) / 100}`,
-                  } as React.CSSProperties}
-                />
+                <span key={drop} className="adi-rain-drop" style={{
+                  "--rain-x": `${-4 + ((drop * 37) % 108)}%`,
+                  "--rain-width": `${drop % 7 === 0 ? 1.35 : drop % 3 === 0 ? 1.05 : 0.7}px`,
+                  "--rain-height": `${10 + ((drop * 11) % 15)}px`,
+                  "--rain-height-long": `${19 + ((drop * 13) % 25)}px`,
+                  "--rain-duration": `${4.7 + ((drop * 17) % 25) / 10}s`,
+                  "--rain-delay": `${-((drop * 23) % 55) / 10}s`,
+                  "--rain-opacity": `${0.13 + ((drop * 19) % 48) / 100}`,
+                } as React.CSSProperties} />
               ))}
               {SPARKLES.map((spark) => (
-                <span
-                  key={`spark-${spark}`}
-                  className="adi-rain-spark"
-                  style={{
-                    "--spark-x": `${8 + ((spark * 29) % 84)}%`,
-                    "--spark-y": `${12 + ((spark * 43) % 72)}%`,
-                    "--spark-size": `${1.4 + (spark % 3) * 0.45}px`,
-                    "--spark-duration": `${3.4 + (spark % 4) * 0.65}s`,
-                    "--spark-delay": `${-((spark * 11) % 30) / 10}s`,
-                  } as React.CSSProperties}
-                />
+                <span key={`spark-${spark}`} className="adi-rain-spark" style={{
+                  "--spark-x": `${8 + ((spark * 29) % 84)}%`,
+                  "--spark-y": `${12 + ((spark * 43) % 72)}%`,
+                  "--spark-size": `${1.4 + (spark % 3) * 0.45}px`,
+                  "--spark-duration": `${3.4 + (spark % 4) * 0.65}s`,
+                  "--spark-delay": `${-((spark * 11) % 30) / 10}s`,
+                } as React.CSSProperties} />
               ))}
             </div>
           </section>
