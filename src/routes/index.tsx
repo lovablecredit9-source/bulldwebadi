@@ -55,10 +55,11 @@ function Index() {
       <div className="mx-auto w-full max-w-7xl px-0 sm:px-2">
         <section className="relative overflow-hidden rounded-[28px] border border-primary/30 bg-card shadow-xl shadow-primary/10">
           <img
-            src="/adi-welcome-banner.svg"
+            src="/adi-welcome-banner.jpg?v=20260917"
             alt="Selamat datang di ADI BUILDER BOT"
             className="block h-auto w-full object-cover"
             loading="eager"
+            decoding="async"
           />
         </section>
 
