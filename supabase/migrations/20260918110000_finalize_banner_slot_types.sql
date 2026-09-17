@@ -16,3 +16,7 @@ ALTER TABLE public.site_banners
 
 CREATE INDEX IF NOT EXISTS site_banners_type_active_idx
   ON public.site_banners (banner_type, is_active, created_at DESC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS site_banners_one_active_per_type_idx
+  ON public.site_banners (banner_type)
+  WHERE is_active = true;
