@@ -1,17 +1,25 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Eye, EyeOff, Loader2, LogIn, Mail } from "lucide-react";
+import { Eye, EyeOff, Loader2, LogIn, Mail, UserPlus } from "lucide-react";
 import { toast } from "sonner";
+import { useRouter } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+type Mode = "login" | "register";
 type ResetStep = "email" | "code";
+const ADMIN_EMAIL = "panpakarak36@gmail.com";
 
 export function AuthGate() {
+  const router = useRouter();
+  const [mode, setMode] = useState<Mode>("login");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetStep, setResetStep] = useState<ResetStep>("email");
@@ -29,17 +37,53 @@ export function AuthGate() {
   }, [resendCooldown]);
 
   const normalizedEmail = email.trim().toLowerCase();
+  const cleanUsername = username.trim();
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!normalizedEmail || !password) return toast.error("Email dan password wajib diisi.");
+    if (mode === "register") {
+      if (cleanUsername.length < 3) return toast.error("Username minimal 3 karakter.");
+      if (!normalizedEmail || !password) return toast.error("Username, email, dan password wajib diisi.");
+      if (password.length < 6) return toast.error("Password minimal 6 karakter.");
+      if (password !== confirmPassword) return toast.error("Konfirmasi password tidak sama.");
+    } else if (!normalizedEmail || !password) {
+      return toast.error("Email dan password wajib diisi.");
+    }
+
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
-      if (error) throw error;
-      toast.success("Login berhasil.");
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Login gagal."); }
-    finally { setLoading(false); }
+      if (mode === "register") {
+        const { data, error } = await supabase.auth.signUp({
+          email: normalizedEmail,
+          password,
+          options: { data: { username: cleanUsername } },
+        });
+        if (error) throw error;
+        if (data.session) {
+          toast.success("Akun berhasil dibuat.");
+          await router.navigate({ to: "/" });
+        } else {
+          toast.success("Akun berhasil dibuat. Cek email untuk konfirmasi akun jika diminta.");
+          setMode("login");
+          setPassword("");
+          setConfirmPassword("");
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+        if (error) throw error;
+        if (normalizedEmail === ADMIN_EMAIL) {
+          toast.success("Login admin berhasil.");
+          await router.navigate({ to: "/admin" });
+        } else {
+          toast.success("Login berhasil.");
+          await router.navigate({ to: "/" });
+        }
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : mode === "register" ? "Pendaftaran gagal." : "Login gagal.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const sendResetCode = async () => {
@@ -76,14 +120,17 @@ export function AuthGate() {
   return <div className="flex min-h-[70vh] items-center justify-center px-4 py-10">
     <div className="w-full max-w-md rounded-3xl border bg-card p-6 shadow-sm sm:p-8">
       <div className="mx-auto flex size-16 items-center justify-center overflow-hidden rounded-2xl bg-black ring-1 ring-primary/30 shadow-lg"><img src="/logo-agung-adi.webp" alt="Agung Adi" className="size-full object-cover" /></div>
-      <div className="mt-4 text-center"><h1 className="text-2xl font-bold tracking-tight">ADI BUILDER BOT</h1><p className="mt-2 text-sm text-muted-foreground">Masuk untuk menggunakan AI Builder.</p></div>
-      <form onSubmit={submit} className="mt-6 space-y-4">
+      <div className="mt-4 text-center"><h1 className="text-2xl font-bold tracking-tight">ADI BUILDER BOT</h1><p className="mt-2 text-sm text-muted-foreground">{mode === "login" ? "Masuk untuk menggunakan AI Builder." : "Buat akun pengguna untuk menggunakan AI Builder."}</p></div>
+      <div className="mt-6 grid grid-cols-2 rounded-xl bg-muted p-1"><button type="button" onClick={() => setMode("login")} className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${mode === "login" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>Masuk</button><button type="button" onClick={() => setMode("register")} className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${mode === "register" ? "bg-background shadow-sm" : "text-muted-foreground"}`}>Daftar</button></div>
+      <form onSubmit={submit} className="mt-5 space-y-4">
+        {mode === "register" && <div className="space-y-2"><Label htmlFor="auth-username">Username</Label><Input id="auth-username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Nama pengguna" autoComplete="username" disabled={loading} /></div>}
         <div className="space-y-2"><Label htmlFor="auth-email">Email</Label><Input id="auth-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" autoComplete="email" disabled={loading} /></div>
-        <div className="space-y-2"><Label htmlFor="auth-password">Password</Label><div className="relative"><Input id="auth-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password akun" autoComplete="current-password" disabled={loading} className="pr-11" /><button type="button" aria-label="Lihat password" onClick={() => setShowPassword((v) => !v)} disabled={loading} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted">{showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button></div></div>
-        <button type="button" onClick={() => { setShowForgotPassword(true); setResetStep("email"); setEmail(normalizedEmail); }} disabled={loading} className="w-full text-right text-sm font-medium text-primary hover:underline">Lupa Password?</button>
-        <Button type="submit" disabled={loading} className="h-11 w-full rounded-xl">{loading ? <Loader2 className="animate-spin" /> : <LogIn />} Masuk ke AI Builder</Button>
+        <div className="space-y-2"><Label htmlFor="auth-password">Password</Label><div className="relative"><Input id="auth-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password akun" autoComplete={mode === "login" ? "current-password" : "new-password"} disabled={loading} className="pr-11" /><button type="button" aria-label="Lihat password" onClick={() => setShowPassword((v) => !v)} disabled={loading} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted">{showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button></div></div>
+        {mode === "register" && <div className="space-y-2"><Label htmlFor="auth-confirm-password">Konfirmasi Password</Label><div className="relative"><Input id="auth-confirm-password" type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Ulangi password" autoComplete="new-password" disabled={loading} className="pr-11" /><button type="button" aria-label="Lihat konfirmasi password" onClick={() => setShowConfirmPassword((v) => !v)} disabled={loading} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted">{showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button></div></div>}
+        {mode === "login" && <button type="button" onClick={() => { setShowForgotPassword(true); setResetStep("email"); setEmail(normalizedEmail); }} disabled={loading} className="w-full text-right text-sm font-medium text-primary hover:underline">Lupa Password?</button>}
+        <Button type="submit" disabled={loading} className="h-11 w-full rounded-xl">{loading ? <Loader2 className="animate-spin" /> : mode === "login" ? <LogIn /> : <UserPlus />} {mode === "login" ? "Masuk ke AI Builder" : "Buat Akun"}</Button>
       </form>
-      <p className="mt-5 text-center text-xs text-muted-foreground">Akun pengguna dibuat oleh administrator. Tidak ada pendaftaran umum.</p>
+      <p className="mt-5 text-center text-xs text-muted-foreground">{mode === "login" ? "Akun admin menggunakan login khusus. Akun user tetap menggunakan tampilan AI Builder biasa." : "Akun yang didaftarkan adalah akun pengguna biasa."}</p>
     </div>
 
     {showForgotPassword && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm"><div className="w-full max-w-md rounded-3xl border bg-card p-6 shadow-2xl sm:p-8">
