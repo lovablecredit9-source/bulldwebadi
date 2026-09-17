@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Loader2, LogIn, UserPlus, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Loader2, LogIn, UserPlus, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ export function AuthGate() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -86,12 +88,22 @@ export function AuthGate() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="auth-password">Password</Label>
-            <Input id="auth-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimal 6 karakter" autoComplete={mode === "login" ? "current-password" : "new-password"} disabled={loading} />
+            <div className="relative">
+              <Input id="auth-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimal 6 karakter" autoComplete={mode === "login" ? "current-password" : "new-password"} disabled={loading} className="pr-11" />
+              <button type="button" aria-label={showPassword ? "Tutup password" : "Lihat password"} title={showPassword ? "Tutup password" : "Lihat password"} onClick={() => setShowPassword((value) => !value)} disabled={loading} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:pointer-events-none">
+                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
           </div>
           {mode === "register" && (
             <div className="space-y-2">
               <Label htmlFor="auth-confirm-password">Konfirmasi Password</Label>
-              <Input id="auth-confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Ulangi password" autoComplete="new-password" disabled={loading} />
+              <div className="relative">
+                <Input id="auth-confirm-password" type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Ulangi password" autoComplete="new-password" disabled={loading} className="pr-11" />
+                <button type="button" aria-label={showConfirmPassword ? "Tutup konfirmasi password" : "Lihat konfirmasi password"} title={showConfirmPassword ? "Tutup password" : "Lihat password"} onClick={() => setShowConfirmPassword((value) => !value)} disabled={loading} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:pointer-events-none">
+                  {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
             </div>
           )}
           <Button type="submit" disabled={loading} className="h-11 w-full rounded-xl">
