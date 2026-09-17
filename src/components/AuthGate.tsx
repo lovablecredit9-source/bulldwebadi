@@ -107,8 +107,8 @@ export function AuthGate() {
   };
 
   const verifyCodeAndReset = async () => {
-    if (!/^\d{6}$/.test(resetCode)) {
-      toast.error("Masukkan kode verifikasi 6 digit.");
+    if (!/^\d{6,8}$/.test(resetCode)) {
+      toast.error("Masukkan kode verifikasi 6 atau 8 digit.");
       return;
     }
     if (newPassword.length < 6) {
@@ -265,8 +265,8 @@ export function AuthGate() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="reset-code">Kode Verifikasi 6 Digit</Label>
-                  <Input id="reset-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={resetCode} onChange={(e) => setResetCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="123456" disabled={loading} className="text-center text-xl font-semibold tracking-[0.35em]" />
+                  <Label htmlFor="reset-code">Kode Verifikasi 6 atau 8 Digit</Label>
+                  <Input id="reset-code" inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={resetCode} onChange={(e) => setResetCode(e.target.value.replace(/\D/g, "").slice(0, 8))} placeholder="12345678" disabled={loading} className="text-center text-xl font-semibold tracking-[0.25em]" />
                 </div>
 
                 <div className="space-y-2">
