@@ -15,6 +15,23 @@ export function AuthGate() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const signInWithGoogle = async () => {
+    setGoogleLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Login dengan Google gagal.");
+      setGoogleLoading(false);
+    }
+  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -81,16 +98,37 @@ export function AuthGate() {
           <button type="button" onClick={() => setMode("register")} className={cn("rounded-lg px-3 py-2 text-sm font-medium transition", mode === "register" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground")}>Daftar Baru</button>
         </div>
 
-        <form onSubmit={submit} className="mt-6 space-y-4">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={loading || googleLoading}
+          onClick={signInWithGoogle}
+          className="mt-6 h-11 w-full rounded-xl"
+        >
+          {googleLoading ? (
+            <Loader2 className="animate-spin" />
+          ) : (
+            <span className="grid size-5 place-items-center rounded-full border text-xs font-bold">G</span>
+          )}
+          {mode === "login" ? "Masuk dengan Google" : "Daftar dengan Google"}
+        </Button>
+
+        <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="h-px flex-1 bg-border" />
+          <span>atau dengan email</span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+
+        <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="auth-email">Email</Label>
-            <Input id="auth-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" autoComplete="email" disabled={loading} />
+            <Input id="auth-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" autoComplete="email" disabled={loading || googleLoading} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="auth-password">Password</Label>
             <div className="relative">
-              <Input id="auth-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimal 6 karakter" autoComplete={mode === "login" ? "current-password" : "new-password"} disabled={loading} className="pr-11" />
-              <button type="button" aria-label={showPassword ? "Tutup password" : "Lihat password"} title={showPassword ? "Tutup password" : "Lihat password"} onClick={() => setShowPassword((value) => !value)} disabled={loading} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:pointer-events-none">
+              <Input id="auth-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimal 6 karakter" autoComplete={mode === "login" ? "current-password" : "new-password"} disabled={loading || googleLoading} className="pr-11" />
+              <button type="button" aria-label={showPassword ? "Tutup password" : "Lihat password"} title={showPassword ? "Tutup password" : "Lihat password"} onClick={() => setShowPassword((value) => !value)} disabled={loading || googleLoading} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:pointer-events-none">
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
             </div>
@@ -99,14 +137,14 @@ export function AuthGate() {
             <div className="space-y-2">
               <Label htmlFor="auth-confirm-password">Konfirmasi Password</Label>
               <div className="relative">
-                <Input id="auth-confirm-password" type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Ulangi password" autoComplete="new-password" disabled={loading} className="pr-11" />
-                <button type="button" aria-label={showConfirmPassword ? "Tutup konfirmasi password" : "Lihat konfirmasi password"} title={showConfirmPassword ? "Tutup password" : "Lihat password"} onClick={() => setShowConfirmPassword((value) => !value)} disabled={loading} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:pointer-events-none">
+                <Input id="auth-confirm-password" type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Ulangi password" autoComplete="new-password" disabled={loading || googleLoading} className="pr-11" />
+                <button type="button" aria-label={showConfirmPassword ? "Tutup konfirmasi password" : "Lihat konfirmasi password"} title={showConfirmPassword ? "Tutup password" : "Lihat password"} onClick={() => setShowConfirmPassword((value) => !value)} disabled={loading || googleLoading} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:pointer-events-none">
                   {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
             </div>
           )}
-          <Button type="submit" disabled={loading} className="h-11 w-full rounded-xl">
+          <Button type="submit" disabled={loading || googleLoading} className="h-11 w-full rounded-xl">
             {loading ? <Loader2 className="animate-spin" /> : mode === "login" ? <LogIn /> : <UserPlus />}
             {mode === "login" ? "Masuk ke AI Builder" : "Daftar"}
           </Button>
