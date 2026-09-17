@@ -107,8 +107,9 @@ function BannerEffects() {
 
         .adi-banner-neon-border {
           position: absolute;
-          inset: -45%;
-          border-radius: 50%;
+          inset: -1px;
+          border-radius: inherit;
+          padding: 2px;
           background: conic-gradient(
             from 0deg,
             transparent 0deg 292deg,
@@ -122,7 +123,6 @@ function BannerEffects() {
           -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
           -webkit-mask-composite: xor;
           mask-composite: exclude;
-          padding: 46%;
           opacity: .78;
           filter: blur(.35px);
           will-change: transform;
