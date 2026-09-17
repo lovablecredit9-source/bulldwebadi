@@ -42,6 +42,7 @@ export function AuthGate() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (mode === "register") {
+      if (normalizedEmail === ADMIN_EMAIL) return toast.error("Email administrator tidak dapat didaftarkan sebagai akun user.");
       if (cleanUsername.length < 3) return toast.error("Username minimal 3 karakter.");
       if (!normalizedEmail || !password) return toast.error("Username, email, dan password wajib diisi.");
       if (password.length < 6) return toast.error("Password minimal 6 karakter.");
@@ -53,20 +54,14 @@ export function AuthGate() {
     setLoading(true);
     try {
       if (mode === "register") {
-        const { data, error } = await supabase.auth.signUp({
-          email: normalizedEmail,
-          password,
-          options: { data: { username: cleanUsername } },
-        });
+        const { data, error } = await supabase.auth.signUp({ email: normalizedEmail, password, options: { data: { username: cleanUsername } } });
         if (error) throw error;
         if (data.session) {
-          toast.success("Akun berhasil dibuat.");
+          toast.success("Akun user berhasil dibuat.");
           await router.navigate({ to: "/" });
         } else {
-          toast.success("Akun berhasil dibuat. Cek email untuk konfirmasi akun jika diminta.");
-          setMode("login");
-          setPassword("");
-          setConfirmPassword("");
+          toast.success("Akun user berhasil dibuat. Cek email untuk konfirmasi jika diminta.");
+          setMode("login"); setPassword(""); setConfirmPassword("");
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
@@ -81,9 +76,7 @@ export function AuthGate() {
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : mode === "register" ? "Pendaftaran gagal." : "Login gagal.");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const sendResetCode = async () => {
@@ -130,7 +123,7 @@ export function AuthGate() {
         {mode === "login" && <button type="button" onClick={() => { setShowForgotPassword(true); setResetStep("email"); setEmail(normalizedEmail); }} disabled={loading} className="w-full text-right text-sm font-medium text-primary hover:underline">Lupa Password?</button>}
         <Button type="submit" disabled={loading} className="h-11 w-full rounded-xl">{loading ? <Loader2 className="animate-spin" /> : mode === "login" ? <LogIn /> : <UserPlus />} {mode === "login" ? "Masuk ke AI Builder" : "Buat Akun"}</Button>
       </form>
-      <p className="mt-5 text-center text-xs text-muted-foreground">{mode === "login" ? "Akun admin menggunakan login khusus. Akun user tetap menggunakan tampilan AI Builder biasa." : "Akun yang didaftarkan adalah akun pengguna biasa."}</p>
+      <p className="mt-5 text-center text-xs text-muted-foreground">{mode === "login" ? "Akun user masuk ke dashboard biasa. Akun administrator masuk ke area admin terpisah." : "Pendaftaran hanya untuk akun user biasa."}</p>
     </div>
 
     {showForgotPassword && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm"><div className="w-full max-w-md rounded-3xl border bg-card p-6 shadow-2xl sm:p-8">
