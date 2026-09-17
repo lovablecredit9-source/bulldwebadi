@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type BannerType = "dashboard" | "telegram" | "whatsapp" | "browser-extension";
+export type BannerType = "dashboard" | "telegram" | "whatsapp" | "extension";
 
 const FALLBACKS: Record<BannerType, string | null> = {
   dashboard: "/adi-welcome-banner.jpg",
   telegram: null,
   whatsapp: null,
-  "browser-extension": null,
+  extension: null,
 };
 
 export function SiteBanner({ bannerType }: { bannerType: BannerType }) {
