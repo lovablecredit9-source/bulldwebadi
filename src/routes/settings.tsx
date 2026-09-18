@@ -225,7 +225,7 @@ function SettingsPage() {
       if (isAdmin) {
         const result = await postJson<{ online: boolean; models?: string[]; latencyMs?: number; error?: string }>("/api/admin/ai/test", {
           baseUrl,
-          apiKey,
+          ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
         });
         if (result.online && result.models?.length) {
           setConnected(true); setHealth("online"); setLatency(typeof result.latencyMs === "number" ? result.latencyMs : null);

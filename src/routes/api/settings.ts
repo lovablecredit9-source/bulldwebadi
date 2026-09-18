@@ -48,8 +48,10 @@ export const Route = createFileRoute("/api/settings")({
           allowed_models?: string[];
         } = { id: 1, updated_at: new Date().toISOString() };
 
-        if (body.baseUrl && /^https?:\/\//.test(body.baseUrl)) update.base_url = body.baseUrl.trim().replace(/\/+$/, "");
-        if (body.model) update.model = body.model.trim();
+        if (typeof body.baseUrl === "string" && /^https?:\/\//i.test(body.baseUrl.trim())) {
+          update.base_url = body.baseUrl.trim().replace(/\/+$/, "");
+        }
+        if (typeof body.model === "string" && body.model.trim()) update.model = body.model.trim();
         if (typeof body.apiKey === "string" && body.apiKey.trim()) update.api_key = body.apiKey.trim();
 
         if (Array.isArray(body.allowedModels)) {

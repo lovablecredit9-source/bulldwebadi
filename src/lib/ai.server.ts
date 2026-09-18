@@ -25,10 +25,31 @@ Gunakan hanya file yang relevan agar penggunaan context API efisien.`;
 
 export type AiConfig = { baseUrl: string; apiKey: string; model: string };
 
+/**
+ * Keep the AI configuration shape stable even when the database row is missing,
+ * contains null/blank values, or an older schema returns an unexpected value.
+ * This prevents downstream Admin/User routes from ever dereferencing an
+ * undefined baseUrl while keeping ai_settings(id=1) as the central source.
+ */
+function normalizeAiConfig(input: Partial<AiConfig>, fallback: AiConfig): AiConfig {
+  const baseUrl = typeof input.baseUrl === "string" && input.baseUrl.trim()
+    ? input.baseUrl.trim().replace(/\\/+$/, "")
+    : fallback.baseUrl;
+  const apiKey = typeof input.apiKey === "string" && input.apiKey.trim()
+    ? input.apiKey.trim()
+    : fallback.apiKey;
+  const model = typeof input.model === "string" && input.model.trim()
+    ? normalizeModel(input.model)
+    : fallback.model;
+  return { baseUrl, apiKey, model };
+}
+
 export async function loadConfig(): Promise<AiConfig> {
-  const envKey = process.env["MARKETKU_API_KEY"] ?? "";
-  const envBase = process.env["MARKETKU_BASE_URL"] ?? DEFAULT_BASE_URL;
-  const envModel = normalizeModel(process.env["MARKETKU_MODEL"] ?? DEFAULT_MODEL);
+  const envFallback: AiConfig = {
+    apiKey: process.env["MARKETKU_API_KEY"] ?? "",
+    baseUrl: process.env["MARKETKU_BASE_URL"] ?? DEFAULT_BASE_URL,
+    model: normalizeModel(process.env["MARKETKU_MODEL"] ?? DEFAULT_MODEL),
+  };
 
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -37,13 +58,13 @@ export async function loadConfig(): Promise<AiConfig> {
       .select("base_url, api_key, model")
       .eq("id", 1)
       .maybeSingle();
-    return {
-      baseUrl: (data?.base_url as string) || envBase,
-      apiKey: (data?.api_key as string) || envKey,
-      model: normalizeModel((data?.model as string) || envModel),
-    };
+    return normalizeAiConfig({
+      baseUrl: typeof data?.base_url === "string" ? data.base_url : undefined,
+      apiKey: typeof data?.api_key === "string" ? data.api_key : undefined,
+      model: typeof data?.model === "string" ? data.model : undefined,
+    }, envFallback);
   } catch {
-    return { baseUrl: envBase, apiKey: envKey, model: envModel };
+    return normalizeAiConfig({}, envFallback);
   }
 }
 

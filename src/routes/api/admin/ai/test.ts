@@ -153,6 +153,8 @@ export const Route = createFileRoute("/api/admin/ai/test")({
           ? body.apiKey.trim()
           : config.apiKey;
 
+        // Supabase JWT above is only for Admin authorization. The router API key
+        // is used only for the outbound router request and never as app auth.
         return testRouter(baseUrl, apiKey);
       },
     },

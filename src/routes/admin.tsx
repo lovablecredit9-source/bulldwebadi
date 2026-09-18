@@ -400,7 +400,7 @@ function AdminPanel() {
         },
         body: JSON.stringify({
           baseUrl: aiBaseUrl.trim(),
-          apiKey: aiApiKey.trim(),
+          ...(aiApiKey.trim() ? { apiKey: aiApiKey.trim() } : {}),
         }),
       });
 
