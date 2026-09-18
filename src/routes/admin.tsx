@@ -338,7 +338,10 @@ function AdminPanel() {
   const reviewDeposit = async (depositId: string, approve: boolean) => {
     setWalletBusy(true);
     try {
-      await postJson("/api/wallet", { action: "admin-deposit", depositId, approve });
+      await postJson("/api/admin/wallet", {
+        action: approve ? "approve-deposit" : "reject-deposit",
+        depositId,
+      });
       toast.success(approve ? "Deposit disetujui dan saldo ditambahkan." : "Deposit ditolak.");
       await refreshWalletDeposits();
     } catch (error) {
