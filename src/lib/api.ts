@@ -42,10 +42,19 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
 }
 
 export async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { headers: await authHeaders() });
-  const data = (await res.json().catch(() => null)) as T | null;
-  if (!res.ok || !data) throw new Error("Koneksi bermasalah.");
-  return data;
+  let res: Response;
+  try {
+    res = await fetch(url, { headers: await authHeaders() });
+  } catch {
+    throw new Error("Koneksi bermasalah.");
+  }
+
+  const data = (await res.json().catch(() => null)) as (T & { error?: string }) | null;
+  if (!res.ok || !data) {
+    throw new Error(data?.error ?? `Permintaan gagal diproses (${res.status || "koneksi"}).`);
+  }
+  if (data.error) throw new Error(data.error);
+  return data as T;
 }
 
 export async function postForm<T>(url: string, form: FormData): Promise<T> {
