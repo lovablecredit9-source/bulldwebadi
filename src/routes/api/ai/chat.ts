@@ -9,6 +9,28 @@ import {
 } from "@/lib/ai.server";
 import { buildTree, contextBlock, getFiles, getProject, pickRelevantFiles } from "@/lib/project.server";
 import { hasAccess } from "@/lib/pin.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { normalizeModel } from "@/lib/models";
+
+const ADMIN_EMAIL = "panpakarak36@gmail.com";
+
+async function getUser(request: Request) {
+  const token = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!token) return null;
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  return error || !data.user ? null : data.user;
+}
+
+function isAdmin(user: { email?: string | null } | null) {
+  return user?.email?.trim().toLowerCase() === ADMIN_EMAIL;
+}
+
+async function getAllowedModels() {
+  const { data } = await supabaseAdmin.from("ai_settings").select("allowed_models").eq("id", 1).maybeSingle();
+  return Array.isArray(data?.allowed_models)
+    ? data.allowed_models.filter((m): m is string => typeof m === "string").map(normalizeModel)
+    : [];
+}
 
 export const Route = createFileRoute("/api/ai/chat")({
   server: {
@@ -23,6 +45,15 @@ export const Route = createFileRoute("/api/ai/chat")({
           token?: string;
         };
         try {
+          const user = await getUser(request);
+          if (!user) throw new AiError("Sesi login diperlukan.", 401);
+          if (!isAdmin(user)) {
+            const allowed = await getAllowedModels();
+            const requestedModel = body.model ? normalizeModel(body.model) : null;
+            if (requestedModel && !allowed.includes(requestedModel)) {
+              throw new AiError("Model tersebut tidak diizinkan untuk user.", 403);
+            }
+          }
           if (body.projectId && !(await hasAccess(body.projectId, body.token))) throw new AiError("Masukkan PIN project terlebih dahulu.", 401);
           const images = (body.images ?? []).filter((u) => typeof u === "string" && u.startsWith("data:image/"));
           const message = (body.message ?? "").trim() || (images.length ? "Tiru desain pada foto ini semirip mungkin, lalu rangkum isi fotonya." : "");
