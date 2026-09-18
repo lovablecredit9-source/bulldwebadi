@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Eye, EyeOff, ImagePlus, Loader2, Pencil, Save, Server, ShieldCheck, Trash2, XCircle, Zap } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, ImagePlus, Loader2, Pencil, Save, Server, ShieldCheck, Trash2, XCircle, Zap, WalletCards } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { AdminLoginGate } from "@/components/AdminLoginGate";
@@ -100,6 +100,12 @@ function AdminPanel() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(false);
   const [files, setFiles] = useState<Partial<Record<BannerType, File | null>>>({});
+  const [walletDeposits, setWalletDeposits] = useState<Array<{ id: string; user_id: string; username_snapshot: string; amount: number; method: string; reference: string | null; note: string | null; status: string; created_at: string }>>([]);
+  const [walletUsername, setWalletUsername] = useState("");
+  const [walletAmount, setWalletAmount] = useState("");
+  const [walletNote, setWalletNote] = useState("");
+  const [walletBusy, setWalletBusy] = useState(false);
+
 
   const latestByType = useMemo(() => {
     const map = new Map<BannerType, Banner>();
@@ -142,6 +148,13 @@ function AdminPanel() {
         // Jangan mengganggu login/panel Admin hanya karena router belum siap.
         console.error("[Admin] Daftar model router gagal dimuat", error);
         setAiModelOptions([]);
+      }
+
+      try {
+        const wallet = await getJson<{ deposits?: typeof walletDeposits }>("/api/admin/wallet");
+        setWalletDeposits(Array.isArray(wallet.deposits) ? wallet.deposits : []);
+      } catch (error) {
+        console.error("[Admin] Wallet deposit queue gagal dimuat", error);
       }
 
       const { data, error } = await (supabase as any)
@@ -219,7 +232,39 @@ function AdminPanel() {
       }
     }, 500);
 
-    return () => {
+    const refreshWalletDeposits = async () => {
+    const wallet = await getJson<{ deposits?: typeof walletDeposits }>("/api/admin/wallet");
+    setWalletDeposits(Array.isArray(wallet.deposits) ? wallet.deposits : []);
+  };
+
+  const reviewDeposit = async (depositId: string, approve: boolean) => {
+    setWalletBusy(true);
+    try {
+      await postJson("/api/wallet", { action: "admin-deposit", depositId, approve });
+      toast.success(approve ? "Deposit disetujui dan saldo ditambahkan." : "Deposit ditolak.");
+      await refreshWalletDeposits();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Deposit gagal diproses.");
+    } finally { setWalletBusy(false); }
+  };
+
+  const manualWalletChange = async (action: "admin-credit" | "admin-debit") => {
+    const amount = Number(walletAmount);
+    if (!walletUsername.trim()) { toast.error("Username wajib diisi."); return; }
+    if (!Number.isFinite(amount) || amount <= 0) { toast.error("Jumlah saldo tidak valid."); return; }
+    setWalletBusy(true);
+    try {
+      const result = await postJson<{ balance: number }>("/api/wallet", {
+        action, username: walletUsername.trim(), amount, note: walletNote.trim(),
+      });
+      toast.success(`${action === "admin-credit" ? "Saldo ditambahkan" : "Saldo dikurangi"}. Saldo baru: Rp ${Number(result.balance || 0).toLocaleString("id-ID")}`);
+      setWalletAmount(""); setWalletNote("");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Perubahan saldo gagal.");
+    } finally { setWalletBusy(false); }
+  };
+
+  return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
@@ -603,6 +648,40 @@ function AdminPanel() {
               {aiLatency !== null && aiStatus === "online" && <p className="mt-1 text-sm">Latency: <span className="font-semibold">{aiLatency} ms</span></p>}
               {aiError && <p className="mt-1 text-xs text-destructive">{aiError}</p>}
             </div>}
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-primary/20 bg-card p-5 shadow-lg shadow-primary/5 sm:p-6">
+          <div className="flex items-center gap-3">
+            <div className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20"><WalletCards className="size-6" /></div>
+            <div><h2 className="text-xl font-bold">Saldo & Deposit</h2><p className="text-sm text-muted-foreground">Konfirmasi deposit user atau ubah saldo berdasarkan username.</p></div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border bg-background/40 p-4">
+            <h3 className="font-semibold">Tambah / Kurangi Saldo Manual</h3>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <Input value={walletUsername} onChange={e=>setWalletUsername(e.target.value)} placeholder="Username user" />
+              <Input value={walletAmount} onChange={e=>setWalletAmount(e.target.value.replace(/[^0-9.]/g,""))} inputMode="decimal" placeholder="Jumlah" />
+              <Input value={walletNote} onChange={e=>setWalletNote(e.target.value)} placeholder="Catatan (opsional)" />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button disabled={walletBusy} onClick={()=>void manualWalletChange("admin-credit")}>Tambah Saldo</Button>
+              <Button variant="outline" disabled={walletBusy} onClick={()=>void manualWalletChange("admin-debit")}>Kurangi Saldo</Button>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <div className="flex items-center justify-between gap-3"><h3 className="font-semibold">Permintaan Deposit</h3><Button variant="outline" size="sm" disabled={walletBusy} onClick={()=>void refreshWalletDeposits()}>Refresh</Button></div>
+            <div className="mt-3 grid gap-2">
+              {walletDeposits.length === 0 && <p className="text-sm text-muted-foreground">Belum ada permintaan deposit.</p>}
+              {walletDeposits.map((d)=><div key={d.id} className="rounded-2xl border p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div><p className="font-semibold">{d.username_snapshot} · Rp {Number(d.amount).toLocaleString("id-ID", {minimumFractionDigits:2})}</p><p className="mt-1 text-xs text-muted-foreground">{d.method}{d.reference ? " · " + d.reference : ""} · {new Date(d.created_at).toLocaleString("id-ID")}</p>{d.note && <p className="mt-1 text-sm">{d.note}</p>}</div>
+                  <span className="rounded-full border px-2.5 py-1 text-xs font-semibold">{d.status}</span>
+                </div>
+                {d.status === "pending" && <div className="mt-3 flex gap-2"><Button size="sm" disabled={walletBusy} onClick={()=>void reviewDeposit(d.id,true)}><CheckCircle2 className="size-4"/>Konfirmasi & Tambah Saldo</Button><Button size="sm" variant="outline" disabled={walletBusy} onClick={()=>void reviewDeposit(d.id,false)}><XCircle className="size-4"/>Tolak</Button></div>}
+              </div>)}
+            </div>
           </div>
         </section>
 
