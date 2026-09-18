@@ -100,7 +100,7 @@ function AdminPanel() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(false);
   const [files, setFiles] = useState<Partial<Record<BannerType, File | null>>>({});
-  const [walletDeposits, setWalletDeposits] = useState<Array<{ id: string; user_id: string; username_snapshot: string; amount: number; method: string; reference: string | null; note: string | null; status: string; created_at: string }>>([]);
+  const [walletDeposits, setWalletDeposits] = useState<Array<{ id: string; user_id: string; username_snapshot: string; amount: number; method: string; status: string; created_at: string }>>([]);
   const [walletUsername, setWalletUsername] = useState("");
   const [walletAmount, setWalletAmount] = useState("");
   const [walletNote, setWalletNote] = useState("");
@@ -816,7 +816,7 @@ function AdminPanel() {
               {walletDeposits.length === 0 && <p className="text-sm text-muted-foreground">Belum ada permintaan deposit.</p>}
               {walletDeposits.map((d)=><div key={d.id} className="rounded-2xl border p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div><p className="font-semibold">{d.username_snapshot} · Rp {Number(d.amount).toLocaleString("id-ID", {minimumFractionDigits:2})}</p><p className="mt-1 text-xs text-muted-foreground">{d.method}{d.reference ? " · " + d.reference : ""} · {new Date(d.created_at).toLocaleString("id-ID")}</p>{d.note && <p className="mt-1 text-sm">{d.note}</p>}</div>
+                  <div><p className="font-semibold">{d.username_snapshot} · Rp {Number(d.amount).toLocaleString("id-ID", {minimumFractionDigits:2})}</p><p className="mt-1 text-xs text-muted-foreground">{d.method} · {new Date(d.created_at).toLocaleString("id-ID")}</p></div>
                   <span className="rounded-full border px-2.5 py-1 text-xs font-semibold">{d.status}</span>
                 </div>
                 {d.status === "pending" && <div className="mt-3 flex gap-2"><Button size="sm" disabled={walletBusy} onClick={()=>void reviewDeposit(d.id,true)}><CheckCircle2 className="size-4"/>Konfirmasi & Tambah Saldo</Button><Button size="sm" variant="outline" disabled={walletBusy} onClick={()=>void reviewDeposit(d.id,false)}><XCircle className="size-4"/>Tolak</Button></div>}
