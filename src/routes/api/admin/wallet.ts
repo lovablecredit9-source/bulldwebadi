@@ -4,10 +4,6 @@ import { getAdministratorUser } from "@/lib/auth.server";
 import { createSupabaseUserClient } from "@/integrations/supabase/client.server";
 
 export async function handleAdminWalletRequest(request: Request): Promise<Response> {
-  if (request.method !== "GET") {
-    return safeJson({ error: "Method tidak didukung." }, 405);
-  }
-
   try {
     const admin = await getAdministratorUser(request);
     if (!admin) return safeJson({ error: "Akses Administrator diperlukan." }, 403);
@@ -17,14 +13,60 @@ export async function handleAdminWalletRequest(request: Request): Promise<Respon
     if (!accessToken) return safeJson({ error: "Token login tidak ditemukan." }, 401);
     const supabaseUser = createSupabaseUserClient(accessToken);
 
-    const { data, error } = await supabaseUser
-      .from("wallet_deposits")
-      .select("id,user_id,username_snapshot,amount,method,reference,note,status,admin_note,created_at,reviewed_at")
-      .order("created_at", { ascending: false })
-      .limit(100);
-    if (error) throw error;
+    if (request.method === "GET") {
+      const { data, error } = await supabaseUser
+        .from("wallet_deposits")
+        .select("id,user_id,username_snapshot,amount,method,status,created_at")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
 
-    return safeJson({ deposits: data || [] });
+      const { data: paymentSettings, error: settingsError } = await (supabaseUser as any)
+        .from("wallet_payment_settings")
+        .select("id,dana_number,dana_name,ovo_number,ovo_name,gopay_number,gopay_name,qris_image_url,updated_at")
+        .eq("id", 1)
+        .maybeSingle();
+      if (settingsError) throw settingsError;
+
+      return safeJson({ deposits: data || [], paymentSettings: paymentSettings || null });
+    }
+
+    if (request.method === "POST") {
+      const body = (await request.json().catch(() => ({}))) as {
+        action?: string;
+        danaNumber?: string;
+        danaName?: string;
+        ovoNumber?: string;
+        ovoName?: string;
+        gopayNumber?: string;
+        gopayName?: string;
+        qrisImageUrl?: string;
+      };
+
+      if (body.action !== "payment-settings") {
+        return safeJson({ error: "Aksi admin wallet tidak dikenal." }, 400);
+      }
+
+      const { data, error } = await (supabaseUser as any)
+        .from("wallet_payment_settings")
+        .update({
+          dana_number: body.danaNumber ? String(body.danaNumber).trim().slice(0, 80) : null,
+          dana_name: body.danaName ? String(body.danaName).trim().slice(0, 120) : null,
+          ovo_number: body.ovoNumber ? String(body.ovoNumber).trim().slice(0, 80) : null,
+          ovo_name: body.ovoName ? String(body.ovoName).trim().slice(0, 120) : null,
+          gopay_number: body.gopayNumber ? String(body.gopayNumber).trim().slice(0, 80) : null,
+          gopay_name: body.gopayName ? String(body.gopayName).trim().slice(0, 120) : null,
+          qris_image_url: body.qrisImageUrl ? String(body.qrisImageUrl).trim().slice(0, 1000) : null,
+        })
+        .eq("id", 1)
+        .select("id,dana_number,dana_name,ovo_number,ovo_name,gopay_number,gopay_name,qris_image_url,updated_at")
+        .single();
+      if (error) throw error;
+
+      return safeJson({ ok: true, paymentSettings: data });
+    }
+
+    return safeJson({ error: "Method tidak didukung." }, 405);
   } catch (error) {
     console.error("[admin/wallet] GET failed", error);
     return safeJson(
