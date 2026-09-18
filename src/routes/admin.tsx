@@ -113,15 +113,26 @@ function AdminPage() {
       await requireAdmin();
       setAllowed(true);
 
-      // Backend /api/settings is the authoritative Admin authorization check.
-      // Do not swallow a 401/403 here or let a frontend-only flag diverge from Save authorization.
-      const aiConfig = await getJson<AiConfig>("/api/settings");
-      setAiBaseUrl(aiConfig?.baseUrl ?? "");
-      setAiModel(aiConfig.model || "");
-      setAiMaskedKey(aiConfig.maskedKey || "");
-      setAiAllowedModels(Array.isArray(aiConfig.allowedModels) ? aiConfig.allowedModels : []);
-      const modelList = await getJson<{ models: string[] }>("/api/ai/models").catch(() => ({ models: [] }));
-      setAiModelOptions(Array.isArray(modelList?.models) ? modelList.models : []);
+      // Admin authorization is decided by the authenticated Supabase user above.
+      // AI configuration is optional state and must never determine whether /admin is accessible.
+      try {
+        const aiConfig = await getJson<AiConfig>("/api/settings");
+        setAiBaseUrl(aiConfig?.baseUrl ?? "");
+        setAiModel(aiConfig.model || "");
+        setAiMaskedKey(aiConfig.maskedKey || "");
+        setAiAllowedModels(Array.isArray(aiConfig.allowedModels) ? aiConfig.allowedModels : []);
+      } catch (error) {
+        console.error("[Admin] AI Configuration gagal dimuat", error);
+        toastError("AI Configuration gagal dimuat", error);
+      }
+
+      try {
+        const modelList = await getJson<{ models: string[] }>("/api/ai/models");
+        setAiModelOptions(Array.isArray(modelList?.models) ? modelList.models : []);
+      } catch (error) {
+        console.error("[Admin] Daftar model gagal dimuat", error);
+        setAiModelOptions([]);
+      }
 
       const { data, error } = await (supabase as any)
         .from("site_banners")
