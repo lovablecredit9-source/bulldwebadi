@@ -3,7 +3,6 @@ import { loadConfig, safeJson } from "@/lib/ai.server";
 import { normalizeModel } from "@/lib/models";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getAuthenticatedUser } from "@/lib/auth.server";
-import { isAdministratorUser } from "@/lib/roles";
 
 async function allowedModels() {
   const { data } = await supabaseAdmin.from("ai_settings").select("allowed_models").eq("id", 1).maybeSingle();
