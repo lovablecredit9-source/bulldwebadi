@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { ModelSelect } from "@/components/ModelSelect";
 import { getJson, postJson } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
-import { getSessionUser } from "@/lib/session";
+import { getSessionUser, getValidSession } from "@/lib/session";
 import { isAdministratorUser } from "@/lib/roles";
 
 export const Route = createFileRoute("/admin")({
@@ -371,33 +371,70 @@ function AdminPanel() {
     }
   };
 
-  const testAiConnection = async () => {
+  const testAdminAIConnection = async () => {
     if (!aiBaseUrl.trim()) { toast.error("Base URL wajib diisi."); return; }
     if (!aiApiKey.trim() && !aiMaskedKey) { toast.error("API Key wajib diisi."); return; }
+
     setAiTesting(true); setAiStatus("idle"); setAiError(""); setAiLatency(null);
     try {
+      const session = await getValidSession();
+      if (!session?.access_token) throw new Error("Sesi Administrator tidak tersedia. Silakan login Administrator kembali.");
+
       const started = performance.now();
-      const modelResult = await postJson<{ models: string[]; source?: string; count?: number; error?: string }>(
-        "/api/ai/models",
-        { baseUrl: aiBaseUrl.trim(), apiKey: aiApiKey.trim() },
-      );
-      const models = Array.isArray(modelResult?.models) ? Array.from(new Set(modelResult.models.filter(Boolean))) : [];
-      if (!models.length) throw new Error(modelResult?.error || "Router terhubung tetapi tidak mengembalikan daftar model.");
+      const response = await fetch("/api/admin/ai/test", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+          "X-ADI-Access-Token": session.access_token,
+        },
+        body: JSON.stringify({
+          baseUrl: aiBaseUrl.trim(),
+          apiKey: aiApiKey.trim(),
+        }),
+      });
+
+      const result = await response.json().catch(() => null) as {
+        models?: string[];
+        count?: number;
+        online?: boolean;
+        latencyMs?: number;
+        httpStatus?: number;
+        error?: string;
+      } | null;
+
+      if (!response.ok) {
+        throw new Error(result?.error || `Test router gagal (HTTP ${response.status}).`);
+      }
+
+      const models = Array.isArray(result?.models)
+        ? Array.from(new Set(result.models.filter((model): model is string => typeof model === "string" && Boolean(model.trim()))))
+        : [];
+
+      if (!models.length) {
+        throw new Error(result?.error || "Router terhubung tetapi tidak mengembalikan daftar model.");
+      }
+
       setAiModelOptions(models);
       const selectedModel = aiModel && models.includes(aiModel) ? aiModel : models[0];
       if (!aiModel && selectedModel) setAiModel(selectedModel);
 
-      const result = await postJson<AiHealth>(
-        "/api/ai/router-health",
-        { model: selectedModel, baseUrl: aiBaseUrl.trim(), apiKey: aiApiKey.trim() },
-      );
-      if (!result.online) throw new Error(result.error || "Router terhubung tetapi model tidak dapat digunakan.");
-      const latency = typeof result.latencyMs === "number" ? result.latencyMs : Math.max(1, Math.round(performance.now() - started));
-      setAiStatus("online"); setAiLatency(latency);
-      toast.success(`Test Connection berhasil — ${models.length} model ditemukan dari router.`);
+      const latency = typeof result?.latencyMs === "number"
+        ? result.latencyMs
+        : Math.max(1, Math.round(performance.now() - started));
+
+      setAiStatus("online");
+      setAiLatency(latency);
+      setAiError("");
+      toast.success(`Router terhubung — ${models.length} model ditemukan.`);
     } catch (error) {
-      setAiStatus("offline"); setAiError(errorText(error)); toast.error(errorText(error));
-    } finally { setAiTesting(false); }
+      setAiStatus("offline");
+      setAiError(errorText(error));
+      toast.error(errorText(error));
+    } finally {
+      setAiTesting(false);
+    }
   };
 
   const saveAiConfiguration = async () => {
@@ -547,7 +584,7 @@ function AdminPanel() {
             <div className="space-y-2"><Label>API Key</Label><div className="flex gap-2"><Input type={aiShowKey ? "text" : "password"} value={aiApiKey} onChange={(e) => setAiApiKey(e.target.value)} placeholder={aiMaskedKey || "Masukkan API Key"} autoComplete="off" /><Button type="button" variant="outline" size="icon" onClick={() => setAiShowKey((v) => !v)}>{aiShowKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</Button></div>{aiMaskedKey && <p className="text-xs text-muted-foreground">Tersimpan: {aiMaskedKey}</p>}</div>
             <ModelSelect value={aiModel} onChange={(value) => { setAiModel(value); setAiStatus("idle"); setAiError(""); setAiLatency(null); }} label="Model AI Default" routerOnly models={aiModelOptions} />
             <div className="space-y-3 rounded-2xl border bg-background/40 p-4"><div><h3 className="font-semibold">Model yang diizinkan untuk User</h3><p className="mt-1 text-xs text-muted-foreground">Batasi pilihan model yang dapat digunakan user.</p></div><div className="grid gap-2 sm:grid-cols-2">{aiModelOptions.map((m) => <label key={m} className="flex items-center gap-3 rounded-xl border p-3 text-sm"><input type="checkbox" checked={aiAllowedModels.includes(m)} onChange={(e) => setAiAllowedModels((current) => e.target.checked ? Array.from(new Set([...current, m])) : current.filter((item) => item !== m))} /> <span className="truncate">{m}</span></label>)}</div><p className="text-xs text-muted-foreground">Daftar di atas akan muncul setelah model tersedia dari router.</p></div>
-            <div className="flex flex-wrap gap-2"><Button variant="outline" className="rounded-xl" disabled={aiTesting} onClick={() => void testAiConnection()}>{aiTesting ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />} Test Connection</Button><Button className="rounded-xl" disabled={aiSaving} onClick={() => void saveAiConfiguration()}>{aiSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save Configuration</Button></div>
+            <div className="flex flex-wrap gap-2"><Button variant="outline" className="rounded-xl" disabled={aiTesting} onClick={() => void testAdminAIConnection()}>{aiTesting ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />} Test Connection</Button><Button className="rounded-xl" disabled={aiSaving} onClick={() => void saveAiConfiguration()}>{aiSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save Configuration</Button></div>
             {aiStatus !== "idle" && <div className="rounded-2xl border bg-background/40 p-4"><p className="text-xs text-muted-foreground">Status koneksi</p><p className="mt-1 font-semibold">{aiStatus === "online" ? "🟢 Router dan model aktif" : "🔴 Router atau model tidak tersedia"}</p>{aiLatency !== null && aiStatus === "online" && <p className="mt-1 text-sm">Latency: <span className="font-semibold">{aiLatency} ms</span></p>}{aiError && <p className="mt-1 text-xs text-destructive">{aiError}</p>}</div>}
           </div>
         </section>
