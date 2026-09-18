@@ -340,6 +340,8 @@ function AdminPage() {
 
   const saveAiConfiguration = async () => {
     if (!aiBaseUrl.trim()) return toast.error("Base URL wajib diisi.");
+    if (!aiModel) return toast.error("Pilih Model AI Default terlebih dahulu.");
+    if (!aiAllowedModels.length) return toast.error("Pilih minimal satu model yang diizinkan untuk User.");
     setAiSaving(true); setAiStatus("idle"); setAiError("");
     try {
       const result = await postJson<AiConfig>("/api/settings", {
@@ -443,9 +445,9 @@ function AdminPage() {
           <div className="mt-5 grid gap-4">
             <div className="space-y-2"><Label>Base URL</Label><Input value={aiBaseUrl} onChange={(e) => setAiBaseUrl(e.target.value)} placeholder="https://router.example.com/v1" /></div>
             <div className="space-y-2"><Label>API Key</Label><div className="flex gap-2"><Input type={aiShowKey ? "text" : "password"} value={aiApiKey} onChange={(e) => setAiApiKey(e.target.value)} placeholder={aiMaskedKey || "Masukkan API Key"} autoComplete="off" /><Button type="button" variant="outline" size="icon" onClick={() => setAiShowKey((v) => !v)}>{aiShowKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</Button></div>{aiMaskedKey && <p className="text-xs text-muted-foreground">Tersimpan: {aiMaskedKey}</p>}</div>
-            <ModelSelect value={aiModel} onChange={(value) => { setAiModel(value); setAiStatus("idle"); setAiError(""); setAiLatency(null); }} label="Model AI Default" />
+            <ModelSelect value={aiModel} onChange={(value) => { setAiModel(value); setAiStatus("idle"); setAiError(""); setAiLatency(null); }} label="Model AI Default" routerOnly />
             <div className="space-y-3 rounded-2xl border bg-background/40 p-4"><div><h3 className="font-semibold">Model yang diizinkan untuk User</h3><p className="mt-1 text-xs text-muted-foreground">Batasi pilihan model yang dapat digunakan user.</p></div><div className="grid gap-2 sm:grid-cols-2">{aiModelOptions.map((m) => <label key={m} className="flex items-center gap-3 rounded-xl border p-3 text-sm"><input type="checkbox" checked={aiAllowedModels.includes(m)} onChange={(e) => setAiAllowedModels((current) => e.target.checked ? Array.from(new Set([...current, m])) : current.filter((item) => item !== m))} /> <span className="truncate">{m}</span></label>)}</div><p className="text-xs text-muted-foreground">Daftar di atas akan muncul setelah model tersedia dari router.</p></div>
-            <div className="flex flex-wrap gap-2"><Button variant="outline" className="rounded-xl" disabled={aiTesting || !aiModel} onClick={() => void testAiConnection()}>{aiTesting ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />} Test Connection</Button><Button className="rounded-xl" disabled={aiSaving} onClick={() => void saveAiConfiguration()}>{aiSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save Configuration</Button></div>
+            <div className="flex flex-wrap gap-2"><Button variant="outline" className="rounded-xl" disabled={aiTesting} onClick={() => void testAiConnection()}>{aiTesting ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />} Test Connection</Button><Button className="rounded-xl" disabled={aiSaving} onClick={() => void saveAiConfiguration()}>{aiSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save Configuration</Button></div>
             {aiStatus !== "idle" && <div className="rounded-2xl border bg-background/40 p-4"><p className="text-xs text-muted-foreground">Status koneksi</p><p className="mt-1 font-semibold">{aiStatus === "online" ? "🟢 Router dan model aktif" : "🔴 Router atau model tidak tersedia"}</p>{aiLatency !== null && aiStatus === "online" && <p className="mt-1 text-sm">Latency: <span className="font-semibold">{aiLatency} ms</span></p>}{aiError && <p className="mt-1 text-xs text-destructive">{aiError}</p>}</div>}
           </div>
         </section>
