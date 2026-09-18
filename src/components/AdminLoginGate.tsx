@@ -60,10 +60,6 @@ export function AdminLoginGate({ children }: Props) {
     }
   };
 
-  const logout = async () => {
-    await supabase.auth.signOut();
-    setAuthorized(false);
-  };
 
   if (checking) {
     return (
