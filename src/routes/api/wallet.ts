@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { safeJson } from "@/lib/ai.server";
 import { getAuthenticatedUser, getAdministratorUser } from "@/lib/auth.server";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { createSupabaseUserClient } from "@/integrations/supabase/client.server";
 import { hashPin, randomHex } from "@/lib/pin.server";
 
 function money(value: unknown) {
@@ -14,32 +14,26 @@ function usernameOf(user: { user_metadata?: Record<string, unknown> | null; emai
   return typeof value === "string" && value.trim() ? value.trim() : (user.email?.split("@")[0] || "");
 }
 
-async function hasWalletPin(userId: string) {
-  const { data, error } = await supabaseAdmin.rpc("wallet_get_pin", { p_user_id: userId });
+async function hasWalletPin(supabaseUser: ReturnType<typeof createSupabaseUserClient>, userId: string) {
+  const { data, error } = await supabaseUser.rpc("wallet_get_pin", { p_user_id: userId });
   if (error) throw error;
   return Array.isArray(data) && data.length > 0 && Boolean(data[0]?.pin_hash);
 }
 
-async function verifyWalletPin(userId: string, pin: string) {
-  const { data, error } = await supabaseAdmin.rpc("wallet_get_pin", { p_user_id: userId });
+async function verifyWalletPin(supabaseUser: ReturnType<typeof createSupabaseUserClient>, userId: string, pin: string) {
+  const { data, error } = await supabaseUser.rpc("wallet_get_pin", { p_user_id: userId });
   if (error) throw error;
   const row = Array.isArray(data) ? data[0] : null;
   if (!row?.pin_hash || !row?.pin_salt) return false;
   return (await hashPin(pin, row.pin_salt)) === row.pin_hash;
 }
 
-async function findUserByUsername(username: string) {
-  const wanted = username.trim().toLowerCase();
+async function findUserByUsername(supabaseUser: ReturnType<typeof createSupabaseUserClient>, username: string) {
+  const wanted = username.trim();
   if (!wanted) return null;
-  for (let page = 1; page <= 20; page++) {
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
-    if (error) throw error;
-    const users = data.users || [];
-    const found = users.find((u) => usernameOf(u).toLowerCase() === wanted);
-    if (found) return found;
-    if (users.length < 1000) break;
-  }
-  return null;
+  const { data, error } = await supabaseUser.rpc("wallet_find_user_by_username", { p_username: wanted });
+  if (error) throw error;
+  return typeof data === "string" && data ? data : null;
 }
 
 export async function handleWalletRequest(request: Request): Promise<Response> {
@@ -47,15 +41,20 @@ export async function handleWalletRequest(request: Request): Promise<Response> {
     try {
       const user = await getAuthenticatedUser(request);
       if (!user) return safeJson({ error: "Sesi login diperlukan." }, 401);
+      const accessToken =
+        request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1] ||
+        request.headers.get("x-adi-access-token")?.trim() || "";
+      if (!accessToken) return safeJson({ error: "Token login tidak ditemukan." }, 401);
+      const supabaseUser = createSupabaseUserClient(accessToken);
 
-      const { data: account, error: accountError } = await supabaseAdmin
+      const { data: account, error: accountError } = await supabaseUser
         .from("wallet_accounts")
         .select("balance,updated_at")
         .eq("user_id", user.id)
         .maybeSingle();
       if (accountError) throw accountError;
 
-      const { data: deposits, error: depositError } = await supabaseAdmin
+      const { data: deposits, error: depositError } = await supabaseUser
         .from("wallet_deposits")
         .select("id,amount,method,reference,note,status,admin_note,created_at,reviewed_at")
         .eq("user_id", user.id)
@@ -65,7 +64,7 @@ export async function handleWalletRequest(request: Request): Promise<Response> {
 
       return safeJson({
         balance: Number(account?.balance || 0),
-        hasPin: await hasWalletPin(user.id),
+        hasPin: await hasWalletPin(supabaseUser, user.id),
         deposits: deposits || [],
       });
     } catch (error) {
@@ -100,13 +99,13 @@ export async function handleWalletRequest(request: Request): Promise<Response> {
         if (!/^\d{6}$/.test(body.newPin || "")) {
           return safeJson({ error: "PIN saldo harus tepat 6 angka." }, 400);
         }
-        const exists = await hasWalletPin(user.id);
-        if (exists && !(await verifyWalletPin(user.id, body.pin || ""))) {
+        const exists = await hasWalletPin(supabaseUser, user.id);
+        if (exists && !(await verifyWalletPin(supabaseUser, user.id, body.pin || ""))) {
           return safeJson({ error: "PIN lama salah." }, 401);
         }
         const salt = randomHex(16);
         const hash = await hashPin(body.newPin!, salt);
-        const { error } = await supabaseAdmin.rpc("wallet_set_pin", {
+        const { error } = await supabaseUser.rpc("wallet_set_pin", {
           p_user_id: user.id,
           p_pin_hash: hash,
           p_pin_salt: salt,
@@ -119,16 +118,16 @@ export async function handleWalletRequest(request: Request): Promise<Response> {
         if (!/^\d{6}$/.test(body.pin || "")) {
           return safeJson({ error: "Masukkan PIN saldo 6 angka." }, 400);
         }
-        if (!(await hasWalletPin(user.id))) {
+        if (!(await hasWalletPin(supabaseUser, user.id))) {
           return safeJson({ error: "Buat PIN saldo terlebih dahulu." }, 400);
         }
-        if (!(await verifyWalletPin(user.id, body.pin!))) {
+        if (!(await verifyWalletPin(supabaseUser, user.id, body.pin!))) {
           return safeJson({ error: "PIN saldo salah." }, 401);
         }
         const amount = money(body.amount);
         if (!amount) return safeJson({ error: "Jumlah deposit tidak valid." }, 400);
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabaseUser
           .from("wallet_deposits")
           .insert({
             user_id: user.id,
@@ -150,7 +149,7 @@ export async function handleWalletRequest(request: Request): Promise<Response> {
       if (body.action === "admin-deposit") {
         const depositId = String(body.depositId || "");
         if (!depositId) return safeJson({ error: "Deposit tidak ditemukan." }, 400);
-        const { data, error } = await supabaseAdmin.rpc("wallet_approve_deposit", {
+        const { data, error } = await supabaseUser.rpc("wallet_approve_deposit", {
           p_deposit_id: depositId,
           p_admin_id: admin.id,
           p_approve: Boolean(body.approve),
@@ -163,15 +162,15 @@ export async function handleWalletRequest(request: Request): Promise<Response> {
       if (body.action === "admin-credit" || body.action === "admin-debit") {
         const username = String(body.username || "").trim();
         if (!username) return safeJson({ error: "Username wajib diisi." }, 400);
-        const target = await findUserByUsername(username);
+        const target = await findUserByUsername(supabaseUser, username);
         if (!target) return safeJson({ error: "Username tidak ditemukan." }, 404);
         const amount = money(body.amount);
         if (!amount) return safeJson({ error: "Jumlah saldo tidak valid." }, 400);
 
         let result;
         if (body.action === "admin-credit") {
-          const rpc = await supabaseAdmin.rpc("wallet_credit", {
-            p_user_id: target.id,
+          const rpc = await supabaseUser.rpc("wallet_credit", {
+            p_user_id: target,
             p_amount: amount,
             p_type: "admin_credit",
             p_reference_type: "admin_manual",
@@ -184,7 +183,7 @@ export async function handleWalletRequest(request: Request): Promise<Response> {
           if (rpc.error) throw rpc.error;
           result = rpc.data;
         } else {
-          const rpc = await supabaseAdmin.rpc("wallet_debit", {
+          const rpc = await supabaseUser.rpc("wallet_debit", {
             p_user_id: target.id,
             p_amount: amount,
             p_description: body.note
@@ -198,7 +197,7 @@ export async function handleWalletRequest(request: Request): Promise<Response> {
 
         return safeJson({
           ok: true,
-          username: usernameOf(target),
+          username,
           balance: Number(result || 0),
         });
       }
