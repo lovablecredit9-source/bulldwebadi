@@ -336,17 +336,37 @@ function AdminPanel() {
   };
 
   const reviewDeposit = async (depositId: string, approve: boolean) => {
+    if (walletBusy) return;
     setWalletBusy(true);
     try {
-      await postJson("/api/admin/wallet", {
-        action: approve ? "approve-deposit" : "reject-deposit",
-        depositId,
+      // Jalur paling langsung: gunakan session Supabase yang sedang login
+      // untuk memanggil RPC SECURITY DEFINER. Ini menghindari kegagalan
+      // routing/SSR endpoint saat tombol Admin ditekan dari browser.
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      const accessToken = sessionData.session?.access_token;
+      const adminId = sessionData.session?.user?.id;
+      if (!accessToken || !adminId) throw new Error("Sesi admin tidak ditemukan. Silakan login ulang.");
+
+      const { data, error } = await supabase.rpc("wallet_approve_deposit", {
+        p_deposit_id: depositId,
+        p_admin_id: adminId,
+        p_approve: approve,
+        p_admin_note: null,
       });
+
+      if (error) throw error;
+      if (!data || typeof data !== "object") throw new Error("Server tidak mengembalikan hasil approval deposit.");
+
       toast.success(approve ? "Deposit disetujui dan saldo ditambahkan." : "Deposit ditolak.");
       await refreshWalletDeposits();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Deposit gagal diproses.");
-    } finally { setWalletBusy(false); }
+      const message = errorText(error);
+      console.error("[Admin Wallet] review deposit gagal", error);
+      toast.error(`Gagal memproses deposit: ${message}`);
+    } finally {
+      setWalletBusy(false);
+    }
   };
 
   const manualWalletChange = async (action: "admin-credit" | "admin-debit") => {
