@@ -6,10 +6,15 @@ import { getAuthenticatedUser } from "@/lib/auth.server";
 import { isAdministratorUser } from "@/lib/roles";
 
 async function allowedModels() {
-  const { data } = await supabaseAdmin.from("ai_settings").select("allowed_models").eq("id", 1).maybeSingle();
-  return Array.isArray(data?.allowed_models)
-    ? data.allowed_models.filter((m): m is string => typeof m === "string").map(normalizeModel).filter(Boolean)
-    : [];
+  try {
+    const { data } = await supabaseAdmin.from("ai_settings").select("allowed_models").eq("id", 1).maybeSingle();
+    return Array.isArray(data?.allowed_models)
+      ? data.allowed_models.filter((m): m is string => typeof m === "string").map(normalizeModel).filter(Boolean)
+      : [];
+  } catch (error) {
+    console.error("[ai/models] allowed_models lookup failed", error);
+    return [];
+  }
 }
 
 function endpoints(baseUrl: string) {
