@@ -10,6 +10,7 @@ import { ModelSelect } from "@/components/ModelSelect";
 import { DEFAULT_BASE_URL, DEFAULT_MODEL } from "@/lib/models";
 import { getJson, postJson } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
+import { isAdministratorEmail } from "@/lib/roles";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Settings — ADI BUILDER BOT" }, { name: "description", content: "Atur profil akun dan konfigurasi AI." }] }),
@@ -67,7 +68,7 @@ function SettingsPage() {
       setEmail(user.email || "");
       setUsername(typeof user.user_metadata?.username === "string" ? user.user_metadata.username : "");
       setAccountCreatedAt(user.created_at || null);
-      const admin = user.email?.trim().toLowerCase() === "panpakarak36@gmail.com";
+      const admin = isAdministratorEmail(user.email);
       setIsAdmin(admin);
       if (admin) {
         getJson<Cfg & { allowedModels?: string[] }>("/api/settings").then((cfg) => {
