@@ -17,7 +17,7 @@ export const Route = createFileRoute("/api/settings")({
     handlers: {
       GET: async ({ request }) => {
         const user = await getAuthenticatedUser(request);
-        if (!user) return safeJson({ error: "Sesi login diperlukan." }, 401);
+        if (!user) return safeJson({ error: "Permintaan tidak dapat diproses. Silakan login kembali." }, 401);
         if (!isAdministratorUser(user)) return safeJson({ error: "Akses hanya untuk Administrator." }, 403);
         const { data } = await supabaseAdmin.from("ai_settings").select("base_url, api_key, model, allowed_models").eq("id", 1).maybeSingle();
         const cfg = await loadConfig();
