@@ -66,7 +66,7 @@ function SettingsPage() {
       const user = data.user;
       if (!user) return;
       setEmail(user.email || "");
-      setUsername(typeof user.user_metadata?.username === "string" ? user.user_metadata.username : "");
+      setUsername(typeof user.user_metadata?.['username'] === "string" ? (user.user_metadata['username'] as string) : "");
       setAccountCreatedAt(user.created_at || null);
       const admin = isAdministratorEmail(user.email);
       setIsAdmin(admin);

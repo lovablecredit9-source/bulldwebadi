@@ -47,7 +47,13 @@ export async function loadConfig(): Promise<AiConfig> {
   }
 }
 
-export class AiError extends Error {}
+export class AiError extends Error {
+  status: number;
+  constructor(message: string, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
 
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 

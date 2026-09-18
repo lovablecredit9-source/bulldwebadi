@@ -39,7 +39,7 @@ export function ModelSelect({
       .then((r) => {
         if (r.models?.length) {
           setModels(r.models);
-          if (!allowCurrentValue && !r.models.includes(value)) onChange(r.models[0]);
+          if (!allowCurrentValue && !r.models.includes(value) && r.models[0]) onChange(r.models[0]);
         }
         setSource(r.source);
       })
