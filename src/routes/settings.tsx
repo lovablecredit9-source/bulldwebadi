@@ -203,7 +203,19 @@ function SettingsPage() {
   };
   const save = async () => {
     setSaving(true); setConnected(false);
-    try { const c = await postJson<Cfg & { allowedModels?: string[] }>("/api/settings", { baseUrl, model, apiKey, allowedModels }); setMasked(c.maskedKey); setHasKey(Boolean(c.hasKey)); setApiKey(""); const result = await verifySavedConfig(); if (result?.online && result.modelAvailable) toast.success("Konfigurasi tersimpan — router dan model siap digunakan"); else toast.error(result?.error || "Konfigurasi tersimpan, tetapi router/model belum siap."); }
+    try {
+      const c = await postJson<Cfg & { allowedModels?: string[] }>("/api/settings", { baseUrl, model, apiKey, allowedModels });
+      setMasked(c.maskedKey); setHasKey(Boolean(c.hasKey)); setApiKey("");
+      const result = await verifySavedConfig();
+      const adminReady = isAdmin && result && "models" in result
+        ? Boolean((result as { online?: boolean; models?: string[] }).online && (result as { models?: string[] }).models?.length)
+        : false;
+      const userReady = !isAdmin && result && "modelAvailable" in result
+        ? Boolean((result as HealthResult).online && (result as HealthResult).modelAvailable)
+        : false;
+      if (adminReady || userReady) toast.success("Konfigurasi tersimpan — router dan model siap digunakan");
+      else toast.error((result as { error?: string } | null)?.error || "Konfigurasi tersimpan, tetapi router/model belum siap.");
+    }
     catch (e) { toast.error(e instanceof Error ? e.message : "Konfigurasi gagal disimpan."); }
     finally { setSaving(false); }
   };
