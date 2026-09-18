@@ -33,6 +33,12 @@ export async function unlockProject(projectId: string, pin: string) {
   return res;
 }
 
+export async function lockProject(projectId: string) {
+  const res = await postJson<{ ok: boolean }>("/api/project/pin", { projectId, action: "lock", token: getPinToken(projectId) });
+  savePinToken(projectId, null);
+  return res;
+}
+
 export async function listProjectSessions(projectId: string) {
   const token = getPinToken(projectId);
   if (!token) return [];
