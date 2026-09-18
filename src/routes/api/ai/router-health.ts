@@ -119,7 +119,7 @@ export const Route = createFileRoute("/api/ai/router-health")({
 
         const body = (await request.json().catch(() => ({}))) as { model?: string; baseUrl?: string; apiKey?: string };
         const storedConfig = await loadConfig();
-        const admin = isAdministrator(user);
+        const admin = isAdministratorUser(user);
         const config = admin
           ? {
               ...storedConfig,
@@ -130,7 +130,7 @@ export const Route = createFileRoute("/api/ai/router-health")({
         const requestedModel = body.model?.trim();
         const model = normalizeModel(requestedModel || config.model);
 
-        if (!isAdministrator(user)) {
+        if (!isAdministratorUser(user)) {
           const allowed = await getAllowedModels();
           if (!allowed.includes(model)) return safeJson({ error: "Model tersebut tidak diizinkan untuk user." }, 403);
         }
