@@ -15,17 +15,11 @@ function getSupabaseAuthConfig() {
   // Prefer the server URL/key when configured, then fall back to the public
   // application configuration. The publishable key is safe for JWT verification;
   // secret/service-role keys remain reserved for privileged server operations.
-  const supabaseUrl =
-    process.env["SUPABASE_URL"] ||
-    process.env["VITE_SUPABASE_URL"] ||
-    "https://ochqpzpsfqytemrgsdir.supabase.co";
-
-  const supabaseKey =
-    process.env["SUPABASE_PUBLISHABLE_KEY"] ||
-    process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
-    process.env["SUPABASE_SERVICE_ROLE_KEY"] ||
-    process.env["SUPABASE_SECRET_KEY"] ||
-    "sb_publishable_Wmfpinvf5ZPzf7dmRoNtMw_1L1H1qfC";
+  // App browser client is generated against this Supabase project. Do not let
+  // a stale SUPABASE_URL/VITE_SUPABASE_URL from an older deployment make a
+  // valid browser JWT look like an unauthenticated session.
+  const supabaseUrl = "https://ochqpzpsfqytemrgsdir.supabase.co";
+  const supabaseKey = "sb_publishable_Wmfpinvf5ZPzf7dmRoNtMw_1L1H1qfC";
 
   return { supabaseUrl: supabaseUrl.replace(/\/+$/, ""), supabaseKey };
 }
