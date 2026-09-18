@@ -8,6 +8,7 @@ import { AuthGate } from "@/components/AuthGate";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { isAdministratorUser } from "@/lib/roles";
+import { getValidSession } from "@/lib/session";
 import type { Session } from "@supabase/supabase-js";
 
 
