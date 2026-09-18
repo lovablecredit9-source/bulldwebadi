@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Eye, EyeOff, ImagePlus, Loader2, Pencil, Save, Server, ShieldCheck, Trash2, XCircle, Zap } from "lucide-react";
 import { toast } from "sonner";
@@ -83,6 +83,7 @@ type AiConfig = { baseUrl: string; model: string; hasKey: boolean; maskedKey: st
 type AiHealth = { online: boolean; modelAvailable?: boolean; latencyMs?: number; error?: string };
 
 function AdminPage() {
+  const router = useRouter();
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [aiBaseUrl, setAiBaseUrl] = useState("");
   const [aiApiKey, setAiApiKey] = useState("");
@@ -144,6 +145,12 @@ function AdminPage() {
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    if (allowed === false) {
+      void router.navigate({ to: "/" });
+    }
+  }, [allowed, router]);
 
   const upload = async (bannerType: BannerType) => {
     const file = files[bannerType];
@@ -325,8 +332,8 @@ function AdminPage() {
       const result = await postJson<AiConfig>("/api/settings", {
         baseUrl: aiBaseUrl.trim(), model: aiModel, apiKey: aiApiKey, allowedModels: aiAllowedModels,
       });
-      setAiBaseUrl(result.baseUrl || aiBaseUrl.trim());
-      setAiMaskedKey(result.maskedKey || aiMaskedKey);
+      setAiBaseUrl(result?.baseUrl ?? aiBaseUrl.trim());
+      setAiMaskedKey(result?.maskedKey ?? aiMaskedKey);
       setAiApiKey("");
       setAiStatus("idle");
       toast.success("AI Configuration global berhasil disimpan.");
