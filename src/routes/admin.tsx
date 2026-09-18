@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { ModelSelect } from "@/components/ModelSelect";
 import { getJson, postJson } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
+import { isAdministratorEmail } from "@/lib/roles";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Panel Admin — ADI BUILDER BOT" }] }),
