@@ -63,9 +63,8 @@ function toastError(stage: string, error: unknown) {
 }
 
 async function requireAdmin() {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError) throw new Error(`Sesi login tidak dapat diverifikasi: ${sessionError.message}`);
-  const sessionUser = sessionData.session?.user;
+  // Jalur auth yang sama persis dengan permintaan API terlindungi.
+  const sessionUser = await getSessionUser();
   if (!sessionUser) throw new Error("Sesi login tidak ditemukan.");
   if (!isAdministratorUser(sessionUser)) throw new Error("Akun yang login bukan administrator yang diizinkan.");
   return sessionUser;
