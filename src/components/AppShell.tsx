@@ -66,9 +66,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    void supabase.auth.getSession().then(({ data }) => {
+    void getValidSession().then((restored) => {
       if (mounted) {
-        setSession(data.session);
+        setSession(restored);
         setAuthLoading(false);
       }
     });
