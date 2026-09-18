@@ -3,6 +3,7 @@ import { ArrowRight, Bot, Puzzle, Smartphone, Sparkles, Upload } from "lucide-re
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { BuilderForm } from "@/components/BuilderForm";
+import { WalletPanel } from "@/components/WalletPanel";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
@@ -103,6 +104,7 @@ function Index() {
         </section>
 
         <div className="mt-5 sm:mt-6"><BuilderForm title="Buat project baru dengan AI" description="Isi nama, jenis, dan deskripsi project. AI akan menghasilkan file project sungguhan." placeholder="Contoh: bot telegram toko pulsa dengan menu, database, dan broadcast admin." /></div>
+        <div className="mt-5"><WalletPanel /></div>
         <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 text-center text-xs text-muted-foreground sm:mt-6 sm:text-sm"><Sparkles className="size-4 shrink-0 text-primary" /><span>Bangun ide, kembangkan project, dan wujudkan dengan bantuan AI.</span></div>
       </div>
     </AppShell>
