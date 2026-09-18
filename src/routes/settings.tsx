@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Eye, EyeOff, Loader2, Save, Server, User, KeyRound, Mail, Zap } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, Loader2, Save, Server, User, KeyRound, Mail, Zap, CalendarDays } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ type EmailMode = "password" | "code";
 function SettingsPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [accountCreatedAt, setAccountCreatedAt] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -62,6 +63,7 @@ function SettingsPage() {
       if (!user) return;
       setEmail(user.email || "");
       setUsername(typeof user.user_metadata?.username === "string" ? user.user_metadata.username : "");
+      setAccountCreatedAt(user.created_at || null);
     });
     getJson<Cfg>("/api/settings").then((c) => {
       setBaseUrl(c.baseUrl || DEFAULT_BASE_URL); setModel(c.model || DEFAULT_MODEL); setMasked(c.maskedKey); setHasKey(Boolean(c.hasKey));
@@ -194,6 +196,28 @@ function SettingsPage() {
   return <AppShell>
     <h1 className="text-2xl font-bold">Settings</h1>
     <p className="mt-1 text-sm text-muted-foreground">Kelola profil akun, password, email, dan konfigurasi AI kamu.</p>
+
+    <section className="mt-6 max-w-2xl overflow-hidden rounded-2xl border border-primary/20 bg-card p-5 shadow-lg shadow-primary/5 sm:p-6">
+      <div className="flex items-center gap-3">
+        <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20"><User className="size-5" /></div>
+        <div><h2 className="font-semibold">Informasi Akun</h2><p className="text-sm text-muted-foreground">Informasi akun yang sedang login.</p></div>
+      </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-primary/10 bg-background/40 p-4">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground"><User className="size-4 text-primary" /> Username</div>
+          <p className="mt-2 truncate text-sm font-semibold">{username || "Belum tersedia"}</p>
+        </div>
+        <div className="rounded-xl border border-primary/10 bg-background/40 p-4">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground"><Mail className="size-4 text-primary" /> Email</div>
+          <p className="mt-2 truncate text-sm font-semibold">{email || "Belum tersedia"}</p>
+        </div>
+        <div className="rounded-xl border border-primary/10 bg-background/40 p-4 sm:col-span-3">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground"><CalendarDays className="size-4 text-primary" /> Akun dibuat sejak</div>
+          {accountCreatedAt ? <p className="mt-2 text-sm font-semibold">{new Intl.DateTimeFormat("id-ID", { dateStyle: "long", timeZone: "Asia/Jakarta" }).format(new Date(accountCreatedAt))}</p> : <p className="mt-2 text-sm text-muted-foreground">Tanggal pembuatan akun tidak tersedia.</p>}
+          {accountCreatedAt && <p className="mt-1 text-xs text-muted-foreground">{new Intl.DateTimeFormat("id-ID", { dateStyle: "long", timeStyle: "short", timeZone: "Asia/Jakarta" }).format(new Date(accountCreatedAt))} WIB</p>}
+        </div>
+      </div>
+    </section>
 
     <section className="mt-6 grid max-w-2xl gap-4 rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
       <div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><User className="size-5" /></div><div><h2 className="font-semibold">Profil Akun</h2><p className="text-sm text-muted-foreground">Username dan email akun kamu.</p></div></div>
