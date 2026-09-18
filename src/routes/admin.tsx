@@ -340,18 +340,29 @@ function AdminPage() {
 
   const saveAiConfiguration = async () => {
     if (!aiBaseUrl.trim()) return toast.error("Base URL wajib diisi.");
-    if (!aiModel) return toast.error("Pilih Model AI Default terlebih dahulu.");
-    if (!aiAllowedModels.length) return toast.error("Pilih minimal satu model yang diizinkan untuk User.");
+    // Tahap pertama: simpan kredensial router terlebih dahulu. Model belum wajib
+    // karena model baru diketahui setelah Test Connection -> GET /models.
+    const hasSelectedModel = Boolean(aiModel.trim());
+    if (hasSelectedModel && !aiAllowedModels.length) {
+      return toast.error("Pilih minimal satu model yang diizinkan untuk User.");
+    }
+
     setAiSaving(true); setAiStatus("idle"); setAiError("");
     try {
       const result = await postJson<AiConfig>("/api/settings", {
-        baseUrl: aiBaseUrl.trim(), model: aiModel, apiKey: aiApiKey, allowedModels: aiAllowedModels,
+        baseUrl: aiBaseUrl.trim(),
+        apiKey: aiApiKey,
+        ...(hasSelectedModel ? { model: aiModel.trim(), allowedModels: aiAllowedModels } : {}),
       });
       setAiBaseUrl(result?.baseUrl ?? aiBaseUrl.trim());
       setAiMaskedKey(result?.maskedKey ?? aiMaskedKey);
       setAiApiKey("");
       setAiStatus("idle");
-      toast.success("AI Configuration global berhasil disimpan.");
+      toast.success(
+        hasSelectedModel
+          ? "AI Configuration global berhasil disimpan."
+          : "Base URL dan API Key berhasil disimpan. Sekarang tekan Test Connection untuk mengambil model dari router.",
+      );
     } catch (error) {
       toast.error(errorText(error));
     } finally { setAiSaving(false); }
