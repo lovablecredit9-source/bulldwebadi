@@ -2,8 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { DEFAULT_BASE_URL } from "@/lib/models";
 import { loadConfig, safeJson } from "@/lib/ai.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isAdministratorEmail } from "@/lib/roles";
 
-const ADMIN_EMAIL = "panpakarak36@gmail.com";
+
 
 async function getUser(request: Request) {
   const token = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
@@ -14,7 +15,7 @@ async function getUser(request: Request) {
 
 async function isAdministrator(request: Request) {
   const user = await getUser(request);
-  return user?.email?.trim().toLowerCase() === ADMIN_EMAIL;
+  return user?.email?.trim().toLowerCase() isAdministratorEmail(email);
 }
 
 function mask(key: string | null | undefined) {
