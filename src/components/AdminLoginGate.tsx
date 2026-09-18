@@ -57,6 +57,21 @@ export function AdminLoginGate({ children }: Props) {
       // Simpan session hasil sign-in langsung ke cache yang dipakai oleh seluruh
       // request terlindungi. Jangan menunggu localStorage/event auth selesai.
       primeSession(data.session);
+
+      const bridge = await fetch("/api/admin/session", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${data.session.access_token}`,
+        },
+      });
+      const bridgeData = await bridge.json().catch(() => null) as { error?: string } | null;
+      if (!bridge.ok) {
+        await supabase.auth.signOut();
+        throw new Error(bridgeData?.error || "Sesi Administrator gagal disiapkan.");
+      }
+
       const verifiedUser = await getSessionUser();
       if (!verifiedUser || !isAdministratorUser(verifiedUser)) {
         await supabase.auth.signOut();
