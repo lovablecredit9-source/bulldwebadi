@@ -33,7 +33,7 @@ export type AiConfig = { baseUrl: string; apiKey: string; model: string };
  */
 function normalizeAiConfig(input: Partial<AiConfig>, fallback: AiConfig): AiConfig {
   const baseUrl = typeof input.baseUrl === "string" && input.baseUrl.trim()
-    ? input.baseUrl.trim().replace(/\\/+$/, "")
+    ? input.baseUrl.trim().replace(/\/+$/, "")
     : fallback.baseUrl;
   const apiKey = typeof input.apiKey === "string" && input.apiKey.trim()
     ? input.apiKey.trim()
