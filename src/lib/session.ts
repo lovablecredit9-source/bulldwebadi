@@ -30,6 +30,11 @@ function isUsable(session: Session | null | undefined) {
  * Karena itu helper ini mencoba ulang beberapa kali dan melakukan refreshSession
  * bila token kosong atau hampir kedaluwarsa. Tidak ada token manual/localStorage.
  */
+export function primeSession(session: Session | null) {
+  cachedSession = session;
+  ensureAuthListener();
+}
+
 export async function getValidSession(): Promise<Session | null> {
   ensureAuthListener();
 
