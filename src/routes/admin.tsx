@@ -67,7 +67,6 @@ async function requireAdmin() {
   if (sessionError) throw new Error(`Sesi login tidak dapat diverifikasi: ${sessionError.message}`);
   const sessionUser = sessionData.session?.user;
   if (!sessionUser) throw new Error("Sesi login tidak ditemukan.");
-  const email = sessionUser.email?.trim().toLowerCase();
   if (!isAdministratorUser(sessionUser)) throw new Error("Akun yang login bukan administrator yang diizinkan.");
   return sessionUser;
 }
