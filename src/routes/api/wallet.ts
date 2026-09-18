@@ -93,6 +93,7 @@ export async function handleWalletRequest(request: Request): Promise<Response> {
         pin?: string;
         newPin?: string;
         username?: string;
+        note?: string;
         adminNote?: string;
         depositId?: string;
         approve?: boolean;
