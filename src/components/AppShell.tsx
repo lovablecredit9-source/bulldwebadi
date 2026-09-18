@@ -50,10 +50,10 @@ function Footer() {
 
 type BoundaryState = { hasError: boolean };
 class AppErrorBoundary extends Component<{ children: ReactNode }, BoundaryState> {
-  state: BoundaryState = { hasError: false };
+  override state: BoundaryState = { hasError: false };
   static getDerivedStateFromError(): BoundaryState { return { hasError: true }; }
-  componentDidCatch(error: Error, info: ErrorInfo) { console.error("Workspace render error", error, info); }
-  render() { if (!this.state.hasError) return this.props.children; return <div className="mx-auto max-w-3xl p-6 sm:p-8"><div className="rounded-2xl border border-destructive/30 bg-card p-6 text-center shadow-sm"><Bug className="mx-auto size-10 text-destructive" /><h2 className="mt-3 text-lg font-semibold">Bagian Workspace mengalami error</h2><p className="mt-1 text-sm text-muted-foreground">Tab yang dibuka mengalami masalah. Workspace tetap aman dan tidak perlu keluar dari project.</p><Button className="mt-4 rounded-xl" onClick={() => this.setState({ hasError: false })}>Coba lagi</Button></div></div>; }
+  override componentDidCatch(error: Error, info: ErrorInfo) { console.error("Workspace render error", error, info); }
+  override render() { if (!this.state.hasError) return this.props.children; return <div className="mx-auto max-w-3xl p-6 sm:p-8"><div className="rounded-2xl border border-destructive/30 bg-card p-6 text-center shadow-sm"><Bug className="mx-auto size-10 text-destructive" /><h2 className="mt-3 text-lg font-semibold">Bagian Workspace mengalami error</h2><p className="mt-1 text-sm text-muted-foreground">Tab yang dibuka mengalami masalah. Workspace tetap aman dan tidak perlu keluar dari project.</p><Button className="mt-4 rounded-xl" onClick={() => this.setState({ hasError: false })}>Coba lagi</Button></div></div>; }
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
