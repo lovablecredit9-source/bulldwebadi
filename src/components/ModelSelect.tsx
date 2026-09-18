@@ -22,10 +22,10 @@ export function ModelSelect({
   disabled?: boolean;
 }) {
   const [models, setModels] = useState<string[]>(AI_MODELS);
-  const [source, setSource] = useState<"router" | "fallback">("fallback");
+  const [source, setSource] = useState<"router" | "fallback" | "admin-allowed">("fallback");
 
   useEffect(() => {
-    getJson<{ models: string[]; source: "router" | "fallback" }>("/api/ai/models")
+    getJson<{ models: string[]; source: "router" | "fallback" | "admin-allowed" }>("/api/ai/models")
       .then((r) => {
         if (r.models?.length) setModels(r.models);
         setSource(r.source);
@@ -53,7 +53,9 @@ export function ModelSelect({
       <p className="text-xs text-muted-foreground">
         {source === "router"
           ? `Terdeteksi otomatis dari router (${models.length} model).`
-          : "Memakai daftar cadangan. Simpan API Key agar model terdeteksi otomatis."}
+          : source === "admin-allowed"
+            ? `Model yang diizinkan Administrator (${models.length} model).`
+            : "Memakai daftar cadangan. Simpan API Key agar model terdeteksi otomatis."}
       </p>
     </div>
   );
