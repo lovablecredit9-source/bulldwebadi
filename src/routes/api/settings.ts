@@ -2,21 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { DEFAULT_BASE_URL } from "@/lib/models";
 import { loadConfig, safeJson } from "@/lib/ai.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getAuthenticatedUser } from "@/lib/auth.server";
 import { isAdministratorUser } from "@/lib/roles";
 
 
-
-async function getUser(request: Request) {
-  const token = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
-  if (!token) return null;
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  return error || !data.user ? null : data.user;
-}
-
-async function isAdministrator(request: Request) {
-  const user = await getUser(request);
-  return isAdministratorUser(user);
-}
 
 function mask(key: string | null | undefined) {
   if (!key) return "";
@@ -27,7 +16,9 @@ export const Route = createFileRoute("/api/settings")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        if (!(await isAdministrator(request))) return safeJson({ error: "Akses hanya untuk Administrator." }, 403);
+        const user = await getAuthenticatedUser(request);
+        if (!user) return safeJson({ error: "Sesi login diperlukan." }, 401);
+        if (!isAdministratorUser(user)) return safeJson({ error: "Akses hanya untuk Administrator." }, 403);
         const { data } = await supabaseAdmin.from("ai_settings").select("base_url, api_key, model, allowed_models").eq("id", 1).maybeSingle();
         const cfg = await loadConfig();
         return safeJson({
@@ -39,7 +30,9 @@ export const Route = createFileRoute("/api/settings")({
         });
       },
       POST: async ({ request }) => {
-        if (!(await isAdministrator(request))) return safeJson({ error: "Hanya Administrator yang dapat mengubah AI Configuration." }, 403);
+        const user = await getAuthenticatedUser(request);
+        if (!user) return safeJson({ error: "Sesi login diperlukan." }, 401);
+        if (!isAdministratorUser(user)) return safeJson({ error: "Hanya Administrator yang dapat mengubah AI Configuration." }, 403);
         const body = (await request.json().catch(() => ({}))) as {
           baseUrl?: string;
           apiKey?: string;
