@@ -80,6 +80,7 @@ export const Route = createFileRoute("/api/admin/wallet")({
   server: {
     handlers: {
       GET: async ({ request }) => handleAdminWalletRequest(request),
+      POST: async ({ request }) => handleAdminWalletRequest(request),
     },
   },
 });
