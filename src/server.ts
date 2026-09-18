@@ -2,6 +2,8 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { handleWalletRequest } from "./routes/api/wallet";
+import { handleAdminWalletRequest } from "./routes/api/admin/wallet";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -47,6 +49,16 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      // Explicit API fallback for the wallet endpoints. This keeps these critical
+      // endpoints available even if a preview's generated route manifest is stale.
+      const pathname = new URL(request.url).pathname;
+      if (pathname === "/api/wallet") {
+        return await handleWalletRequest(request);
+      }
+      if (pathname === "/api/admin/wallet") {
+        return await handleAdminWalletRequest(request);
+      }
+
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
