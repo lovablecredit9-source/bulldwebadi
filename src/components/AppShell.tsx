@@ -7,9 +7,10 @@ import { HtmlLiveTester } from "@/components/HtmlLiveTester";
 import { AuthGate } from "@/components/AuthGate";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { isAdministratorEmail } from "@/lib/roles";
 import type { Session } from "@supabase/supabase-js";
 
-const ADMIN_EMAIL = "panpakarak36@gmail.com";
+
 
 const NAV = [
   { to: "/", label: "AI Builder", icon: Home },
@@ -61,7 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const workspaceMatch = pathname.match(/^\/projects\/([^/]+)$/);
-  const isAdmin = session?.user.email?.trim().toLowerCase() === ADMIN_EMAIL;
+  const isAdmin = isAdministratorEmail(session?.user.email);
 
   useEffect(() => {
     let mounted = true;
