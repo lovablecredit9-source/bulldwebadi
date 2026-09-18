@@ -34,6 +34,9 @@ export async function handleAdminWalletRequest(request: Request): Promise<Respon
     if (request.method === "POST") {
       const body = (await request.json().catch(() => ({}))) as {
         action?: string;
+        depositId?: string;
+        approve?: boolean;
+        adminNote?: string;
         danaNumber?: string;
         danaName?: string;
         ovoNumber?: string;
@@ -42,6 +45,21 @@ export async function handleAdminWalletRequest(request: Request): Promise<Respon
         gopayName?: string;
         qrisImageUrl?: string;
       };
+
+      if (body.action === "approve-deposit" || body.action === "reject-deposit") {
+        const depositId = String(body.depositId || "").trim();
+        if (!depositId) return safeJson({ error: "Deposit tidak ditemukan." }, 400);
+
+        const { data, error } = await supabaseUser.rpc("wallet_approve_deposit", {
+          p_deposit_id: depositId,
+          p_admin_id: admin.id,
+          p_approve: body.action === "approve-deposit",
+          p_admin_note: body.adminNote ? String(body.adminNote).slice(0, 500) : null,
+        });
+        if (error) throw error;
+
+        return safeJson({ ok: true, result: data });
+      }
 
       if (body.action !== "payment-settings") {
         return safeJson({ error: "Aksi admin wallet tidak dikenal." }, 400);
