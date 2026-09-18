@@ -128,10 +128,17 @@ function AdminPanel() {
       }
 
       try {
-        const modelList = await getJson<{ models: string[] }>("/api/ai/models");
+        // Model Admin selalu dibaca melalui endpoint Admin khusus.
+        // Kredensial router tetap berada di server/database pusat.
+        const modelList = await getJson<{ models?: string[]; error?: string }>("/api/admin/ai/test");
         setAiModelOptions(Array.isArray(modelList?.models) ? modelList.models : []);
+        if (Array.isArray(modelList?.models) && modelList.models.length) {
+          setAiError("");
+          setAiStatus("online");
+        }
       } catch (error) {
-        console.error("[Admin] Daftar model gagal dimuat", error);
+        // Jangan mengganggu login/panel Admin hanya karena router belum siap.
+        console.error("[Admin] Daftar model router gagal dimuat", error);
         setAiModelOptions([]);
       }
 
@@ -167,19 +174,23 @@ function AdminPanel() {
 
   useEffect(() => {
     if (allowed !== true) return;
+
     const baseUrl = aiBaseUrl.trim();
-    const hasCredentials = Boolean(aiApiKey.trim() || aiMaskedKey);
-    if (!baseUrl || !hasCredentials) {
-      if (!aiApiKey.trim() && !aiMaskedKey) setAiModelOptions([]);
-      return;
-    }
+    const enteredApiKey = aiApiKey.trim();
+
+    // Setelah konfigurasi dimuat, GET /api/admin/ai/test sudah dapat
+    // melakukan discovery memakai kredensial tersimpan di server. Jangan
+    // mengirim masked key dari browser dan jangan memanggil endpoint User.
+    // Saat Admin benar-benar memasukkan API Key baru, discovery otomatis
+    // boleh memakai key baru tersebut.
+    if (!baseUrl || !enteredApiKey) return;
 
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       try {
-        const result = await postJson<{ models: string[]; error?: string }>("/api/ai/models", {
+        const result = await postJson<{ models?: string[]; error?: string }>("/api/admin/ai/test", {
           baseUrl,
-          apiKey: aiApiKey.trim(),
+          apiKey: enteredApiKey,
         });
         const models = Array.isArray(result?.models)
           ? Array.from(new Set(result.models.filter((model): model is string => typeof model === "string" && Boolean(model.trim()))))
@@ -195,14 +206,12 @@ function AdminPanel() {
         if (!models.length) {
           setAiStatus("offline");
           setAiError(result?.error || "Router tidak mengembalikan model yang tersedia.");
-          setAiAllowedModels([]);
         } else {
-          setAiStatus("idle");
+          setAiStatus("online");
         }
       } catch (error) {
         if (cancelled) return;
         setAiModelOptions([]);
-        setAiAllowedModels([]);
         setAiStatus("offline");
         setAiError(errorText(error));
       }
@@ -212,7 +221,7 @@ function AdminPanel() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [allowed, aiBaseUrl, aiApiKey, aiMaskedKey]);
+  }, [allowed, aiBaseUrl, aiApiKey]);
 
   const upload = async (bannerType: BannerType) => {
     const file = files[bannerType];
