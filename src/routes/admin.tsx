@@ -454,7 +454,7 @@ function AdminPanel() {
     try {
       // Save tidak boleh menyimpan router yang salah/invalid. Validasi kredensial
       // dan ambil katalog model terlebih dahulu.
-      const modelResult = await postJson<{ models: string[]; error?: string }>("/api/ai/models", {
+      const modelResult = await postJson<{ models: string[]; error?: string }>("/api/admin/ai/test", {
         baseUrl: aiBaseUrl.trim(),
         apiKey: aiApiKey.trim(),
       });
