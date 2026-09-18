@@ -1,0 +1,1 @@
+ALTER TABLE public.ai_settings ADD COLUMN IF NOT EXISTS allowed_models text[] NOT NULL DEFAULT '{}'::text[];
