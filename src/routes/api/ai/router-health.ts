@@ -1,6 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { loadConfig, safeJson } from "@/lib/ai.server";
 import { normalizeModel } from "@/lib/models";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+
+const ADMIN_EMAIL = "panpakarak36@gmail.com";
+
+async function isAdministrator(request: Request) {
+  const header = request.headers.get("authorization") || "";
+  const token = header.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!token) return false;
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  return !error && data.user?.email?.trim().toLowerCase() === ADMIN_EMAIL;
+}
 
 function routerEndpoints(baseUrl: string) {
   const base = baseUrl.trim().replace(/\/+$/, "");
@@ -103,7 +114,10 @@ async function probeModel(baseUrl: string, apiKey: string, model: string) {
 export const Route = createFileRoute("/api/ai/router-health")({
   server: {
     handlers: {
-      POST: async () => {
+      POST: async ({ request }) => {
+        if (!(await isAdministrator(request))) {
+          return safeJson({ error: "Hanya Administrator yang dapat melakukan Test Connection." }, 403);
+        }
         const config = await loadConfig();
         const baseUrl = config.baseUrl.trim().replace(/\/+$/, "");
         const model = normalizeModel(config.model);
