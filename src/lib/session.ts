@@ -10,9 +10,21 @@ let authListenerReady = false;
 function ensureAuthListener() {
   if (authListenerReady || typeof window === "undefined") return;
   authListenerReady = true;
-  void supabase.auth.onAuthStateChange((_event, session) => {
-    if (session) cachedSession = session;
-    else cachedSession = null;
+  void supabase.auth.onAuthStateChange((event, session) => {
+    // Supabase can emit INITIAL_SESSION with a transient null while the
+    // brokered preview storage is still hydrating. Never let that transient
+    // null erase a freshly primed, valid session.
+    if (session && isUsable(session)) {
+      cachedSession = session;
+      return;
+    }
+
+    // Only an explicit sign-out should clear the cache. A null session from
+    // initialization or an intermediate broker/storage race must not make
+    // protected Admin requests suddenly appear logged out.
+    if (event === "SIGNED_OUT") {
+      cachedSession = null;
+    }
   });
 }
 
@@ -31,7 +43,7 @@ function isUsable(session: Session | null | undefined) {
  * bila token kosong atau hampir kedaluwarsa. Tidak ada token manual/localStorage.
  */
 export function primeSession(session: Session | null) {
-  cachedSession = session;
+  cachedSession = isUsable(session) ? session : null;
   ensureAuthListener();
 }
 
@@ -67,7 +79,7 @@ export async function getValidSession(): Promise<Session | null> {
 async function refreshSessionOnce(): Promise<Session | null> {
   if (!refreshInFlight) {
     refreshInFlight = supabase.auth.refreshSession()
-.then(({ data, error }) => error ? null : data.session ?? null)
+      .then(({ data, error }) => error ? null : data.session ?? null)
       .catch(() => null)
       .finally(() => { refreshInFlight = null; });
   }
