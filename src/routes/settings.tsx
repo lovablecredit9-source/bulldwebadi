@@ -74,7 +74,7 @@ function SettingsPage() {
         getJson<Cfg & { allowedModels?: string[] }>("/api/settings").then((cfg) => {
           setBaseUrl(cfg.baseUrl || DEFAULT_BASE_URL); setModel(cfg.model || DEFAULT_MODEL); setMasked(cfg.maskedKey); setHasKey(Boolean(cfg.hasKey)); setAllowedModels(Array.isArray(cfg.allowedModels) ? cfg.allowedModels : []);
         }).catch(() => undefined);
-        getJson<{ models: string[] }>("/api/ai/models").then((r) => setAdminModelOptions(r.models || [])).catch(() => undefined);
+        getJson<{ models?: string[] }>("/api/admin/ai/test").then((r) => setAdminModelOptions(r.models || [])).catch(() => undefined);
       }
     });
   }, []);
@@ -175,8 +175,31 @@ function SettingsPage() {
   };
 
   const verifySavedConfig = async () => {
-    try { const result = await postJson<HealthResult>("/api/ai/router-health", { model }); const ok = Boolean(result.online && result.modelAvailable); setConnected(ok); setHealth(ok ? "online" : "offline"); setHealthError(ok ? "" : (result.error || "Router atau model tidak tersedia.")); setLatency(typeof result.latencyMs === "number" ? result.latencyMs : null); return result; }
-    catch (e) { setConnected(false); setHealth("offline"); setHealthError(e instanceof Error ? e.message : "Router tidak dapat diverifikasi."); setLatency(null); return null; }
+    try {
+      if (isAdmin) {
+        const result = await getJson<{ online: boolean; models?: string[]; latencyMs?: number; httpStatus?: number; error?: string }>("/api/admin/ai/test");
+        const ok = Boolean(result.online && result.models?.length);
+        setConnected(ok);
+        setHealth(ok ? "online" : "offline");
+        setHealthError(ok ? "" : (result.error || "Router tidak mengembalikan model."));
+        setLatency(typeof result.latencyMs === "number" ? result.latencyMs : null);
+        if (Array.isArray(result.models)) setAdminModelOptions(result.models);
+        return result;
+      }
+      const result = await postJson<HealthResult>("/api/ai/router-health", { model });
+      const ok = Boolean(result.online && result.modelAvailable);
+      setConnected(ok);
+      setHealth(ok ? "online" : "offline");
+      setHealthError(ok ? "" : (result.error || "Router atau model tidak tersedia."));
+      setLatency(typeof result.latencyMs === "number" ? result.latencyMs : null);
+      return result;
+    } catch (e) {
+      setConnected(false);
+      setHealth("offline");
+      setHealthError(e instanceof Error ? e.message : "Router tidak dapat diverifikasi.");
+      setLatency(null);
+      return null;
+    }
   };
   const save = async () => {
     setSaving(true); setConnected(false);
@@ -186,13 +209,52 @@ function SettingsPage() {
   };
   const test = async () => {
     if ((!isAdmin && !model) || (isAdmin && !hasKey)) return; setTesting(true); setConnected(false); setHealth("idle"); setHealthError(""); setLatency(null);
-    try { const result = await postJson<HealthResult>("/api/ai/router-health", {}); if (result.online && result.modelAvailable) { setConnected(true); setHealth("online"); setLatency(typeof result.latencyMs === "number" ? result.latencyMs : null); toast.success("✓ Router Online — API Key dan model aktif"); } else { setHealth("offline"); setHealthError(result.error || "API Key, router, atau model tidak tersedia."); toast.error(result.error || "Router/model tidak tersedia."); } }
+    try {
+      if (isAdmin) {
+        const result = await postJson<{ online: boolean; models?: string[]; latencyMs?: number; error?: string }>("/api/admin/ai/test", {
+          baseUrl,
+          apiKey,
+        });
+        if (result.online && result.models?.length) {
+          setConnected(true); setHealth("online"); setLatency(typeof result.latencyMs === "number" ? result.latencyMs : null);
+          setAdminModelOptions(result.models);
+          toast.success(`✓ Router Online — ${result.models.length} model terdeteksi`);
+        } else {
+          setHealth("offline"); setHealthError(result.error || "Router tidak mengembalikan model."); toast.error(result.error || "Router/model tidak tersedia.");
+        }
+      } else {
+        const result = await postJson<HealthResult>("/api/ai/router-health", {});
+        if (result.online && result.modelAvailable) {
+          setConnected(true); setHealth("online"); setLatency(typeof result.latencyMs === "number" ? result.latencyMs : null); toast.success("✓ Router Online — model aktif");
+        } else {
+          setHealth("offline"); setHealthError(result.error || "API Key, router, atau model tidak tersedia."); toast.error(result.error || "Router/model tidak tersedia.");
+        }
+      }
+    }
     catch (e) { setConnected(false); setHealth("offline"); setHealthError(e instanceof Error ? e.message : "API Key/Base URL tidak dapat diverifikasi."); toast.error(e instanceof Error ? e.message : "API Key/Base URL tidak dapat diverifikasi."); }
     finally { setTesting(false); }
   };
   const runHealthTest = async () => {
     if (healthRun.current || (!isAdmin && !model) || (isAdmin && !hasKey)) return; healthRun.current = true; setHealth("running"); setHealthError(""); setLatency(null);
-    try { const result = await postJson<HealthResult>("/api/ai/router-health", {}); if (result.online && result.modelAvailable) { setConnected(true); setHealth("online"); setLatency(typeof result.latencyMs === "number" ? result.latencyMs : null); toast.success("✓ Tes berhasil — router dan model aktif"); } else { setConnected(false); setHealth("offline"); setHealthError(result.error || "Router atau model tidak tersedia."); toast.error(result.error || "Tes gagal: router/model tidak tersedia."); } }
+    try {
+      if (isAdmin) {
+        const result = await getJson<{ online: boolean; models?: string[]; latencyMs?: number; error?: string }>("/api/admin/ai/test");
+        if (result.online && result.models?.length) {
+          setConnected(true); setHealth("online"); setLatency(typeof result.latencyMs === "number" ? result.latencyMs : null);
+          setAdminModelOptions(result.models);
+          toast.success(`✓ Tes berhasil — ${result.models.length} model terdeteksi`);
+        } else {
+          setConnected(false); setHealth("offline"); setHealthError(result.error || "Router tidak mengembalikan model."); toast.error(result.error || "Tes gagal.");
+        }
+      } else {
+        const result = await postJson<HealthResult>("/api/ai/router-health", {});
+        if (result.online && result.modelAvailable) {
+          setConnected(true); setHealth("online"); setLatency(typeof result.latencyMs === "number" ? result.latencyMs : null); toast.success("✓ Tes berhasil — router dan model aktif");
+        } else {
+          setConnected(false); setHealth("offline"); setHealthError(result.error || "Router atau model tidak tersedia."); toast.error(result.error || "Tes gagal: router/model tidak tersedia.");
+        }
+      }
+    }
     catch (e) { setConnected(false); setHealth("offline"); setHealthError(e instanceof Error ? e.message : "Router tidak dapat diverifikasi."); toast.error(e instanceof Error ? e.message : "Router tidak dapat diverifikasi."); }
     finally { healthRun.current = false; }
   };
