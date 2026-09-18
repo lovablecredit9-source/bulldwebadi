@@ -56,16 +56,24 @@ export async function handleWalletRequest(request: Request): Promise<Response> {
 
       const { data: deposits, error: depositError } = await supabaseUser
         .from("wallet_deposits")
-        .select("id,amount,method,reference,note,status,admin_note,created_at,reviewed_at")
+        .select("id,amount,method,status,created_at")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(30);
       if (depositError) throw depositError;
 
+      const { data: paymentSettings, error: paymentSettingsError } = await (supabaseUser as any)
+        .from("wallet_payment_settings")
+        .select("dana_number,dana_name,ovo_number,ovo_name,gopay_number,gopay_name,qris_image_url")
+        .eq("id", 1)
+        .maybeSingle();
+      if (paymentSettingsError) throw paymentSettingsError;
+
       return safeJson({
         balance: Number(account?.balance || 0),
         hasPin: await hasWalletPin(supabaseUser, user.id),
         deposits: deposits || [],
+        paymentSettings: paymentSettings || null,
       });
     } catch (error) {
       console.error("[wallet] GET failed", error);
@@ -82,8 +90,6 @@ export async function handleWalletRequest(request: Request): Promise<Response> {
         action?: "deposit" | "set-pin" | "change-pin" | "admin-credit" | "admin-debit" | "admin-deposit";
         amount?: unknown;
         method?: string;
-        reference?: string;
-        note?: string;
         pin?: string;
         newPin?: string;
         username?: string;
@@ -120,17 +126,14 @@ export async function handleWalletRequest(request: Request): Promise<Response> {
       }
 
       if (body.action === "deposit") {
-        if (!/^\d{6}$/.test(body.pin || "")) {
-          return safeJson({ error: "Masukkan PIN saldo 6 angka." }, 400);
-        }
-        if (!(await hasWalletPin(supabaseUser, user.id))) {
-          return safeJson({ error: "Buat PIN saldo terlebih dahulu." }, 400);
-        }
-        if (!(await verifyWalletPin(supabaseUser, user.id, body.pin!))) {
-          return safeJson({ error: "PIN saldo salah." }, 401);
-        }
         const amount = money(body.amount);
         if (!amount) return safeJson({ error: "Jumlah deposit tidak valid." }, 400);
+
+        const allowedMethods = new Set(["DANA", "OVO", "GOPAY", "QRIS"]);
+        const selectedMethod = String(body.method || "").trim().toUpperCase();
+        if (!allowedMethods.has(selectedMethod)) {
+          return safeJson({ error: "Metode deposit tidak valid." }, 400);
+        }
 
         const { data, error } = await supabaseUser
           .from("wallet_deposits")
@@ -138,11 +141,9 @@ export async function handleWalletRequest(request: Request): Promise<Response> {
             user_id: user.id,
             username_snapshot: usernameOf(user),
             amount,
-            method: String(body.method || "manual").slice(0, 60),
-            reference: body.reference ? String(body.reference).slice(0, 120) : null,
-            note: body.note ? String(body.note).slice(0, 500) : null,
+            method: selectedMethod,
           })
-          .select("id,amount,status,created_at")
+          .select("id,amount,method,status,created_at")
           .single();
         if (error) throw error;
         return safeJson({ ok: true, deposit: data });
