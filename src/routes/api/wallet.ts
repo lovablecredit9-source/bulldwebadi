@@ -94,6 +94,11 @@ export async function handleWalletRequest(request: Request): Promise<Response> {
 
       const user = await getAuthenticatedUser(request);
       if (!user) return safeJson({ error: "Sesi login diperlukan." }, 401);
+      const accessToken =
+        request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1] ||
+        request.headers.get("x-adi-access-token")?.trim() || "";
+      if (!accessToken) return safeJson({ error: "Token login tidak ditemukan." }, 401);
+      const supabaseUser = createSupabaseUserClient(accessToken);
 
       if (body.action === "set-pin" || body.action === "change-pin") {
         if (!/^\d{6}$/.test(body.newPin || "")) {
@@ -184,7 +189,7 @@ export async function handleWalletRequest(request: Request): Promise<Response> {
           result = rpc.data;
         } else {
           const rpc = await supabaseUser.rpc("wallet_debit", {
-            p_user_id: target.id,
+            p_user_id: target,
             p_amount: amount,
             p_description: body.note
               ? String(body.note).slice(0, 500)
