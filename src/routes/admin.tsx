@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ImagePlus, Loader2, Pencil, ShieldCheck, Trash2, XCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -7,6 +7,14 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin")({
+  beforeLoad: async () => {
+    const { data, error } = await supabase.auth.getUser();
+    const email = data.user?.email?.trim().toLowerCase();
+
+    if (error || email !== ADMIN_EMAIL) {
+      throw redirect({ to: "/" });
+    }
+  },
   head: () => ({ meta: [{ title: "Panel Admin — ADI BUILDER BOT" }] }),
   component: AdminPage,
 });
