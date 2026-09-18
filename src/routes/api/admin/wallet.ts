@@ -16,7 +16,7 @@ export async function handleAdminWalletRequest(request: Request): Promise<Respon
     if (request.method === "GET") {
       const { data, error } = await supabaseUser
         .from("wallet_deposits")
-        .select("id,user_id,username_snapshot,amount,method,status,created_at")
+        .select("id,user_id,username_snapshot,email_snapshot,amount,method,status,created_at")
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
