@@ -113,13 +113,13 @@ function AdminPage() {
       await requireAdmin();
       setAllowed(true);
 
-      const { data: aiConfig } = await getJson<AiConfig>("/api/settings").catch(() => ({ baseUrl: "", model: "", hasKey: false, maskedKey: "", allowedModels: [] } as AiConfig));
-      setAiBaseUrl(aiConfig.baseUrl || "");
+      const aiConfig = await getJson<AiConfig>("/api/settings").catch(() => ({ baseUrl: "", model: "", hasKey: false, maskedKey: "", allowedModels: [] } as AiConfig));
+      setAiBaseUrl(aiConfig?.baseUrl ?? "");
       setAiModel(aiConfig.model || "");
       setAiMaskedKey(aiConfig.maskedKey || "");
       setAiAllowedModels(Array.isArray(aiConfig.allowedModels) ? aiConfig.allowedModels : []);
       const modelList = await getJson<{ models: string[] }>("/api/ai/models").catch(() => ({ models: [] }));
-      setAiModelOptions(Array.isArray(modelList.models) ? modelList.models : []);
+      setAiModelOptions(Array.isArray(modelList?.models) ? modelList.models : []);
 
       const { data, error } = await (supabase as any)
         .from("site_banners")
