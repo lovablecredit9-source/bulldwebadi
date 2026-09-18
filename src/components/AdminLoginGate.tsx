@@ -2,13 +2,29 @@ import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { Eye, EyeOff, Loader2, LockKeyhole, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { getSessionUser, primeSession } from "@/lib/session";
+import { getSessionUser, getValidSession, primeSession } from "@/lib/session";
 import { isAdministratorUser } from "@/lib/roles";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
 type Props = { children: ReactNode };
+
+async function bridgeAdminSession(accessToken: string) {
+  const bridge = await fetch("/api/admin/session", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      "X-ADI-Access-Token": accessToken,
+    },
+  });
+  const bridgeData = await bridge.json().catch(() => null) as { error?: string } | null;
+  if (!bridge.ok) {
+    throw new Error(bridgeData?.error || "Sesi Administrator gagal disiapkan.");
+  }
+}
 
 export function AdminLoginGate({ children }: Props) {
   const [checking, setChecking] = useState(true);
@@ -22,9 +38,23 @@ export function AdminLoginGate({ children }: Props) {
     let cancelled = false;
     void (async () => {
       const user = await getSessionUser();
-      if (!cancelled) {
-        setAuthorized(isAdministratorUser(user));
-        setChecking(false);
+      if (cancelled) return;
+      const isAdmin = isAdministratorUser(user);
+      setAuthorized(isAdmin);
+      setChecking(false);
+
+      // Jika admin sudah login sebelum membuka /admin, bangun ulang bridge
+      // agar sesi server tetap tersedia setelah reload/preview navigation.
+      if (isAdmin) {
+        const session = await getValidSession();
+        if (session?.access_token) {
+          try {
+            await bridgeAdminSession(session.access_token);
+          } catch (error) {
+            // API tetap mengirim Bearer + fallback header; cookie hanya jalur tambahan.
+            console.warn("[Admin] Session bridge gagal, lanjut dengan token.", error);
+          }
+        }
       }
     })();
     return () => { cancelled = true; };
@@ -58,19 +88,7 @@ export function AdminLoginGate({ children }: Props) {
       // request terlindungi. Jangan menunggu localStorage/event auth selesai.
       primeSession(data.session);
 
-      const bridge = await fetch("/api/admin/session", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${data.session.access_token}`,
-        },
-      });
-      const bridgeData = await bridge.json().catch(() => null) as { error?: string } | null;
-      if (!bridge.ok) {
-        await supabase.auth.signOut();
-        throw new Error(bridgeData?.error || "Sesi Administrator gagal disiapkan.");
-      }
+      await bridgeAdminSession(data.session.access_token);
 
       const verifiedUser = await getSessionUser();
       if (!verifiedUser || !isAdministratorUser(verifiedUser)) {
