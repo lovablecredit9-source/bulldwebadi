@@ -105,6 +105,14 @@ function AdminPanel() {
   const [walletAmount, setWalletAmount] = useState("");
   const [walletNote, setWalletNote] = useState("");
   const [walletBusy, setWalletBusy] = useState(false);
+  const [walletDanaNumber, setWalletDanaNumber] = useState("");
+  const [walletDanaName, setWalletDanaName] = useState("");
+  const [walletOvoNumber, setWalletOvoNumber] = useState("");
+  const [walletOvoName, setWalletOvoName] = useState("");
+  const [walletGopayNumber, setWalletGopayNumber] = useState("");
+  const [walletGopayName, setWalletGopayName] = useState("");
+  const [walletQrisUrl, setWalletQrisUrl] = useState("");
+  const [walletQrisFile, setWalletQrisFile] = useState<File | null>(null);
 
 
   const latestByType = useMemo(() => {
@@ -151,8 +159,27 @@ function AdminPanel() {
       }
 
       try {
-        const wallet = await getJson<{ deposits?: typeof walletDeposits }>("/api/admin/wallet");
+        const wallet = await getJson<{
+          deposits?: typeof walletDeposits;
+          paymentSettings?: {
+            dana_number?: string | null;
+            dana_name?: string | null;
+            ovo_number?: string | null;
+            ovo_name?: string | null;
+            gopay_number?: string | null;
+            gopay_name?: string | null;
+            qris_image_url?: string | null;
+          } | null;
+        }>("/api/admin/wallet");
         setWalletDeposits(Array.isArray(wallet.deposits) ? wallet.deposits : []);
+        const payment = wallet.paymentSettings;
+        setWalletDanaNumber(payment?.dana_number ?? "");
+        setWalletDanaName(payment?.dana_name ?? "");
+        setWalletOvoNumber(payment?.ovo_number ?? "");
+        setWalletOvoName(payment?.ovo_name ?? "");
+        setWalletGopayNumber(payment?.gopay_number ?? "");
+        setWalletGopayName(payment?.gopay_name ?? "");
+        setWalletQrisUrl(payment?.qris_image_url ?? "");
       } catch (error) {
         console.error("[Admin] Wallet deposit queue gagal dimuat", error);
       }
@@ -233,8 +260,79 @@ function AdminPanel() {
     }, 500);
 
     const refreshWalletDeposits = async () => {
-    const wallet = await getJson<{ deposits?: typeof walletDeposits }>("/api/admin/wallet");
+    const wallet = await getJson<{
+      deposits?: typeof walletDeposits;
+      paymentSettings?: {
+        dana_number?: string | null;
+        dana_name?: string | null;
+        ovo_number?: string | null;
+        ovo_name?: string | null;
+        gopay_number?: string | null;
+        gopay_name?: string | null;
+        qris_image_url?: string | null;
+      } | null;
+    }>("/api/admin/wallet");
     setWalletDeposits(Array.isArray(wallet.deposits) ? wallet.deposits : []);
+  };
+
+  const saveWalletPaymentSettings = async () => {
+    if (walletQrisFile) {
+      if (!walletQrisFile.type.startsWith("image/")) {
+        toast.error("File QRIS harus berupa gambar.");
+        return;
+      }
+      if (walletQrisFile.size > 5 * 1024 * 1024) {
+        toast.error("Foto QRIS maksimal 5 MB.");
+        return;
+      }
+    }
+
+    setWalletBusy(true);
+    try {
+      let qrisImageUrl = walletQrisUrl.trim();
+
+      if (walletQrisFile) {
+        const extension = walletQrisFile.name.split(".").pop()?.toLowerCase() || "png";
+        const filePath = `wallet-qris/${crypto.randomUUID()}.${extension}`;
+        const { error: uploadError } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .upload(filePath, walletQrisFile, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: walletQrisFile.type,
+          });
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrl } = supabase.storage
+          .from(STORAGE_BUCKET)
+          .getPublicUrl(filePath);
+        qrisImageUrl = publicUrl.publicUrl;
+        setWalletQrisUrl(qrisImageUrl);
+        setWalletQrisFile(null);
+      }
+
+      const result = await postJson<{ paymentSettings?: { qris_image_url?: string | null } }>(
+        "/api/admin/wallet",
+        {
+          action: "payment-settings",
+          danaNumber: walletDanaNumber,
+          danaName: walletDanaName,
+          ovoNumber: walletOvoNumber,
+          ovoName: walletOvoName,
+          gopayNumber: walletGopayNumber,
+          gopayName: walletGopayName,
+          qrisImageUrl,
+        },
+      );
+      if (result.paymentSettings?.qris_image_url) {
+        setWalletQrisUrl(result.paymentSettings.qris_image_url);
+      }
+      toast.success("Metode pembayaran wallet berhasil disimpan.");
+    } catch (error) {
+      toast.error(errorText(error));
+    } finally {
+      setWalletBusy(false);
+    }
   };
 
   const reviewDeposit = async (depositId: string, approve: boolean) => {
@@ -655,6 +753,48 @@ function AdminPanel() {
           <div className="flex items-center gap-3">
             <div className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20"><WalletCards className="size-6" /></div>
             <div><h2 className="text-xl font-bold">Saldo & Deposit</h2><p className="text-sm text-muted-foreground">Konfirmasi deposit user atau ubah saldo berdasarkan username.</p></div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border bg-background/40 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="font-semibold">Metode Pembayaran Deposit</h3>
+                <p className="mt-1 text-xs text-muted-foreground">Atur nomor DANA, OVO, GOPAY, dan foto QRIS yang akan dilihat user.</p>
+              </div>
+              <Button disabled={walletBusy} onClick={() => void saveWalletPaymentSettings()}>
+                {walletBusy ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                Simpan
+              </Button>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label>DANA</Label>
+                <Input value={walletDanaNumber} onChange={e => setWalletDanaNumber(e.target.value)} placeholder="Nomor DANA" />
+                <Input value={walletDanaName} onChange={e => setWalletDanaName(e.target.value)} placeholder="Nama pemilik" />
+              </div>
+              <div className="space-y-2">
+                <Label>OVO</Label>
+                <Input value={walletOvoNumber} onChange={e => setWalletOvoNumber(e.target.value)} placeholder="Nomor OVO" />
+                <Input value={walletOvoName} onChange={e => setWalletOvoName(e.target.value)} placeholder="Nama pemilik" />
+              </div>
+              <div className="space-y-2">
+                <Label>GOPAY</Label>
+                <Input value={walletGopayNumber} onChange={e => setWalletGopayNumber(e.target.value)} placeholder="Nomor GOPAY" />
+                <Input value={walletGopayName} onChange={e => setWalletGopayName(e.target.value)} placeholder="Nama pemilik" />
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <Label>Foto QRIS</Label>
+              <Input type="file" accept="image/*" onChange={e => setWalletQrisFile(e.target.files?.[0] ?? null)} />
+              {walletQrisUrl && (
+                <div className="mt-2 rounded-xl border p-3">
+                  <p className="mb-2 text-xs text-muted-foreground">QRIS saat ini</p>
+                  <img src={walletQrisUrl} alt="QRIS pembayaran" className="max-h-64 w-auto rounded-lg object-contain" />
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="mt-5 rounded-2xl border bg-background/40 p-4">
