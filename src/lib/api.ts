@@ -1,8 +1,22 @@
-import { getAuthHeaders } from "@/lib/session";
+import { getAuthHeaders, refreshValidSession } from "@/lib/session";
 
 // Semua permintaan terlindungi memakai satu helper sesi yang sama
 // (getSession + retry + refreshSession), tanpa token manual.
 const authHeaders = getAuthHeaders;
+
+async function fetchWithAuthRetry(input: RequestInfo | URL, init: RequestInit = {}) {
+  let res = await fetch(input, { ...init, headers: { ...(init.headers || {}), ...(await authHeaders()) } });
+  if (res.status === 401) {
+    const refreshed = await refreshValidSession();
+    if (refreshed?.access_token) {
+      res = await fetch(input, {
+        ...init,
+        headers: { ...(init.headers || {}), Authorization: `Bearer ${refreshed.access_token}` },
+      });
+    }
+  }
+  return res;
+}
 
 export async function postJson<T>(url: string, body: unknown): Promise<T> {
   const payload =
@@ -18,9 +32,9 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
   const isAiChat = url.endsWith("/api/ai/chat");
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await fetchWithAuthRetry(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
   } catch {
@@ -43,7 +57,7 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
 export async function getJson<T>(url: string): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(url, { headers: await authHeaders() });
+    res = await fetchWithAuthRetry(url);
   } catch {
     throw new Error("Koneksi bermasalah.");
   }
@@ -59,7 +73,7 @@ export async function getJson<T>(url: string): Promise<T> {
 export async function postForm<T>(url: string, form: FormData): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(url, { method: "POST", headers: await authHeaders(), body: form });
+    res = await fetchWithAuthRetry(url, { method: "POST", body: form });
   } catch {
     throw new Error("Koneksi bermasalah.");
   }
