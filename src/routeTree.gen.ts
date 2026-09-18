@@ -17,7 +17,9 @@ import { Route as TelegramRouteImport } from './routes/telegram'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
 import { Route as WalletRouteImport } from './routes/wallet'
+import { Route as ApiAdminWalletRouteImport } from './routes/api/admin/wallet'
 import { Route as ApiSettingsRouteImport } from './routes/api/settings'
+import { Route as ApiWalletRouteImport } from './routes/api/wallet'
 import { Route as ProjectsIndexRouteImport } from './routes/projects.index'
 import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
 import { Route as ApiAiAddFeatureRouteImport } from './routes/api/ai/add-feature'
@@ -67,6 +69,16 @@ const UploadRoute = UploadRouteImport.update({
 const WalletRoute = WalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminWalletRoute = ApiAdminWalletRouteImport.update({
+  id: '/api/admin/wallet',
+  path: '/api/admin/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWalletRoute = ApiWalletRouteImport.update({
+  id: '/api/wallet',
+  path: '/api/wallet',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WhatsappRoute = WhatsappRouteImport.update({
@@ -164,9 +176,9 @@ export interface FileRoutesByFullPath {
   '/upload': typeof UploadRoute
   '/whatsapp': typeof WhatsappRoute
   '/wallet': typeof WalletRoute
-  '/wallet': typeof WalletRoute
-  '/wallet': typeof WalletRoute
+  '/api/admin/wallet': typeof ApiAdminWalletRoute
   '/api/settings': typeof ApiSettingsRoute
+  '/api/wallet': typeof ApiWalletRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/projects/': typeof ProjectsIndexRoute
   '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
@@ -192,7 +204,9 @@ export interface FileRoutesByTo {
   '/upload': typeof UploadRoute
   '/whatsapp': typeof WhatsappRoute
   '/wallet': typeof WalletRoute
+  '/api/admin/wallet': typeof ApiAdminWalletRoute
   '/api/settings': typeof ApiSettingsRoute
+  '/api/wallet': typeof ApiWalletRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/projects': typeof ProjectsIndexRoute
   '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
@@ -219,7 +233,9 @@ export interface FileRoutesById {
   '/upload': typeof UploadRoute
   '/whatsapp': typeof WhatsappRoute
   '/wallet': typeof WalletRoute
+  '/api/admin/wallet': typeof ApiAdminWalletRoute
   '/api/settings': typeof ApiSettingsRoute
+  '/api/wallet': typeof ApiWalletRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/projects/': typeof ProjectsIndexRoute
   '/api/ai/add-feature': typeof ApiAiAddFeatureRoute
@@ -247,7 +263,9 @@ export interface FileRouteTypes {
     | '/upload'
     | '/whatsapp'
     | '/wallet'
+    | '/api/admin/wallet'
     | '/api/settings'
+    | '/api/wallet'
     | '/projects/$id'
     | '/projects/'
     | '/api/ai/add-feature'
@@ -273,7 +291,9 @@ export interface FileRouteTypes {
     | '/upload'
     | '/whatsapp'
     | '/wallet'
+    | '/api/admin/wallet'
     | '/api/settings'
+    | '/api/wallet'
     | '/projects/$id'
     | '/projects'
     | '/api/ai/add-feature'
@@ -299,7 +319,9 @@ export interface FileRouteTypes {
     | '/upload'
     | '/whatsapp'
     | '/wallet'
+    | '/api/admin/wallet'
     | '/api/settings'
+    | '/api/wallet'
     | '/projects/$id'
     | '/projects/'
     | '/api/ai/add-feature'
@@ -326,7 +348,9 @@ export interface RootRouteChildren {
   UploadRoute: typeof UploadRoute
   WhatsappRoute: typeof WhatsappRoute
   WalletRoute: typeof WalletRoute
+  ApiAdminWalletRoute: typeof ApiAdminWalletRoute
   ApiSettingsRoute: typeof ApiSettingsRoute
+  ApiWalletRoute: typeof ApiWalletRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
   ApiAiAddFeatureRoute: typeof ApiAiAddFeatureRoute
@@ -402,11 +426,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WalletRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/wallet': {
+      id: '/api/admin/wallet'
+      path: '/api/admin/wallet'
+      fullPath: '/api/admin/wallet'
+      preLoaderRoute: typeof ApiAdminWalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/settings': {
       id: '/api/settings'
       path: '/api/settings'
       fullPath: '/api/settings'
       preLoaderRoute: typeof ApiSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/wallet': {
+      id: '/api/wallet'
+      path: '/api/wallet'
+      fullPath: '/api/wallet'
+      preLoaderRoute: typeof ApiWalletRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects/': {
@@ -526,7 +564,9 @@ const rootRouteChildren: RootRouteChildren = {
   UploadRoute: UploadRoute,
   WhatsappRoute: WhatsappRoute,
   WalletRoute: WalletRoute,
+  ApiAdminWalletRoute: ApiAdminWalletRoute,
   ApiSettingsRoute: ApiSettingsRoute,
+  ApiWalletRoute: ApiWalletRoute,
   ProjectsIdRoute: ProjectsIdRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
   ApiAiAddFeatureRoute: ApiAiAddFeatureRoute,
