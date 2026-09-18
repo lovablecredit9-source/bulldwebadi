@@ -36,7 +36,7 @@ export function ModelSelect({
         setSource(r.source);
       })
       .catch(() => undefined);
-  }, [allowCurrentValue, onChange, value]);
+  }, []);
 
   const options = value && !models.includes(value) ? [value, ...models] : models;
 
