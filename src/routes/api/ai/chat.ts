@@ -10,9 +10,10 @@ import {
 import { buildTree, contextBlock, getFiles, getProject, pickRelevantFiles } from "@/lib/project.server";
 import { hasAccess } from "@/lib/pin.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isAdministratorEmail } from "@/lib/roles";
 import { normalizeModel } from "@/lib/models";
 
-const ADMIN_EMAIL = "panpakarak36@gmail.com";
+
 
 async function getUser(request: Request) {
   const token = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
@@ -22,7 +23,7 @@ async function getUser(request: Request) {
 }
 
 function isAdmin(user: { email?: string | null } | null) {
-  return user?.email?.trim().toLowerCase() === ADMIN_EMAIL;
+  return user?.email?.trim().toLowerCase() isAdministratorEmail(email);
 }
 
 async function getAllowedModels() {
