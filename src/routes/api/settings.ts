@@ -35,7 +35,7 @@ export const Route = createFileRoute("/api/settings")({
           model: (data?.model as string) || cfg.model,
           hasKey: Boolean(data?.api_key || cfg.apiKey),
           maskedKey: mask((data?.api_key as string) || cfg.apiKey),
-          allowedModels: Array.isArray(data?.allowed_models) ? data.allowed_models : ["mk/auto", "mk/sonnet-4.5", "mk/haiku-4.5"],
+          allowedModels: Array.isArray(data?.allowed_models) ? data.allowed_models.filter((m): m is string => typeof m === "string" && Boolean(m.trim())) : [],
         });
       },
       POST: async ({ request }) => {
