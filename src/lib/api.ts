@@ -10,12 +10,14 @@ async function fetchWithAuthRetry(input: RequestInfo | URL, init: RequestInit = 
     const auth = await authHeaders();
     Object.entries(auth).forEach(([key, value]) => headers.set(key, value));
 
-    // Após login, o session cache pode ser atualizado alguns ms antes de
-    // localStorage selesai ditulis. Ambil session aktif sekali lagi sebagai
-    // fallback agar request pertama tidak kehilangan Bearer token.
-    if (!headers.has("Authorization")) {
+    // Pastikan setiap request membawa token Supabase dalam dua jalur.
+    // X-ADI-Access-Token menjadi fallback untuk preview/proxy tertentu.
+    if (!headers.has("Authorization") || !headers.has("X-ADI-Access-Token")) {
       const session = await getValidSession();
-      if (session?.access_token) headers.set("Authorization", `Bearer ${session.access_token}`);
+      if (session?.access_token) {
+        headers.set("Authorization", `Bearer ${session.access_token}`);
+        headers.set("X-ADI-Access-Token", session.access_token);
+      }
     }
     return headers;
   };
@@ -28,10 +30,13 @@ async function fetchWithAuthRetry(input: RequestInfo | URL, init: RequestInit = 
   if (res.status === 401) {
     const refreshed = await refreshValidSession();
     if (refreshed?.access_token) {
+      const headers = new Headers(init.headers || {});
+      headers.set("Authorization", `Bearer ${refreshed.access_token}`);
+      headers.set("X-ADI-Access-Token", refreshed.access_token);
       res = await fetch(input, {
         ...init,
-        credentials: "same-origin",
-        headers: { ...(init.headers || {}), Authorization: `Bearer ${refreshed.access_token}` },
+        credentials: "include",
+        headers,
       });
     }
   }
