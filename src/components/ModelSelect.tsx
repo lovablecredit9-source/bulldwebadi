@@ -16,15 +16,17 @@ export function ModelSelect({
   label = "Model AI",
   disabled = false,
   allowCurrentValue = true,
+  routerOnly = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   label?: string;
   disabled?: boolean;
   allowCurrentValue?: boolean;
+  routerOnly?: boolean;
 }) {
-  const [models, setModels] = useState<string[]>(AI_MODELS);
-  const [source, setSource] = useState<"router" | "fallback" | "admin-allowed">("fallback");
+  const [models, setModels] = useState<string[]>(routerOnly ? [] : AI_MODELS);
+  const [source, setSource] = useState<"router" | "fallback" | "admin-allowed">(routerOnly ? "router" : "fallback");
 
   useEffect(() => {
     getJson<{ models: string[]; source: "router" | "fallback" | "admin-allowed" }>("/api/ai/models")
