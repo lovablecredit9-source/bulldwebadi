@@ -113,7 +113,9 @@ function AdminPage() {
       await requireAdmin();
       setAllowed(true);
 
-      const aiConfig = await getJson<AiConfig>("/api/settings").catch(() => ({ baseUrl: "", model: "", hasKey: false, maskedKey: "", allowedModels: [] } as AiConfig));
+      // Backend /api/settings is the authoritative Admin authorization check.
+      // Do not swallow a 401/403 here or let a frontend-only flag diverge from Save authorization.
+      const aiConfig = await getJson<AiConfig>("/api/settings");
       setAiBaseUrl(aiConfig?.baseUrl ?? "");
       setAiModel(aiConfig.model || "");
       setAiMaskedKey(aiConfig.maskedKey || "");
