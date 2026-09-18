@@ -4,6 +4,17 @@ import { supabase } from "@/integrations/supabase/client";
 const NEAR_EXPIRY_MS = 30_000;
 const RETRY_DELAYS_MS = [0, 150, 400, 800, 1200];
 let refreshInFlight: Promise<Session | null> | null = null;
+let cachedSession: Session | null = null;
+let authListenerReady = false;
+
+function ensureAuthListener() {
+  if (authListenerReady || typeof window === "undefined") return;
+  authListenerReady = true;
+  void supabase.auth.onAuthStateChange((_event, session) => {
+    if (session) cachedSession = session;
+    else cachedSession = null;
+  });
+}
 
 function isUsable(session: Session | null | undefined) {
   if (!session?.access_token) return false;
@@ -20,27 +31,38 @@ function isUsable(session: Session | null | undefined) {
  * bila token kosong atau hampir kedaluwarsa. Tidak ada token manual/localStorage.
  */
 export async function getValidSession(): Promise<Session | null> {
+  ensureAuthListener();
+
+  if (isUsable(cachedSession)) return cachedSession;
+
   for (const delay of RETRY_DELAYS_MS) {
     if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
 
     const { data } = await supabase.auth.getSession();
     const session = data.session;
-    if (isUsable(session)) return session;
+    if (isUsable(session)) {
+      cachedSession = session;
+      return session;
+    }
 
     if (session) {
       const refreshed = await refreshSessionOnce();
-      if (isUsable(refreshed)) return refreshed;
+      if (isUsable(refreshed)) {
+        cachedSession = refreshed;
+        return refreshed;
+      }
     }
   }
 
   const refreshed = await refreshSessionOnce();
+  if (isUsable(refreshed)) cachedSession = refreshed;
   return isUsable(refreshed) ? refreshed : null;
 }
 
 async function refreshSessionOnce(): Promise<Session | null> {
   if (!refreshInFlight) {
     refreshInFlight = supabase.auth.refreshSession()
-      .then(({ data, error }) => error ? null : data.session ?? null)
+.then(({ data, error }) => error ? null : data.session ?? null)
       .catch(() => null)
       .finally(() => { refreshInFlight = null; });
   }
