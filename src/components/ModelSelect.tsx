@@ -14,10 +14,12 @@ export function ModelSelect({
   value,
   onChange,
   label = "Model AI",
+  disabled = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   label?: string;
+  disabled?: boolean;
 }) {
   const [models, setModels] = useState<string[]>(AI_MODELS);
   const [source, setSource] = useState<"router" | "fallback">("fallback");
@@ -36,8 +38,8 @@ export function ModelSelect({
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger>
+      <Select value={value} onValueChange={onChange} disabled={disabled}>
+        <SelectTrigger disabled={disabled}>
           <SelectValue placeholder="Pilih model" />
         </SelectTrigger>
         <SelectContent>
