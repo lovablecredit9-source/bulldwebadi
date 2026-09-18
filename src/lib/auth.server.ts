@@ -12,7 +12,8 @@ function cookieValue(request: Request, name: string) {
 
 export async function getAuthenticatedUser(request: Request): Promise<User | null> {
   const bearer = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
-  const token = bearer || cookieValue(request, ADMIN_SESSION_COOKIE);
+  const fallbackHeader = request.headers.get("x-adi-access-token")?.trim();
+  const token = bearer || fallbackHeader || cookieValue(request, ADMIN_SESSION_COOKIE);
   if (!token) return null;
 
   // Validasi langsung ke Auth server. Ini sengaja tidak memakai session
@@ -40,9 +41,14 @@ export async function getAuthenticatedUser(request: Request): Promise<User | nul
   }
 
   // Fallback untuk environment lama.
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user;
+  try {
+    const { data, error } = await supabaseAdmin.auth.getUser(token);
+    if (error || !data.user) return null;
+    return data.user;
+  } catch (error) {
+    console.error("[Auth] Supabase fallback verification failed", error);
+    return null;
+  }
 }
 
 export async function getAdministratorUser(request: Request): Promise<User | null> {
