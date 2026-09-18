@@ -1,9 +1,13 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ImagePlus, Loader2, Pencil, ShieldCheck, Trash2, XCircle } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, ImagePlus, Loader2, Pencil, Save, Server, ShieldCheck, Trash2, XCircle, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ModelSelect } from "@/components/ModelSelect";
+import { getJson, postJson } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin")({
@@ -80,8 +84,22 @@ function publicStoragePath(imageUrl: string) {
   return decodeURIComponent(imageUrl.slice(index + marker.length));
 }
 
+type AiConfig = { baseUrl: string; model: string; hasKey: boolean; maskedKey: string; allowedModels?: string[] };
+type AiHealth = { online: boolean; modelAvailable?: boolean; latencyMs?: number; error?: string };
+
 function AdminPage() {
   const [allowed, setAllowed] = useState<boolean | null>(null);
+  const [aiBaseUrl, setAiBaseUrl] = useState("");
+  const [aiApiKey, setAiApiKey] = useState("");
+  const [aiMaskedKey, setAiMaskedKey] = useState("");
+  const [aiModel, setAiModel] = useState("");
+  const [aiAllowedModels, setAiAllowedModels] = useState<string[]>([]);
+  const [aiSaving, setAiSaving] = useState(false);
+  const [aiTesting, setAiTesting] = useState(false);
+  const [aiShowKey, setAiShowKey] = useState(false);
+  const [aiStatus, setAiStatus] = useState<"idle" | "online" | "offline">("idle");
+  const [aiError, setAiError] = useState("");
+  const [aiLatency, setAiLatency] = useState<number | null>(null);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(false);
   const [files, setFiles] = useState<Partial<Record<BannerType, File | null>>>({});
@@ -98,6 +116,12 @@ function AdminPage() {
     try {
       await requireAdmin();
       setAllowed(true);
+
+      const { data: aiConfig } = await getJson<AiConfig>("/api/settings").catch(() => ({ baseUrl: "", model: "", hasKey: false, maskedKey: "", allowedModels: [] } as AiConfig));
+      setAiBaseUrl(aiConfig.baseUrl || "");
+      setAiModel(aiConfig.model || "");
+      setAiMaskedKey(aiConfig.maskedKey || "");
+      setAiAllowedModels(Array.isArray(aiConfig.allowedModels) ? aiConfig.allowedModels : []);
 
       const { data, error } = await (supabase as any)
         .from("site_banners")
@@ -277,6 +301,39 @@ function AdminPage() {
     }
   };
 
+  const testAiConnection = async () => {
+    setAiTesting(true); setAiStatus("idle"); setAiError(""); setAiLatency(null);
+    try {
+      const result = await postJson<AiHealth>("/api/ai/router-health", { model: aiModel });
+      if (result.online && result.modelAvailable) {
+        setAiStatus("online"); setAiLatency(typeof result.latencyMs === "number" ? result.latencyMs : null);
+        toast.success("Test Connection berhasil — router dan model aktif.");
+      } else {
+        setAiStatus("offline"); setAiError(result.error || "Router atau model tidak tersedia.");
+        toast.error(result.error || "Router atau model tidak tersedia.");
+      }
+    } catch (error) {
+      setAiStatus("offline"); setAiError(errorText(error)); toast.error(errorText(error));
+    } finally { setAiTesting(false); }
+  };
+
+  const saveAiConfiguration = async () => {
+    if (!aiBaseUrl.trim()) return toast.error("Base URL wajib diisi.");
+    setAiSaving(true); setAiStatus("idle"); setAiError("");
+    try {
+      const result = await postJson<AiConfig>("/api/settings", {
+        baseUrl: aiBaseUrl.trim(), model: aiModel, apiKey: aiApiKey, allowedModels: aiAllowedModels,
+      });
+      setAiBaseUrl(result.baseUrl || aiBaseUrl.trim());
+      setAiMaskedKey(result.maskedKey || aiMaskedKey);
+      setAiApiKey("");
+      setAiStatus("idle");
+      toast.success("AI Configuration global berhasil disimpan.");
+    } catch (error) {
+      toast.error(errorText(error));
+    } finally { setAiSaving(false); }
+  };
+
   if (allowed === null) {
     return <AppShell><div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="size-6 animate-spin text-primary" /></div></AppShell>;
   }
@@ -355,6 +412,21 @@ function AdminPage() {
               </article>
             );
           })}
+        </section>
+
+        <section className="rounded-3xl border border-primary/20 bg-card p-5 shadow-lg shadow-primary/5 sm:p-6">
+          <div className="flex items-center gap-3">
+            <div className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20"><Server className="size-6" /></div>
+            <div><h2 className="text-xl font-bold">AI Configuration</h2><p className="text-sm text-muted-foreground">Konfigurasi AI global untuk seluruh aplikasi.</p></div>
+          </div>
+          <div className="mt-5 grid gap-4">
+            <div className="space-y-2"><Label>Base URL</Label><Input value={aiBaseUrl} onChange={(e) => setAiBaseUrl(e.target.value)} placeholder="https://router.example.com/v1" /></div>
+            <div className="space-y-2"><Label>API Key</Label><div className="flex gap-2"><Input type={aiShowKey ? "text" : "password"} value={aiApiKey} onChange={(e) => setAiApiKey(e.target.value)} placeholder={aiMaskedKey || "Masukkan API Key"} autoComplete="off" /><Button type="button" variant="outline" size="icon" onClick={() => setAiShowKey((v) => !v)}>{aiShowKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</Button></div>{aiMaskedKey && <p className="text-xs text-muted-foreground">Tersimpan: {aiMaskedKey}</p>}</div>
+            <ModelSelect value={aiModel} onChange={(value) => { setAiModel(value); setAiStatus("idle"); setAiError(""); setAiLatency(null); }} label="Model AI Default" />
+            <div className="space-y-3 rounded-2xl border bg-background/40 p-4"><div><h3 className="font-semibold">Model yang diizinkan untuk User</h3><p className="mt-1 text-xs text-muted-foreground">Batasi pilihan model yang dapat digunakan user.</p></div><div className="grid gap-2 sm:grid-cols-2">{aiAllowedModels.map((m) => <label key={m} className="flex items-center gap-3 rounded-xl border p-3 text-sm"><input type="checkbox" checked={aiAllowedModels.includes(m)} onChange={(e) => setAiAllowedModels((current) => e.target.checked ? Array.from(new Set([...current, m])) : current.filter((item) => item !== m))} /> <span className="truncate">{m}</span></label>)}</div><p className="text-xs text-muted-foreground">Daftar di atas akan muncul setelah model tersedia dari router.</p></div>
+            <div className="flex flex-wrap gap-2"><Button variant="outline" className="rounded-xl" disabled={aiTesting || !aiModel} onClick={() => void testAiConnection()}>{aiTesting ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />} Test Connection</Button><Button className="rounded-xl" disabled={aiSaving} onClick={() => void saveAiConfiguration()}>{aiSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save Configuration</Button></div>
+            {aiStatus !== "idle" && <div className="rounded-2xl border bg-background/40 p-4"><p className="text-xs text-muted-foreground">Status koneksi</p><p className="mt-1 font-semibold">{aiStatus === "online" ? "🟢 Router dan model aktif" : "🔴 Router atau model tidak tersedia"}</p>{aiLatency !== null && aiStatus === "online" && <p className="mt-1 text-sm">Latency: <span className="font-semibold">{aiLatency} ms</span></p>}{aiError && <p className="mt-1 text-xs text-destructive">{aiError}</p>}</div>}
+          </div>
         </section>
 
         <div className="rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 text-xs leading-5 text-muted-foreground">
