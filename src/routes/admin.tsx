@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Eye, EyeOff, ImagePlus, Loader2, Pencil, Save, Server, ShieldCheck, Trash2, XCircle, Zap } from "lucide-react";
 import { toast } from "sonner";
@@ -11,14 +11,6 @@ import { getJson, postJson } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin")({
-  beforeLoad: async () => {
-    const { data, error } = await supabase.auth.getUser();
-    const email = data.user?.email?.trim().toLowerCase();
-
-    if (error || email !== ADMIN_EMAIL) {
-      throw redirect({ to: "/" });
-    }
-  },
   head: () => ({ meta: [{ title: "Panel Admin — ADI BUILDER BOT" }] }),
   component: AdminPage,
 });
@@ -70,11 +62,13 @@ function toastError(stage: string, error: unknown) {
 }
 
 async function requireAdmin() {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) throw new Error(`Sesi login tidak dapat diverifikasi: ${error.message}`);
-  const email = data.user?.email?.trim().toLowerCase();
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error(`Sesi login tidak dapat diverifikasi: ${sessionError.message}`);
+  const sessionUser = sessionData.session?.user;
+  if (!sessionUser) throw new Error("Sesi login tidak ditemukan.");
+  const email = sessionUser.email?.trim().toLowerCase();
   if (email !== ADMIN_EMAIL) throw new Error("Akun yang login bukan administrator yang diizinkan.");
-  return data.user;
+  return sessionUser;
 }
 
 function publicStoragePath(imageUrl: string) {
@@ -131,15 +125,18 @@ function AdminPage() {
         .select("id,image_url,banner_type,is_active,created_at")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        toastError("Database banner gagal dimuat", error);
+        const message = errorText(error).toLowerCase();
+        if (message.includes("banner_type") || message.includes("column")) {
+          toast.error("Schema site_banners belum sesuai: kolom banner_type belum tersedia di database aktif.");
+        }
+        return;
+      }
       setBanners((data || []) as Banner[]);
     } catch (error) {
       setAllowed(false);
-      toastError("Database banner gagal dimuat", error);
-      const message = errorText(error).toLowerCase();
-      if (message.includes("banner_type") || message.includes("column")) {
-        toast.error("Schema site_banners belum sesuai: kolom banner_type belum tersedia di database aktif.");
-      }
+      toastError("Verifikasi Administrator gagal", error);
     }
   };
 
