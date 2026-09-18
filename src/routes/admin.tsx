@@ -165,6 +165,55 @@ function AdminPanel() {
     }
   }, [allowed, router]);
 
+  useEffect(() => {
+    if (allowed !== true) return;
+    const baseUrl = aiBaseUrl.trim();
+    const hasCredentials = Boolean(aiApiKey.trim() || aiMaskedKey);
+    if (!baseUrl || !hasCredentials) {
+      if (!aiApiKey.trim() && !aiMaskedKey) setAiModelOptions([]);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      try {
+        const result = await postJson<{ models: string[]; error?: string }>("/api/ai/models", {
+          baseUrl,
+          apiKey: aiApiKey.trim(),
+        });
+        const models = Array.isArray(result?.models)
+          ? Array.from(new Set(result.models.filter((model): model is string => typeof model === "string" && Boolean(model.trim()))))
+          : [];
+        if (cancelled) return;
+
+        setAiModelOptions(models);
+        setAiError("");
+        if (models.length && (!aiModel || !models.includes(aiModel))) {
+          setAiModel(models[0]);
+          setAiAllowedModels((current) => current.filter((model) => models.includes(model)));
+        }
+        if (!models.length) {
+          setAiStatus("offline");
+          setAiError(result?.error || "Router tidak mengembalikan model yang tersedia.");
+          setAiAllowedModels([]);
+        } else {
+          setAiStatus("idle");
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setAiModelOptions([]);
+        setAiAllowedModels([]);
+        setAiStatus("offline");
+        setAiError(errorText(error));
+      }
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [allowed, aiBaseUrl, aiApiKey, aiMaskedKey]);
+
   const upload = async (bannerType: BannerType) => {
     const file = files[bannerType];
     if (!file) { toast.error("Pilih gambar banner terlebih dahulu."); return; }
@@ -353,30 +402,57 @@ function AdminPanel() {
 
   const saveAiConfiguration = async () => {
     if (!aiBaseUrl.trim()) { toast.error("Base URL wajib diisi."); return; }
-    // Tahap pertama: simpan kredensial router terlebih dahulu. Model belum wajib
-    // karena model baru diketahui setelah Test Connection -> GET /models.
-    const hasSelectedModel = Boolean(aiModel.trim());
-    if (hasSelectedModel && !aiAllowedModels.length) {
-      toast.error("Pilih minimal satu model yang diizinkan untuk User."); return;
-    }
+    if (!aiApiKey.trim() && !aiMaskedKey) { toast.error("API Key wajib diisi."); return; }
 
     setAiSaving(true); setAiStatus("idle"); setAiError("");
     try {
+      // Save tidak boleh menyimpan router yang salah/invalid. Validasi kredensial
+      // dan ambil katalog model terlebih dahulu.
+      const modelResult = await postJson<{ models: string[]; error?: string }>("/api/ai/models", {
+        baseUrl: aiBaseUrl.trim(),
+        apiKey: aiApiKey.trim(),
+      });
+      const models = Array.isArray(modelResult?.models)
+        ? Array.from(new Set(modelResult.models.filter((model): model is string => typeof model === "string" && Boolean(model.trim()))))
+        : [];
+
+      if (!models.length) {
+        setAiModelOptions([]);
+        setAiAllowedModels([]);
+        setAiStatus("offline");
+        setAiError(modelResult?.error || "API Key/Base URL tidak valid atau router tidak menyediakan model.");
+        throw new Error(modelResult?.error || "API Key/Base URL tidak valid atau router tidak menyediakan model.");
+      }
+
+      setAiModelOptions(models);
+      const selectedModel = aiModel && models.includes(aiModel) ? aiModel : models[0];
+      setAiModel(selectedModel);
+
+      const allowedModels = aiAllowedModels.filter((model) => models.includes(model));
+      if (!allowedModels.length) {
+        toast.error("Pilih minimal satu model yang diizinkan untuk User.");
+        setAiStatus("online");
+        setAiError("");
+        return;
+      }
+
       const result = await postJson<AiConfig>("/api/settings", {
         baseUrl: aiBaseUrl.trim(),
-        apiKey: aiApiKey,
-        ...(hasSelectedModel ? { model: aiModel.trim(), allowedModels: aiAllowedModels } : {}),
+        apiKey: aiApiKey.trim(),
+        model: selectedModel,
+        allowedModels,
       });
+
       setAiBaseUrl(result?.baseUrl ?? aiBaseUrl.trim());
       setAiMaskedKey(result?.maskedKey ?? aiMaskedKey);
       setAiApiKey("");
-      setAiStatus("idle");
-      toast.success(
-        hasSelectedModel
-          ? "AI Configuration global berhasil disimpan."
-          : "Base URL dan API Key berhasil disimpan. Sekarang tekan Test Connection untuk mengambil model dari router.",
-      );
+      setAiAllowedModels(allowedModels);
+      setAiStatus("online");
+      setAiError("");
+      toast.success(`AI Configuration berhasil disimpan — ${models.length} model ditemukan.`);
     } catch (error) {
+      setAiStatus("offline");
+      setAiError(errorText(error));
       toast.error(errorText(error));
     } finally { setAiSaving(false); }
   };
