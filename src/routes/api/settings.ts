@@ -5,49 +5,45 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const ADMIN_EMAIL = "panpakarak36@gmail.com";
 
-async function getAuthenticatedUser(request: Request) {
-  const header = request.headers.get("authorization") || "";
-  const token = header.match(/^Bearer\s+(.+)$/i)?.[1];
+async function getUser(request: Request) {
+  const token = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) return null;
   const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user;
+  return error || !data.user ? null : data.user;
 }
 
 async function isAdministrator(request: Request) {
-  const user = await getAuthenticatedUser(request);
+  const user = await getUser(request);
   return user?.email?.trim().toLowerCase() === ADMIN_EMAIL;
 }
 
 function mask(key: string | null | undefined) {
   if (!key) return "";
-  const tail = key.slice(-4);
-  return `••••••••••••${tail}`;
+  return `••••••••••••${key.slice(-4)}`;
 }
 
 export const Route = createFileRoute("/api/settings")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const user = await getAuthenticatedUser(request);
-        if (!user) return safeJson({ error: "Sesi login diperlukan." }, 401);
+        if (!(await isAdministrator(request))) return safeJson({ error: "Akses hanya untuk Administrator." }, 403);
+        const { data } = await supabaseAdmin.from("ai_settings").select("base_url, api_key, model, allowed_models").eq("id", 1).maybeSingle();
         const cfg = await loadConfig();
         return safeJson({
-          baseUrl: cfg.baseUrl || DEFAULT_BASE_URL,
-          model: cfg.model,
-          hasKey: Boolean(cfg.apiKey),
-          maskedKey: mask(cfg.apiKey),
+          baseUrl: (data?.base_url as string) || cfg.baseUrl || DEFAULT_BASE_URL,
+          model: (data?.model as string) || cfg.model,
+          hasKey: Boolean(data?.api_key || cfg.apiKey),
+          maskedKey: mask((data?.api_key as string) || cfg.apiKey),
+          allowedModels: Array.isArray(data?.allowed_models) ? data.allowed_models : ["mk/auto", "mk/sonnet-4.5", "mk/haiku-4.5"],
         });
       },
       POST: async ({ request }) => {
-        if (!(await isAdministrator(request))) {
-          return safeJson({ error: "Hanya Administrator yang dapat mengubah AI Configuration." }, 403);
-        }
-
+        if (!(await isAdministrator(request))) return safeJson({ error: "Hanya Administrator yang dapat mengubah AI Configuration." }, 403);
         const body = (await request.json().catch(() => ({}))) as {
           baseUrl?: string;
           apiKey?: string;
           model?: string;
+          allowedModels?: unknown;
         };
         const update: {
           id: number;
@@ -55,29 +51,35 @@ export const Route = createFileRoute("/api/settings")({
           base_url?: string;
           model?: string;
           api_key?: string;
+          allowed_models?: string[];
         } = { id: 1, updated_at: new Date().toISOString() };
 
-        if (body.baseUrl && /^https?:\/\//.test(body.baseUrl)) {
-          update.base_url = body.baseUrl.trim().replace(/\/+$/, "");
-        }
+        if (body.baseUrl && /^https?:\/\//.test(body.baseUrl)) update.base_url = body.baseUrl.trim().replace(/\/+$/, "");
         if (body.model) update.model = body.model.trim();
-        if (typeof body.apiKey === "string" && body.apiKey.trim().length > 0) {
-          update.api_key = body.apiKey.trim();
+        if (typeof body.apiKey === "string" && body.apiKey.trim()) update.api_key = body.apiKey.trim();
+
+        if (Array.isArray(body.allowedModels)) {
+          const allowedModels = body.allowedModels
+            .filter((m): m is string => typeof m === "string")
+            .map((m) => m.trim())
+            .filter(Boolean)
+            .slice(0, 20);
+          if (!allowedModels.length) return safeJson({ error: "Minimal satu model harus diizinkan untuk user." }, 400);
+          update.allowed_models = Array.from(new Set(allowedModels));
         }
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { error } = await supabaseAdmin
-          .from("ai_settings")
-          .upsert(update, { onConflict: "id" });
+        const { error } = await supabaseAdmin.from("ai_settings").upsert(update, { onConflict: "id" });
         if (error) return safeJson({ error: "Konfigurasi gagal disimpan." }, 400);
 
         const cfg = await loadConfig();
+        const { data } = await supabaseAdmin.from("ai_settings").select("allowed_models").eq("id", 1).maybeSingle();
         return safeJson({
           ok: true,
           baseUrl: cfg.baseUrl,
           model: cfg.model,
           hasKey: Boolean(cfg.apiKey),
           maskedKey: mask(cfg.apiKey),
+          allowedModels: Array.isArray(data?.allowed_models) ? data.allowed_models : [],
         });
       },
     },
