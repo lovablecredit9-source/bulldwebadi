@@ -1,16 +1,36 @@
-import { getAuthHeaders, refreshValidSession } from "@/lib/session";
+import { getAuthHeaders, refreshValidSession, getValidSession } from "@/lib/session";
 
 // Semua permintaan terlindungi memakai satu helper sesi yang sama
 // (getSession + retry + refreshSession), tanpa token manual.
 const authHeaders = getAuthHeaders;
 
 async function fetchWithAuthRetry(input: RequestInfo | URL, init: RequestInit = {}) {
-  let res = await fetch(input, { ...init, headers: { ...(init.headers || {}), ...(await authHeaders()) } });
+  const buildHeaders = async () => {
+    const headers = new Headers(init.headers || {});
+    const auth = await authHeaders();
+    Object.entries(auth).forEach(([key, value]) => headers.set(key, value));
+
+    // Após login, o session cache pode ser atualizado alguns ms antes de
+    // localStorage selesai ditulis. Ambil session aktif sekali lagi sebagai
+    // fallback agar request pertama tidak kehilangan Bearer token.
+    if (!headers.has("Authorization")) {
+      const session = await getValidSession();
+      if (session?.access_token) headers.set("Authorization", `Bearer ${session.access_token}`);
+    }
+    return headers;
+  };
+
+  let res = await fetch(input, {
+    ...init,
+    credentials: "same-origin",
+    headers: await buildHeaders(),
+  });
   if (res.status === 401) {
     const refreshed = await refreshValidSession();
     if (refreshed?.access_token) {
       res = await fetch(input, {
         ...init,
+        credentials: "same-origin",
         headers: { ...(init.headers || {}), Authorization: `Bearer ${refreshed.access_token}` },
       });
     }
