@@ -123,8 +123,10 @@ function AdminPanel() {
         setAiMaskedKey(aiConfig.maskedKey || "");
         setAiAllowedModels(Array.isArray(aiConfig.allowedModels) ? aiConfig.allowedModels : []);
       } catch (error) {
+        // AI Configuration bersifat opsional saat halaman Admin dibuka.
+        // Jangan menampilkan error session/config ke UI; Admin tetap dapat
+        // memakai Test Connection untuk memeriksa konfigurasi saat diperlukan.
         console.error("[Admin] AI Configuration gagal dimuat", error);
-        toastError("AI Configuration gagal dimuat", error);
       }
 
       try {
