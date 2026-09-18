@@ -63,8 +63,7 @@ export const Route = createFileRoute("/api/settings")({
           const allowedModels = body.allowedModels
             .filter((m): m is string => typeof m === "string")
             .map((m) => m.trim())
-            .filter(Boolean)
-            .slice(0, 20);
+            .filter(Boolean);
           if (!allowedModels.length) return safeJson({ error: "Minimal satu model harus diizinkan untuk user." }, 400);
           update.allowed_models = Array.from(new Set(allowedModels));
         }
