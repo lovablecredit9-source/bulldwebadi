@@ -14,7 +14,7 @@ async function getUser(request: Request) {
 }
 
 function isAdministrator(user: { email?: string | null } | null) {
-  return user?.email?.trim().toLowerCase() isAdministratorEmail(email);
+  return isAdministratorEmail(user?.email);
 }
 
 async function getAllowedModels() {
