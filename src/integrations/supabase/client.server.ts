@@ -59,3 +59,28 @@ export const supabaseAdmin = new Proxy({} as ReturnType<typeof createSupabaseAdm
     return Reflect.get(_supabaseAdmin, prop, receiver);
   },
 });
+
+
+const APP_SUPABASE_URL = "https://ochqpzpsfqytemrgsdir.supabase.co";
+const APP_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_Wmfpinvf5ZPzf7dmRoNtMw_1L1H1qfC";
+
+/**
+ * Authenticated server client using the user's Supabase JWT.
+ * This intentionally uses the publishable key; RLS and SECURITY DEFINER
+ * functions enforce the wallet permissions. It never needs a service key.
+ */
+export function createSupabaseUserClient(accessToken: string) {
+  return createClient<Database>(APP_SUPABASE_URL, APP_SUPABASE_PUBLISHABLE_KEY, {
+    global: {
+      fetch: createSupabaseFetch(APP_SUPABASE_PUBLISHABLE_KEY),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    auth: {
+      storage: undefined,
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+}
