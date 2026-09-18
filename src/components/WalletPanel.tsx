@@ -22,11 +22,18 @@ export function WalletPanel() {
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   const load = async () => {
-    try { setData(await getJson<WalletData>("/api/wallet")); }
-    catch { setData(null); }
-    finally { setLoading(false); }
+    try {
+      setLoadError("");
+      setData(await getJson<WalletData>("/api/wallet"));
+    } catch (e) {
+      setData(null);
+      setLoadError(e instanceof Error ? e.message : "Wallet tidak dapat dimuat.");
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => { void load(); }, []);
 
@@ -58,7 +65,16 @@ export function WalletPanel() {
   };
 
   if (loading) return <section className="rounded-3xl border bg-card p-5"><Loader2 className="size-5 animate-spin" /></section>;
-  if (!data) return null;
+  if (!data) return <section className="rounded-3xl border border-destructive/30 bg-card p-5 shadow-lg sm:p-6">
+    <div className="flex items-center gap-3">
+      <WalletCards className="size-6 text-destructive" />
+      <div>
+        <h2 className="font-bold">Total Saldo belum dapat dimuat</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{loadError || "Terjadi kesalahan saat memuat wallet."}</p>
+      </div>
+    </div>
+    <Button className="mt-4 rounded-xl" variant="outline" onClick={() => { setLoading(true); void load(); }}>Coba lagi</Button>
+  </section>;
 
   return <section className="rounded-3xl border border-primary/20 bg-card p-5 shadow-lg shadow-primary/5 sm:p-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
