@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { DEFAULT_BASE_URL } from "@/lib/models";
 import { loadConfig, safeJson } from "@/lib/ai.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { isAdministratorEmail } from "@/lib/roles";
+import { isAdministratorUser } from "@/lib/roles";
 
 
 
@@ -15,7 +15,7 @@ async function getUser(request: Request) {
 
 async function isAdministrator(request: Request) {
   const user = await getUser(request);
-  return isAdministratorEmail(user?.email);
+  return isAdministratorUser(user?.email);
 }
 
 function mask(key: string | null | undefined) {
