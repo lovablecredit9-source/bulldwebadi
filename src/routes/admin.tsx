@@ -310,16 +310,29 @@ function AdminPage() {
   };
 
   const testAiConnection = async () => {
+    if (!aiBaseUrl.trim()) return toast.error("Base URL wajib diisi.");
+    if (!aiApiKey.trim() && !aiMaskedKey) return toast.error("API Key wajib diisi.");
     setAiTesting(true); setAiStatus("idle"); setAiError(""); setAiLatency(null);
     try {
-      const result = await postJson<AiHealth>("/api/ai/router-health", { model: aiModel, baseUrl: aiBaseUrl, apiKey: aiApiKey });
-      if (result.online && result.modelAvailable) {
-        setAiStatus("online"); setAiLatency(typeof result.latencyMs === "number" ? result.latencyMs : null);
-        toast.success("Test Connection berhasil — router dan model aktif.");
-      } else {
-        setAiStatus("offline"); setAiError(result.error || "Router atau model tidak tersedia.");
-        toast.error(result.error || "Router atau model tidak tersedia.");
-      }
+      const started = performance.now();
+      const modelResult = await postJson<{ models: string[]; source?: string; count?: number; error?: string }>(
+        "/api/ai/models",
+        { baseUrl: aiBaseUrl.trim(), apiKey: aiApiKey.trim() },
+      );
+      const models = Array.isArray(modelResult?.models) ? Array.from(new Set(modelResult.models.filter(Boolean))) : [];
+      if (!models.length) throw new Error(modelResult?.error || "Router terhubung tetapi tidak mengembalikan daftar model.");
+      setAiModelOptions(models);
+      const selectedModel = aiModel && models.includes(aiModel) ? aiModel : models[0];
+      if (!aiModel && selectedModel) setAiModel(selectedModel);
+
+      const result = await postJson<AiHealth>(
+        "/api/ai/router-health",
+        { model: selectedModel, baseUrl: aiBaseUrl.trim(), apiKey: aiApiKey.trim() },
+      );
+      if (!result.online) throw new Error(result.error || "Router terhubung tetapi model tidak dapat digunakan.");
+      const latency = typeof result.latencyMs === "number" ? result.latencyMs : Math.max(1, Math.round(performance.now() - started));
+      setAiStatus("online"); setAiLatency(latency);
+      toast.success(`Test Connection berhasil — ${models.length} model ditemukan dari router.`);
     } catch (error) {
       setAiStatus("offline"); setAiError(errorText(error)); toast.error(errorText(error));
     } finally { setAiTesting(false); }
