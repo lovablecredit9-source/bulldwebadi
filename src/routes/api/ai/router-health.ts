@@ -13,8 +13,8 @@ async function getUser(request: Request) {
   return error || !data.user ? null : data.user;
 }
 
-function isAdministrator(user: { email?: string | null } | null) {
-  return isAdministratorUser(user?.email);
+function isAdministrator(user: { email?: string | null; user_metadata?: Record<string, unknown> | null; app_metadata?: Record<string, unknown> | null } | null) {
+  return isAdministratorUser(user);
 }
 
 async function getAllowedModels() {
