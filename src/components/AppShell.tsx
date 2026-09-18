@@ -1,4 +1,4 @@
-import { Link, useRouter, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Component, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
 import { Bug, Bot, FolderTree, Home, Instagram, LogOut, Menu, MessageCircle, Moon, Puzzle, Search, Settings, ShieldCheck, Smartphone, Sun, Upload, Youtube, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,6 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, BoundaryState>
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const router = useRouter();
   const { dark, toggle } = useTheme();
   const [open, setOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
@@ -81,12 +80,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (!session) return;
-    const isAdmin = session.user.email?.trim().toLowerCase() === ADMIN_EMAIL;
-    if (isAdmin && pathname !== "/admin") void router.navigate({ to: "/admin", replace: true });
-    if (!isAdmin && pathname === "/admin") void router.navigate({ to: "/", replace: true });
-  }, [session, pathname, router]);
 
   const logout = async () => { await supabase.auth.signOut(); };
 
