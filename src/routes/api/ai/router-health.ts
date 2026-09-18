@@ -5,12 +5,20 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const ADMIN_EMAIL = "panpakarak36@gmail.com";
 
-async function isAdministrator(request: Request) {
-  const header = request.headers.get("authorization") || "";
-  const token = header.match(/^Bearer\s+(.+)$/i)?.[1];
-  if (!token) return false;
+async function getUser(request: Request) {
+  const token = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!token) return null;
   const { data, error } = await supabaseAdmin.auth.getUser(token);
-  return !error && data.user?.email?.trim().toLowerCase() === ADMIN_EMAIL;
+  return error || !data.user ? null : data.user;
+}
+
+function isAdministrator(user: { email?: string | null } | null) {
+  return user?.email?.trim().toLowerCase() === ADMIN_EMAIL;
+}
+
+async function getAllowedModels() {
+  const { data } = await supabaseAdmin.from("ai_settings").select("allowed_models").eq("id", 1).maybeSingle();
+  return Array.isArray(data?.allowed_models) ? data.allowed_models.filter((m): m is string => typeof m === "string").map(normalizeModel) : [];
 }
 
 function routerEndpoints(baseUrl: string) {
@@ -115,13 +123,20 @@ export const Route = createFileRoute("/api/ai/router-health")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        if (!(await isAdministrator(request))) {
-          return safeJson({ error: "Hanya Administrator yang dapat melakukan Test Connection." }, 403);
-        }
-        const config = await loadConfig();
-        const baseUrl = config.baseUrl.trim().replace(/\/+$/, "");
-        const model = normalizeModel(config.model);
+        const user = await getUser(request);
+        if (!user) return safeJson({ error: "Sesi login diperlukan." }, 401);
 
+        const body = (await request.json().catch(() => ({}))) as { model?: string };
+        const config = await loadConfig();
+        const requestedModel = body.model?.trim();
+        const model = normalizeModel(requestedModel || config.model);
+
+        if (!isAdministrator(user)) {
+          const allowed = await getAllowedModels();
+          if (!allowed.includes(model)) return safeJson({ error: "Model tersebut tidak diizinkan untuk user." }, 403);
+        }
+
+        const baseUrl = config.baseUrl.trim().replace(/\/+$/, "");
         if (!baseUrl) return safeJson({ online: false, configured: false, modelAvailable: false, error: "Base URL belum dikonfigurasi." });
         if (!config.apiKey) return safeJson({ online: false, configured: false, modelAvailable: false, error: "API Key belum dikonfigurasi." });
 
