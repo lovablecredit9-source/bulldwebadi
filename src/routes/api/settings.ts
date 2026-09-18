@@ -68,6 +68,10 @@ export const Route = createFileRoute("/api/settings")({
           update.allowed_models = Array.from(new Set(allowedModels));
         }
 
+        // Kredensial router boleh disimpan lebih dahulu sebelum discovery model.
+        // Model/allowed_models hanya diperbarui ketika memang dikirim oleh Admin.
+        // Ini memungkinkan alur: Save Base URL + API Key -> Test Connection -> pilih model -> Save lagi.
+
         const { error } = await supabaseAdmin.from("ai_settings").upsert(update, { onConflict: "id" });
         if (error) return safeJson({ error: "Konfigurasi gagal disimpan." }, 400);
 
