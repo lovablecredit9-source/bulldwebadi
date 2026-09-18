@@ -15,11 +15,13 @@ export function ModelSelect({
   onChange,
   label = "Model AI",
   disabled = false,
+  allowCurrentValue = true,
 }: {
   value: string;
   onChange: (v: string) => void;
   label?: string;
   disabled?: boolean;
+  allowCurrentValue?: boolean;
 }) {
   const [models, setModels] = useState<string[]>(AI_MODELS);
   const [source, setSource] = useState<"router" | "fallback" | "admin-allowed">("fallback");
@@ -27,11 +29,14 @@ export function ModelSelect({
   useEffect(() => {
     getJson<{ models: string[]; source: "router" | "fallback" | "admin-allowed" }>("/api/ai/models")
       .then((r) => {
-        if (r.models?.length) setModels(r.models);
+        if (r.models?.length) {
+          setModels(r.models);
+          if (!allowCurrentValue && !r.models.includes(value)) onChange(r.models[0]);
+        }
         setSource(r.source);
       })
       .catch(() => undefined);
-  }, []);
+  }, [allowCurrentValue, onChange, value]);
 
   const options = value && !models.includes(value) ? [value, ...models] : models;
 
