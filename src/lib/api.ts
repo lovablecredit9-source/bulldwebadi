@@ -22,7 +22,7 @@ async function fetchWithAuthRetry(input: RequestInfo | URL, init: RequestInit = 
 
   let res = await fetch(input, {
     ...init,
-    credentials: "same-origin",
+    credentials: "include",
     headers: await buildHeaders(),
   });
   if (res.status === 401) {
