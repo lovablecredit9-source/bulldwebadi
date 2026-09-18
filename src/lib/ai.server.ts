@@ -243,7 +243,8 @@ export function errorResponse(err: unknown) {
       : err instanceof Error
         ? `Proses AI gagal: ${err.message}`
         : "AI sedang mengalami gangguan. Silakan coba lagi.";
-  return safeJson({ error: message }, 400);
+  const status = err instanceof AiError ? err.status : 400;
+  return safeJson({ error: message }, status);
 }
 
 /** Bersihkan path agar aman (tanpa path traversal). */
