@@ -2,8 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { loadConfig, safeJson } from "@/lib/ai.server";
 import { AI_MODELS, normalizeModel } from "@/lib/models";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isAdministratorEmail } from "@/lib/roles";
 
-const ADMIN_EMAIL = "panpakarak36@gmail.com";
+
 const FALLBACK_ALLOWED = ["mk/auto", "mk/sonnet-4.5", "mk/haiku-4.5"];
 
 async function getUser(request: Request) {
@@ -14,7 +15,7 @@ async function getUser(request: Request) {
 }
 
 function isAdmin(user: { email?: string | null } | null) {
-  return user?.email?.trim().toLowerCase() === ADMIN_EMAIL;
+  return user?.email?.trim().toLowerCase() isAdministratorEmail(email);
 }
 
 async function allowedModels() {
