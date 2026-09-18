@@ -126,8 +126,16 @@ export const Route = createFileRoute("/api/ai/router-health")({
         const user = await getUser(request);
         if (!user) return safeJson({ error: "Sesi login diperlukan." }, 401);
 
-        const body = (await request.json().catch(() => ({}))) as { model?: string };
-        const config = await loadConfig();
+        const body = (await request.json().catch(() => ({}))) as { model?: string; baseUrl?: string; apiKey?: string };
+        const storedConfig = await loadConfig();
+        const admin = isAdministrator(user);
+        const config = admin
+          ? {
+              ...storedConfig,
+              baseUrl: typeof body.baseUrl === "string" && body.baseUrl.trim() ? body.baseUrl.trim() : storedConfig.baseUrl,
+              apiKey: typeof body.apiKey === "string" && body.apiKey.trim() ? body.apiKey.trim() : storedConfig.apiKey,
+            }
+          : storedConfig;
         const requestedModel = body.model?.trim();
         const model = normalizeModel(requestedModel || config.model);
 
