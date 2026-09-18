@@ -16,6 +16,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TelegramRouteImport } from './routes/telegram'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as WhatsappRouteImport } from './routes/whatsapp'
+import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as ApiSettingsRouteImport } from './routes/api/settings'
 import { Route as ProjectsIndexRouteImport } from './routes/projects.index'
 import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
@@ -190,6 +191,7 @@ export interface FileRoutesByTo {
   '/telegram': typeof TelegramRoute
   '/upload': typeof UploadRoute
   '/whatsapp': typeof WhatsappRoute
+  '/wallet': typeof WalletRoute
   '/api/settings': typeof ApiSettingsRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/projects': typeof ProjectsIndexRoute
@@ -216,6 +218,7 @@ export interface FileRoutesById {
   '/telegram': typeof TelegramRoute
   '/upload': typeof UploadRoute
   '/whatsapp': typeof WhatsappRoute
+  '/wallet': typeof WalletRoute
   '/api/settings': typeof ApiSettingsRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/projects/': typeof ProjectsIndexRoute
@@ -243,6 +246,7 @@ export interface FileRouteTypes {
     | '/telegram'
     | '/upload'
     | '/whatsapp'
+    | '/wallet'
     | '/api/settings'
     | '/projects/$id'
     | '/projects/'
@@ -268,6 +272,7 @@ export interface FileRouteTypes {
     | '/telegram'
     | '/upload'
     | '/whatsapp'
+    | '/wallet'
     | '/api/settings'
     | '/projects/$id'
     | '/projects'
@@ -293,6 +298,7 @@ export interface FileRouteTypes {
     | '/telegram'
     | '/upload'
     | '/whatsapp'
+    | '/wallet'
     | '/api/settings'
     | '/projects/$id'
     | '/projects/'
@@ -387,6 +393,13 @@ declare module '@tanstack/react-router' {
       path: '/whatsapp'
       fullPath: '/whatsapp'
       preLoaderRoute: typeof WhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wallet': {
+      id: '/wallet'
+      path: '/wallet'
+      fullPath: '/wallet'
+      preLoaderRoute: typeof WalletRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/settings': {
@@ -512,6 +525,7 @@ const rootRouteChildren: RootRouteChildren = {
   TelegramRoute: TelegramRoute,
   UploadRoute: UploadRoute,
   WhatsappRoute: WhatsappRoute,
+  WalletRoute: WalletRoute,
   ApiSettingsRoute: ApiSettingsRoute,
   ProjectsIdRoute: ProjectsIdRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
