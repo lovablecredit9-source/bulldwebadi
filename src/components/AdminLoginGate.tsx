@@ -2,7 +2,7 @@ import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { Eye, EyeOff, Loader2, LockKeyhole, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { getSessionUser } from "@/lib/session";
+import { getSessionUser, primeSession } from "@/lib/session";
 import { isAdministratorUser } from "@/lib/roles";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -45,9 +45,22 @@ export function AdminLoginGate({ children }: Props) {
       });
       if (error) throw error;
 
+      if (!data.session || !data.user) {
+        throw new Error("Login berhasil tetapi sesi Supabase belum terbentuk. Silakan coba masuk lagi.");
+      }
+
       if (!isAdministratorUser(data.user)) {
         await supabase.auth.signOut();
         throw new Error("Akun ini bukan Administrator yang diizinkan.");
+      }
+
+      // Simpan session hasil sign-in langsung ke cache yang dipakai oleh seluruh
+      // request terlindungi. Jangan menunggu localStorage/event auth selesai.
+      primeSession(data.session);
+      const verifiedUser = await getSessionUser();
+      if (!verifiedUser || !isAdministratorUser(verifiedUser)) {
+        await supabase.auth.signOut();
+        throw new Error("Sesi Administrator tidak dapat diverifikasi.");
       }
 
       setAuthorized(true);
