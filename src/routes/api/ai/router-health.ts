@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { loadConfig, safeJson } from "@/lib/ai.server";
 import { normalizeModel } from "@/lib/models";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { isAdministratorEmail } from "@/lib/roles";
+import { isAdministratorUser } from "@/lib/roles";
 
 
 
@@ -14,7 +14,7 @@ async function getUser(request: Request) {
 }
 
 function isAdministrator(user: { email?: string | null } | null) {
-  return isAdministratorEmail(user?.email);
+  return isAdministratorUser(user?.email);
 }
 
 async function getAllowedModels() {
