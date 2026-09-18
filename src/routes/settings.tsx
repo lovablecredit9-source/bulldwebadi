@@ -26,6 +26,8 @@ function SettingsPage() {
   const [email, setEmail] = useState("");
   const [accountCreatedAt, setAccountCreatedAt] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [allowedModels, setAllowedModels] = useState<string[]>([]);
+  const [adminModelOptions, setAdminModelOptions] = useState<string[]>([]);
   const [profileSaving, setProfileSaving] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -65,11 +67,15 @@ function SettingsPage() {
       setEmail(user.email || "");
       setUsername(typeof user.user_metadata?.username === "string" ? user.user_metadata.username : "");
       setAccountCreatedAt(user.created_at || null);
-      setIsAdmin(user.email?.trim().toLowerCase() === "panpakarak36@gmail.com");
+      const admin = user.email?.trim().toLowerCase() === "panpakarak36@gmail.com";
+      setIsAdmin(admin);
+      if (admin) {
+        getJson<Cfg & { allowedModels?: string[] }>("/api/settings").then((cfg) => {
+          setBaseUrl(cfg.baseUrl || DEFAULT_BASE_URL); setModel(cfg.model || DEFAULT_MODEL); setMasked(cfg.maskedKey); setHasKey(Boolean(cfg.hasKey)); setAllowedModels(Array.isArray(cfg.allowedModels) ? cfg.allowedModels : []);
+        }).catch(() => undefined);
+        getJson<{ models: string[] }>("/api/ai/models").then((r) => setAdminModelOptions(r.models || [])).catch(() => undefined);
+      }
     });
-    getJson<Cfg>("/api/settings").then((c) => {
-      setBaseUrl(c.baseUrl || DEFAULT_BASE_URL); setModel(c.model || DEFAULT_MODEL); setMasked(c.maskedKey); setHasKey(Boolean(c.hasKey));
-    }).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -168,23 +174,23 @@ function SettingsPage() {
   };
 
   const verifySavedConfig = async () => {
-    try { const result = await postJson<HealthResult>("/api/ai/router-health", {}); const ok = Boolean(result.online && result.modelAvailable); setConnected(ok); setHealth(ok ? "online" : "offline"); setHealthError(ok ? "" : (result.error || "Router atau model tidak tersedia.")); setLatency(typeof result.latencyMs === "number" ? result.latencyMs : null); return result; }
+    try { const result = await postJson<HealthResult>("/api/ai/router-health", { model }); const ok = Boolean(result.online && result.modelAvailable); setConnected(ok); setHealth(ok ? "online" : "offline"); setHealthError(ok ? "" : (result.error || "Router atau model tidak tersedia.")); setLatency(typeof result.latencyMs === "number" ? result.latencyMs : null); return result; }
     catch (e) { setConnected(false); setHealth("offline"); setHealthError(e instanceof Error ? e.message : "Router tidak dapat diverifikasi."); setLatency(null); return null; }
   };
   const save = async () => {
     setSaving(true); setConnected(false);
-    try { const c = await postJson<Cfg>("/api/settings", { baseUrl, model, apiKey }); setMasked(c.maskedKey); setHasKey(Boolean(c.hasKey)); setApiKey(""); const result = await verifySavedConfig(); if (result?.online && result.modelAvailable) toast.success("Konfigurasi tersimpan — router dan model siap digunakan"); else toast.error(result?.error || "Konfigurasi tersimpan, tetapi router/model belum siap."); }
+    try { const c = await postJson<Cfg & { allowedModels?: string[] }>("/api/settings", { baseUrl, model, apiKey, allowedModels }); setMasked(c.maskedKey); setHasKey(Boolean(c.hasKey)); setApiKey(""); const result = await verifySavedConfig(); if (result?.online && result.modelAvailable) toast.success("Konfigurasi tersimpan — router dan model siap digunakan"); else toast.error(result?.error || "Konfigurasi tersimpan, tetapi router/model belum siap."); }
     catch (e) { toast.error(e instanceof Error ? e.message : "Konfigurasi gagal disimpan."); }
     finally { setSaving(false); }
   };
   const test = async () => {
-    if (!hasKey) return; setTesting(true); setConnected(false); setHealth("idle"); setHealthError(""); setLatency(null);
+    if ((!isAdmin && !model) || (isAdmin && !hasKey)) return; setTesting(true); setConnected(false); setHealth("idle"); setHealthError(""); setLatency(null);
     try { const result = await postJson<HealthResult>("/api/ai/router-health", {}); if (result.online && result.modelAvailable) { setConnected(true); setHealth("online"); setLatency(typeof result.latencyMs === "number" ? result.latencyMs : null); toast.success("✓ Router Online — API Key dan model aktif"); } else { setHealth("offline"); setHealthError(result.error || "API Key, router, atau model tidak tersedia."); toast.error(result.error || "Router/model tidak tersedia."); } }
     catch (e) { setConnected(false); setHealth("offline"); setHealthError(e instanceof Error ? e.message : "API Key/Base URL tidak dapat diverifikasi."); toast.error(e instanceof Error ? e.message : "API Key/Base URL tidak dapat diverifikasi."); }
     finally { setTesting(false); }
   };
   const runHealthTest = async () => {
-    if (healthRun.current || !hasKey) return; healthRun.current = true; setHealth("running"); setHealthError(""); setLatency(null);
+    if (healthRun.current || (!isAdmin && !model) || (isAdmin && !hasKey)) return; healthRun.current = true; setHealth("running"); setHealthError(""); setLatency(null);
     try { const result = await postJson<HealthResult>("/api/ai/router-health", {}); if (result.online && result.modelAvailable) { setConnected(true); setHealth("online"); setLatency(typeof result.latencyMs === "number" ? result.latencyMs : null); toast.success("✓ Tes berhasil — router dan model aktif"); } else { setConnected(false); setHealth("offline"); setHealthError(result.error || "Router atau model tidak tersedia."); toast.error(result.error || "Tes gagal: router/model tidak tersedia."); } }
     catch (e) { setConnected(false); setHealth("offline"); setHealthError(e instanceof Error ? e.message : "Router tidak dapat diverifikasi."); toast.error(e instanceof Error ? e.message : "Router tidak dapat diverifikasi."); }
     finally { healthRun.current = false; }
@@ -229,35 +235,20 @@ function SettingsPage() {
       <Button onClick={saveProfile} disabled={profileSaving} className="w-full rounded-xl sm:w-fit">{profileSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Simpan Profil</Button>
     </section>
 
-    <section className="mt-4 grid max-w-2xl gap-4 rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
-      <div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><Mail className="size-5" /></div><div><h2 className="font-semibold">Ubah Email</h2><p className="text-sm text-muted-foreground">Kalau ingat password, gunakan password. Kalau lupa password, gunakan kode verifikasi.</p></div></div>
-      <div className="space-y-2"><Label>Email Saat Ini</Label><Input value={email} disabled /></div>
-      <div className="space-y-2"><Label>Email Baru</Label><Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="emailbaru@contoh.com" autoComplete="email" disabled={emailSaving} /></div>
-      <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-1">
-        <Button type="button" variant={emailMode === "password" ? "default" : "ghost"} onClick={() => setEmailMode("password")} disabled={emailSaving} className="rounded-lg">Saya Ingat Password</Button>
-        <Button type="button" variant={emailMode === "code" ? "default" : "ghost"} onClick={() => setEmailMode("code")} disabled={emailSaving} className="rounded-lg">Saya Lupa Password</Button>
-      </div>
-      {emailMode === "password" ? <div className="space-y-2"><Label>Password Saat Ini</Label><div className="relative"><Input type={showEmailPassword ? "text" : "password"} value={emailPassword} onChange={(e) => setEmailPassword(e.target.value)} placeholder="Masukkan password saat ini" autoComplete="current-password" disabled={emailSaving} className="pr-11" /><button type="button" onClick={() => setShowEmailPassword(!showEmailPassword)} className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted">{showEmailPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button></div></div> : <div className="space-y-3"><div className="rounded-xl border bg-background/50 p-3 text-sm text-muted-foreground">Kode 6 atau 8 digit akan dikirim ke <span className="font-medium text-foreground">{email}</span>.</div><div className="flex gap-2"><Input inputMode="numeric" maxLength={8} value={emailCode} onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, "").slice(0, 8))} placeholder="Kode verifikasi" disabled={emailSaving || !emailCodeSent} /><Button type="button" variant="outline" onClick={() => void sendEmailRecoveryCode()} disabled={emailSaving || emailCodeCooldown > 0}>{emailCodeCooldown > 0 ? `Kirim ulang (${emailCodeCooldown}s)` : emailCodeSent ? "Kirim ulang kode" : "Kirim kode"}</Button></div></div>}
-      <Button onClick={() => void changeEmail()} disabled={emailSaving || !newEmail.trim()} className="w-full rounded-xl sm:w-fit">{emailSaving ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />} Ubah Email</Button>
-      <p className="text-xs text-muted-foreground">Setelah berhasil, Supabase dapat meminta konfirmasi melalui email baru sebelum alamat baru aktif sepenuhnya.</p>
-    </section>
-
-    <section className="mt-4 grid max-w-2xl gap-4 rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
-      <div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><KeyRound className="size-5" /></div><div><h2 className="font-semibold">Ganti Password</h2><p className="text-sm text-muted-foreground">Password saat ini akan diverifikasi terlebih dahulu.</p></div></div>
-      {passwordField("current-password", "Password Saat Ini", currentPassword, setCurrentPassword, showCurrent, setShowCurrent, "Masukkan password saat ini")}
-      {passwordField("new-password-settings", "Password Baru", newPassword, setNewPassword, showNew, setShowNew, "Minimal 6 karakter")}
-      {passwordField("confirm-password-settings", "Konfirmasi Password Baru", confirmPassword, setConfirmPassword, showConfirm, setShowConfirm, "Ulangi password baru")}
-      <Button onClick={changePassword} disabled={passwordSaving} className="w-full rounded-xl sm:w-fit">{passwordSaving ? <Loader2 className="size-4 animate-spin" /> : <KeyRound className="size-4" />} Ubah Password</Button>
-    </section>
-
-    <section className="mt-4 grid max-w-2xl gap-4 rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
-      <div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">{isAdmin ? <Server className="size-5" /> : <KeyRound className="size-5" />}</div><div><h2 className="font-semibold">AI Configuration</h2><p className="text-sm text-muted-foreground">{isAdmin ? "Kelola konfigurasi AI global sebagai Administrator." : "Konfigurasi AI dikelola oleh Administrator."}</p></div></div>
-      <div className="space-y-2"><Label>Base URL</Label><div className="relative"><Input value={baseUrl} onChange={(e) => { setBaseUrl(e.target.value); setConnected(false); }} readOnly={!isAdmin} aria-readonly={!isAdmin} className={!isAdmin ? "pr-10" : undefined} />{!isAdmin && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-label="Hanya Administrator yang dapat mengubah" title="Hanya Administrator yang dapat mengubah">🔒</span>}</div></div>
-      <div className="space-y-2"><Label>API Key</Label><div className="flex gap-2"><div className="relative flex-1"><Input type={show ? "text" : "password"} value={apiKey} onChange={(e) => { setApiKey(e.target.value); setConnected(false); }} placeholder={masked || "Masukkan API Key"} autoComplete="off" readOnly={!isAdmin} aria-readonly={!isAdmin} className={!isAdmin ? "pr-10" : undefined} />{!isAdmin && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-label="Hanya Administrator yang dapat mengubah" title="Hanya Administrator yang dapat mengubah">🔒</span>}</div>{isAdmin && <Button variant="outline" size="icon" onClick={() => setShow(!show)} type="button">{show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</Button>}</div>{masked && <p className="text-xs text-muted-foreground">Tersimpan: {masked}</p>}</div>
-      <div className="relative"><ModelSelect value={model} onChange={(value) => { if (!isAdmin) return; setModel(value); setConnected(false); setHealth("idle"); setHealthError(""); setLatency(null); }} disabled={!isAdmin} />{!isAdmin && <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-label="Hanya Administrator yang dapat mengubah" title="Hanya Administrator yang dapat mengubah">🔒</span>}</div>
-      {isAdmin && <div className="flex flex-wrap gap-2"><Button onClick={test} variant="outline" disabled={testing || !hasKey} className="rounded-xl">{testing ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />} Test Connection</Button><Button onClick={save} disabled={saving} className="rounded-xl">{saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save Configuration</Button></div>}
-      {isAdmin && connected && <p className="flex items-center gap-2 rounded-xl bg-primary/10 px-3 py-2 text-sm font-medium text-primary"><CheckCircle2 className="size-4" /> API Connected — Router dan model aktif</p>}
-      {isAdmin && <div className="rounded-2xl border bg-background/40 p-4"><div className="flex items-center gap-2 font-semibold"><Server className="size-5" /> Test Kecepatan Router</div><p className="mt-1 text-sm text-muted-foreground">Setiap klik menjalankan satu tes inference nyata ke router dan model yang tersimpan.</p><div className="mt-4 flex flex-wrap items-center gap-3">{health === "running" ? <Button disabled className="rounded-xl"><Loader2 className="size-4 animate-spin" /> Sedang mengetes…</Button> : <Button onClick={() => void runHealthTest()} disabled={!hasKey} className="rounded-xl"><Zap className="size-4" /> {health === "idle" ? "Mulai Tes Kecepatan" : "Coba Lagi"}</Button>}{health === "online" && latency !== null && <span className="text-sm text-muted-foreground">Tes terakhir: {latency} ms</span>}</div>{!hasKey && <p className="mt-3 text-sm text-muted-foreground">Simpan API Key terlebih dahulu.</p>}{health !== "idle" && <div className="mt-4 rounded-xl border p-3"><p className="text-xs text-muted-foreground">Hasil tes</p><p className="mt-1 font-semibold">{health === "running" && "⏳ Sedang menguji router dan model…"}{health === "online" && "🟢 Berhasil — Router dan model tersedia"}{health === "offline" && "🔴 Gagal — Router atau model tidak tersedia"}</p>{latency !== null && health === "online" && <p className="mt-1 text-sm">Latency inference nyata: <span className="font-semibold">{latency} ms</span></p>}{healthError && <p className="mt-1 text-xs text-destructive">{healthError}</p>}</div>}</div>}
-    </section>
+    {isAdmin ? <section className="mt-4 grid max-w-2xl gap-4 rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+      <div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><Server className="size-5" /></div><div><h2 className="font-semibold">AI Configuration</h2><p className="text-sm text-muted-foreground">Konfigurasi AI global yang digunakan seluruh user.</p></div></div>
+      <div className="space-y-2"><Label>Base URL</Label><Input value={baseUrl} onChange={(e) => { setBaseUrl(e.target.value); setConnected(false); }} /></div>
+      <div className="space-y-2"><Label>API Key</Label><div className="flex gap-2"><Input type={show ? "text" : "password"} value={apiKey} onChange={(e) => { setApiKey(e.target.value); setConnected(false); }} placeholder={masked || "Masukkan API Key"} autoComplete="off" /><Button variant="outline" size="icon" onClick={() => setShow(!show)} type="button">{show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</Button></div>{masked && <p className="text-xs text-muted-foreground">Tersimpan: {masked}</p>}</div>
+      <ModelSelect value={model} onChange={(value) => { setModel(value); setConnected(false); setHealth("idle"); setHealthError(""); setLatency(null); }} />
+      <div className="space-y-3 rounded-2xl border bg-background/40 p-4"><div><h3 className="font-semibold">Model yang diizinkan untuk User</h3><p className="mt-1 text-xs text-muted-foreground">User hanya dapat memilih model yang dicentang di sini.</p></div><div className="grid gap-2 sm:grid-cols-2">{adminModelOptions.map((m) => <label key={m} className="flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm"><input type="checkbox" checked={allowedModels.includes(m)} onChange={(e) => setAllowedModels((current) => e.target.checked ? Array.from(new Set([...current, m])) : current.filter((item) => item !== m))} /> <span className="truncate">{m}</span></label>)}</div></div>
+      <div className="flex flex-wrap gap-2"><Button onClick={test} variant="outline" disabled={testing || !hasKey} className="rounded-xl">{testing ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />} Test Connection</Button><Button onClick={save} disabled={saving} className="rounded-xl">{saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save Configuration</Button></div>
+      {connected && <p className="flex items-center gap-2 rounded-xl bg-primary/10 px-3 py-2 text-sm font-medium text-primary"><CheckCircle2 className="size-4" /> API Connected — Router dan model aktif</p>}
+      {health !== "idle" && <div className="rounded-2xl border bg-background/40 p-4"><p className="text-xs text-muted-foreground">Hasil tes</p><p className="mt-1 font-semibold">{health === "running" && "⏳ Sedang menguji router dan model…"}{health === "online" && "🟢 Berhasil — Router dan model tersedia"}{health === "offline" && "🔴 Gagal — Router atau model tidak tersedia"}</p>{latency !== null && health === "online" && <p className="mt-1 text-sm">Latency inference nyata: <span className="font-semibold">{latency} ms</span></p>}{healthError && <p className="mt-1 text-xs text-destructive">{healthError}</p>}</div>}
+    </section> : <section className="mt-4 grid max-w-2xl gap-4 rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+      <div className="flex items-center gap-3"><div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><Zap className="size-5" /></div><div><h2 className="font-semibold">AI</h2><p className="text-sm text-muted-foreground">Pilih model AI yang diizinkan dan tes koneksi menggunakan konfigurasi server.</p></div></div>
+      <ModelSelect value={model} onChange={(value) => { setModel(value); setHealth("idle"); setHealthError(""); setLatency(null); }} />
+      <Button onClick={() => void test()} disabled={testing || !model} className="w-full rounded-xl sm:w-fit">{testing ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />} Test Koneksi AI</Button>
+      {health !== "idle" && <div className="rounded-2xl border bg-background/40 p-4"><p className="text-xs text-muted-foreground">Hasil tes</p><p className="mt-1 font-semibold">{health === "running" && "⏳ Sedang menguji AI…"}{health === "online" && "🟢 Koneksi AI berhasil"}{health === "offline" && "🔴 Koneksi AI gagal"}</p>{latency !== null && health === "online" && <p className="mt-1 text-sm">Latency: <span className="font-semibold">{latency} ms</span></p>}{healthError && <p className="mt-1 text-xs text-destructive">{healthError}</p>}</div>}
+    </section>}
   </AppShell>;
 }
