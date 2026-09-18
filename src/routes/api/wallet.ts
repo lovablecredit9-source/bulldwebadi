@@ -141,6 +141,7 @@ export async function handleWalletRequest(request: Request): Promise<Response> {
           .insert({
             user_id: user.id,
             username_snapshot: usernameOf(user),
+            email_snapshot: user.email || null,
             amount,
             method: selectedMethod,
           })
