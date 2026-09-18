@@ -43,13 +43,13 @@ export function AuthGate() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (mode === "register") {
-      if (normalizedEmail === ADMIN_EMAIL) return toast.error("Email administrator tidak dapat didaftarkan sebagai akun user.");
-      if (cleanUsername.length < 3) return toast.error("Username minimal 3 karakter.");
-      if (!normalizedEmail || !password) return toast.error("Username, email, dan password wajib diisi.");
-      if (password.length < 6) return toast.error("Password minimal 6 karakter.");
-      if (password !== confirmPassword) return toast.error("Konfirmasi password tidak sama.");
+      if (normalizedEmail === ADMIN_EMAIL) { toast.error("Email administrator tidak dapat didaftarkan sebagai akun user."); return; }
+      if (cleanUsername.length < 3) { toast.error("Username minimal 3 karakter."); return; }
+      if (!normalizedEmail || !password) { toast.error("Username, email, dan password wajib diisi."); return; }
+      if (password.length < 6) { toast.error("Password minimal 6 karakter."); return; }
+      if (password !== confirmPassword) { toast.error("Konfirmasi password tidak sama."); return; }
     } else if (!normalizedEmail || !password) {
-      return toast.error("Email dan password wajib diisi.");
+      toast.error("Email dan password wajib diisi."); return;
     }
 
     setLoading(true);
@@ -81,7 +81,7 @@ export function AuthGate() {
   };
 
   const sendResetCode = async () => {
-    if (!normalizedEmail) return toast.error("Masukkan email akun terlebih dahulu.");
+    if (!normalizedEmail) { toast.error("Masukkan email akun terlebih dahulu."); return; }
     if (resendCooldown > 0) return;
     setLoading(true);
     try {
@@ -94,9 +94,9 @@ export function AuthGate() {
   };
 
   const verifyCodeAndReset = async () => {
-    if (!/^\d{6,8}$/.test(resetCode)) return toast.error("Masukkan kode verifikasi 6 atau 8 digit.");
-    if (newPassword.length < 6) return toast.error("Password baru minimal 6 karakter.");
-    if (newPassword !== confirmNewPassword) return toast.error("Konfirmasi password baru tidak sama.");
+    if (!/^\d{6,8}$/.test(resetCode)) { toast.error("Masukkan kode verifikasi 6 atau 8 digit."); return; }
+    if (newPassword.length < 6) { toast.error("Password baru minimal 6 karakter."); return; }
+    if (newPassword !== confirmNewPassword) { toast.error("Konfirmasi password baru tidak sama."); return; }
     setLoading(true);
     try {
       const { error: verifyError } = await supabase.auth.verifyOtp({ email: normalizedEmail, token: resetCode, type: "recovery" });
