@@ -1,6 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { DEFAULT_BASE_URL } from "@/lib/models";
 import { loadConfig, safeJson } from "@/lib/ai.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+
+const ADMIN_EMAIL = "panpakarak36@gmail.com";
+
+async function getAuthenticatedUser(request: Request) {
+  const header = request.headers.get("authorization") || "";
+  const token = header.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!token) return null;
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !data.user) return null;
+  return data.user;
+}
+
+async function isAdministrator(request: Request) {
+  const user = await getAuthenticatedUser(request);
+  return user?.email?.trim().toLowerCase() === ADMIN_EMAIL;
+}
 
 function mask(key: string | null | undefined) {
   if (!key) return "";
@@ -11,7 +28,9 @@ function mask(key: string | null | undefined) {
 export const Route = createFileRoute("/api/settings")({
   server: {
     handlers: {
-      GET: async () => {
+      GET: async ({ request }) => {
+        const user = await getAuthenticatedUser(request);
+        if (!user) return safeJson({ error: "Sesi login diperlukan." }, 401);
         const cfg = await loadConfig();
         return safeJson({
           baseUrl: cfg.baseUrl || DEFAULT_BASE_URL,
@@ -21,6 +40,10 @@ export const Route = createFileRoute("/api/settings")({
         });
       },
       POST: async ({ request }) => {
+        if (!(await isAdministrator(request))) {
+          return safeJson({ error: "Hanya Administrator yang dapat mengubah AI Configuration." }, 403);
+        }
+
         const body = (await request.json().catch(() => ({}))) as {
           baseUrl?: string;
           apiKey?: string;
