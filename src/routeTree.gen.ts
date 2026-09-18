@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ExtensionRouteImport } from './routes/extension'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TelegramRouteImport } from './routes/telegram'
@@ -24,6 +25,7 @@ import { Route as ApiAiChatRouteImport } from './routes/api/ai/chat'
 import { Route as ApiAiFixProjectRouteImport } from './routes/api/ai/fix-project'
 import { Route as ApiAiGenerateProjectRouteImport } from './routes/api/ai/generate-project'
 import { Route as ApiAiModelsRouteImport } from './routes/api/ai/models'
+import { Route as ApiAiRouterHealthRouteImport } from './routes/api/ai/router-health'
 import { Route as ApiAiTestRouteImport } from './routes/api/ai/test'
 import { Route as ApiAiValidateProjectRouteImport } from './routes/api/ai/validate-project'
 import { Route as ApiProjectApplyRouteImport } from './routes/api/project/apply'
@@ -34,6 +36,11 @@ import { Route as ApiProjectUploadRouteImport } from './routes/api/project/uploa
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExtensionRoute = ExtensionRouteImport.update({
@@ -106,6 +113,11 @@ const ApiAiModelsRoute = ApiAiModelsRouteImport.update({
   path: '/api/ai/models',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAiRouterHealthRoute = ApiAiRouterHealthRouteImport.update({
+  id: '/api/ai/router-health',
+  path: '/api/ai/router-health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAiTestRoute = ApiAiTestRouteImport.update({
   id: '/api/ai/test',
   path: '/api/ai/test',
@@ -139,6 +151,7 @@ const ApiProjectUploadRoute = ApiProjectUploadRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/extension': typeof ExtensionRoute
   '/settings': typeof SettingsRoute
   '/telegram': typeof TelegramRoute
@@ -153,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/api/ai/fix-project': typeof ApiAiFixProjectRoute
   '/api/ai/generate-project': typeof ApiAiGenerateProjectRoute
   '/api/ai/models': typeof ApiAiModelsRoute
+  '/api/ai/router-health': typeof ApiAiRouterHealthRoute
   '/api/ai/test': typeof ApiAiTestRoute
   '/api/ai/validate-project': typeof ApiAiValidateProjectRoute
   '/api/project/apply': typeof ApiProjectApplyRoute
@@ -162,6 +176,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/extension': typeof ExtensionRoute
   '/settings': typeof SettingsRoute
   '/telegram': typeof TelegramRoute
@@ -176,6 +191,7 @@ export interface FileRoutesByTo {
   '/api/ai/fix-project': typeof ApiAiFixProjectRoute
   '/api/ai/generate-project': typeof ApiAiGenerateProjectRoute
   '/api/ai/models': typeof ApiAiModelsRoute
+  '/api/ai/router-health': typeof ApiAiRouterHealthRoute
   '/api/ai/test': typeof ApiAiTestRoute
   '/api/ai/validate-project': typeof ApiAiValidateProjectRoute
   '/api/project/apply': typeof ApiProjectApplyRoute
@@ -186,6 +202,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/extension': typeof ExtensionRoute
   '/settings': typeof SettingsRoute
   '/telegram': typeof TelegramRoute
@@ -200,6 +217,7 @@ export interface FileRoutesById {
   '/api/ai/fix-project': typeof ApiAiFixProjectRoute
   '/api/ai/generate-project': typeof ApiAiGenerateProjectRoute
   '/api/ai/models': typeof ApiAiModelsRoute
+  '/api/ai/router-health': typeof ApiAiRouterHealthRoute
   '/api/ai/test': typeof ApiAiTestRoute
   '/api/ai/validate-project': typeof ApiAiValidateProjectRoute
   '/api/project/apply': typeof ApiProjectApplyRoute
@@ -211,6 +229,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/extension'
     | '/settings'
     | '/telegram'
@@ -225,6 +244,7 @@ export interface FileRouteTypes {
     | '/api/ai/fix-project'
     | '/api/ai/generate-project'
     | '/api/ai/models'
+    | '/api/ai/router-health'
     | '/api/ai/test'
     | '/api/ai/validate-project'
     | '/api/project/apply'
@@ -234,6 +254,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/extension'
     | '/settings'
     | '/telegram'
@@ -248,6 +269,7 @@ export interface FileRouteTypes {
     | '/api/ai/fix-project'
     | '/api/ai/generate-project'
     | '/api/ai/models'
+    | '/api/ai/router-health'
     | '/api/ai/test'
     | '/api/ai/validate-project'
     | '/api/project/apply'
@@ -257,6 +279,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/extension'
     | '/settings'
     | '/telegram'
@@ -271,6 +294,7 @@ export interface FileRouteTypes {
     | '/api/ai/fix-project'
     | '/api/ai/generate-project'
     | '/api/ai/models'
+    | '/api/ai/router-health'
     | '/api/ai/test'
     | '/api/ai/validate-project'
     | '/api/project/apply'
@@ -281,6 +305,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   ExtensionRoute: typeof ExtensionRoute
   SettingsRoute: typeof SettingsRoute
   TelegramRoute: typeof TelegramRoute
@@ -295,6 +320,7 @@ export interface RootRouteChildren {
   ApiAiFixProjectRoute: typeof ApiAiFixProjectRoute
   ApiAiGenerateProjectRoute: typeof ApiAiGenerateProjectRoute
   ApiAiModelsRoute: typeof ApiAiModelsRoute
+  ApiAiRouterHealthRoute: typeof ApiAiRouterHealthRoute
   ApiAiTestRoute: typeof ApiAiTestRoute
   ApiAiValidateProjectRoute: typeof ApiAiValidateProjectRoute
   ApiProjectApplyRoute: typeof ApiProjectApplyRoute
@@ -310,6 +336,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/extension': {
@@ -410,6 +443,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAiModelsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/ai/router-health': {
+      id: '/api/ai/router-health'
+      path: '/api/ai/router-health'
+      fullPath: '/api/ai/router-health'
+      preLoaderRoute: typeof ApiAiRouterHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ai/test': {
       id: '/api/ai/test'
       path: '/api/ai/test'
@@ -457,6 +497,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   ExtensionRoute: ExtensionRoute,
   SettingsRoute: SettingsRoute,
   TelegramRoute: TelegramRoute,
@@ -471,6 +512,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAiFixProjectRoute: ApiAiFixProjectRoute,
   ApiAiGenerateProjectRoute: ApiAiGenerateProjectRoute,
   ApiAiModelsRoute: ApiAiModelsRoute,
+  ApiAiRouterHealthRoute: ApiAiRouterHealthRoute,
   ApiAiTestRoute: ApiAiTestRoute,
   ApiAiValidateProjectRoute: ApiAiValidateProjectRoute,
   ApiProjectApplyRoute: ApiProjectApplyRoute,
