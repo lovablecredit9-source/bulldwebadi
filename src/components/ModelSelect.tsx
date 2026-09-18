@@ -17,6 +17,7 @@ export function ModelSelect({
   disabled = false,
   allowCurrentValue = true,
   routerOnly = false,
+  models: providedModels,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -24,11 +25,16 @@ export function ModelSelect({
   disabled?: boolean;
   allowCurrentValue?: boolean;
   routerOnly?: boolean;
+  models?: string[];
 }) {
-  const [models, setModels] = useState<string[]>(routerOnly ? [] : AI_MODELS);
+  const [models, setModels] = useState<string[]>(providedModels ?? (routerOnly ? [] : AI_MODELS));
   const [source, setSource] = useState<"router" | "fallback" | "admin-allowed">(routerOnly ? "router" : "fallback");
 
   useEffect(() => {
+    if (providedModels) {
+      setModels(Array.from(new Set(providedModels.filter(Boolean))));
+      return;
+    }
     getJson<{ models: string[]; source: "router" | "fallback" | "admin-allowed" }>("/api/ai/models")
       .then((r) => {
         if (r.models?.length) {
@@ -38,7 +44,7 @@ export function ModelSelect({
         setSource(r.source);
       })
       .catch(() => undefined);
-  }, []);
+  }, [providedModels]);
 
   const options = value && !models.includes(value) ? [value, ...models] : models;
 
