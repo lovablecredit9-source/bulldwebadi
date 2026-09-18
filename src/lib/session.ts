@@ -2,7 +2,8 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 const NEAR_EXPIRY_MS = 30_000;
-const RETRY_DELAYS_MS = [0, 150, 400, 800];
+const RETRY_DELAYS_MS = [0, 150, 400, 800, 1200];
+let refreshInFlight: Promise<Session | null> | null = null;
 
 function isUsable(session: Session | null | undefined) {
   if (!session?.access_token) return false;
@@ -27,13 +28,23 @@ export async function getValidSession(): Promise<Session | null> {
     if (isUsable(session)) return session;
 
     if (session) {
-      const { data: refreshed } = await supabase.auth.refreshSession();
-      if (isUsable(refreshed.session)) return refreshed.session;
+      const refreshed = await refreshSessionOnce();
+      if (isUsable(refreshed)) return refreshed;
     }
   }
 
-  const { data: refreshed } = await supabase.auth.refreshSession();
-  return isUsable(refreshed.session) ? refreshed.session : null;
+  const refreshed = await refreshSessionOnce();
+  return isUsable(refreshed) ? refreshed : null;
+}
+
+async function refreshSessionOnce(): Promise<Session | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = supabase.auth.refreshSession()
+      .then(({ data, error }) => error ? null : data.session ?? null)
+      .catch(() => null)
+      .finally(() => { refreshInFlight = null; });
+  }
+  return refreshInFlight;
 }
 
 export async function getAccessToken(): Promise<string | null> {
