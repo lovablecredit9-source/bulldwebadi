@@ -2,7 +2,20 @@ import { supabase } from "@/integrations/supabase/client";
 
 async function authHeaders() {
   const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {};
+  let session = data.session;
+
+  // Lovable preview can keep a stale access token while the Supabase client
+  // still has a refresh token. Refresh before protected API calls when the
+  // access token is missing or close to expiry.
+  const expiresAt = session?.expires_at ?? 0;
+  if (!session?.access_token || expiresAt * 1000 <= Date.now() + 30_000) {
+    const { data: refreshed, error } = await supabase.auth.refreshSession();
+    if (!error && refreshed.session) session = refreshed.session;
+  }
+
+  return session?.access_token
+    ? { Authorization: `Bearer ${session.access_token}` }
+    : {};
 }
 
 export async function postJson<T>(url: string, body: unknown): Promise<T> {
