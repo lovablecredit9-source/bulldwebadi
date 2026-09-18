@@ -15,7 +15,7 @@ async function getUser(request: Request) {
 
 async function isAdministrator(request: Request) {
   const user = await getUser(request);
-  return user?.email?.trim().toLowerCase() isAdministratorEmail(email);
+  return isAdministratorEmail(user?.email);
 }
 
 function mask(key: string | null | undefined) {
