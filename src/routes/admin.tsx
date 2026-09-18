@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { ModelSelect } from "@/components/ModelSelect";
 import { getJson, postJson } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
-import { isAdministratorEmail } from "@/lib/roles";
+import { isAdministratorUser } from "@/lib/roles";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Panel Admin — ADI BUILDER BOT" }] }),
@@ -68,7 +68,7 @@ async function requireAdmin() {
   const sessionUser = sessionData.session?.user;
   if (!sessionUser) throw new Error("Sesi login tidak ditemukan.");
   const email = sessionUser.email?.trim().toLowerCase();
-  if (!isAdministratorEmail(email)) throw new Error("Akun yang login bukan administrator yang diizinkan.");
+  if (!isAdministratorUser(email)) throw new Error("Akun yang login bukan administrator yang diizinkan.");
   return sessionUser;
 }
 
