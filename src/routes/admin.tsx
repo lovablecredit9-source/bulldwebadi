@@ -307,7 +307,7 @@ function AdminPage() {
   const testAiConnection = async () => {
     setAiTesting(true); setAiStatus("idle"); setAiError(""); setAiLatency(null);
     try {
-      const result = await postJson<AiHealth>("/api/ai/router-health", { model: aiModel });
+      const result = await postJson<AiHealth>("/api/ai/router-health", { model: aiModel, baseUrl: aiBaseUrl, apiKey: aiApiKey });
       if (result.online && result.modelAvailable) {
         setAiStatus("online"); setAiLatency(typeof result.latencyMs === "number" ? result.latencyMs : null);
         toast.success("Test Connection berhasil — router dan model aktif.");
