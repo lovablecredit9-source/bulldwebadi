@@ -2,18 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { loadConfig, safeJson } from "@/lib/ai.server";
 import { normalizeModel } from "@/lib/models";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getAuthenticatedUser } from "@/lib/auth.server";
 import { isAdministratorUser } from "@/lib/roles";
-
-async function getUser(request: Request) {
-  const token = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
-  if (!token) return null;
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  return error || !data.user ? null : data.user;
-}
-
-function isAdmin(user: { email?: string | null } | null) {
-  return isAdministratorUser(user);
-}
 
 async function allowedModels() {
   const { data } = await supabaseAdmin.from("ai_settings").select("allowed_models").eq("id", 1).maybeSingle();
@@ -34,7 +24,7 @@ export const Route = createFileRoute("/api/ai/models")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const user = await getUser(request);
+        const user = await getAuthenticatedUser(request);
         if (!user) return safeJson({ error: "Sesi login diperlukan." }, 401);
 
         if (!isAdmin(user)) {
@@ -44,7 +34,7 @@ export const Route = createFileRoute("/api/ai/models")({
         return fetchRouterModels(await loadConfig());
       },
       POST: async ({ request }) => {
-        const user = await getUser(request);
+        const user = await getAuthenticatedUser(request);
         if (!user) return safeJson({ error: "Sesi login diperlukan." }, 401);
         if (!isAdmin(user)) return safeJson({ error: "Hanya Administrator yang dapat mengambil daftar model router dengan kredensial Admin." }, 403);
 
