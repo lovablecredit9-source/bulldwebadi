@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { safeJson } from "@/lib/ai.server";
 import { getAuthenticatedUser, getAdministratorUser } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { hashPin, randomHex, sha256 } from "@/lib/pin.server";
+import { hashPin, randomHex } from "@/lib/pin.server";
 
 function money(value: unknown) {
   const n = typeof value === "number" ? value : Number(value);
@@ -42,9 +42,8 @@ async function findUserByUsername(username: string) {
   return null;
 }
 
-export const Route = createFileRoute("/api/wallet")({
-  server: { handlers: {
-    GET: async ({ request }) => {
+export async function handleWalletRequest(request: Request): Promise<Response> {
+  if (request.method === "GET") {
       try {
         const user = await getAuthenticatedUser(request);
         if (!user) return safeJson({ error: "Sesi login diperlukan." }, 401);
@@ -68,8 +67,10 @@ export const Route = createFileRoute("/api/wallet")({
         console.error("[wallet] GET failed", error);
         return safeJson({ error: error instanceof Error ? error.message : "Wallet tidak dapat dimuat." }, 500);
       }
-    },
-    POST: async ({ request }) => {
+    }
+  }
+
+  if (request.method === "POST") {
       try {
         const body = (await request.json().catch(() => ({}))) as {
           action?: "deposit" | "set-pin" | "change-pin" | "admin-credit" | "admin-debit" | "admin-deposit";
@@ -160,6 +161,15 @@ export const Route = createFileRoute("/api/wallet")({
         console.error("[wallet] POST failed", error);
         return safeJson({ error: error instanceof Error ? error.message : "Permintaan wallet gagal." }, 500);
       }
-    },
+    }
+  }
+
+  return safeJson({ error: "Method tidak didukung." }, 405);
+}
+
+export const Route = createFileRoute("/api/wallet")({
+  server: { handlers: {
+    GET: async ({ request }) => handleWalletRequest(request),
+    POST: async ({ request }) => handleWalletRequest(request),
   } },
 });
