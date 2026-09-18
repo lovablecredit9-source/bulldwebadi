@@ -15,7 +15,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-const ADMIN_EMAIL = "panpakarak36@gmail.com";
+
 const STORAGE_BUCKET = "site-banners";
 const MAX_BANNER_SIZE = 10 * 1024 * 1024;
 
@@ -67,7 +67,7 @@ async function requireAdmin() {
   const sessionUser = sessionData.session?.user;
   if (!sessionUser) throw new Error("Sesi login tidak ditemukan.");
   const email = sessionUser.email?.trim().toLowerCase();
-  if (email !== ADMIN_EMAIL) throw new Error("Akun yang login bukan administrator yang diizinkan.");
+  if (!isAdministratorEmail(email)) throw new Error("Akun yang login bukan administrator yang diizinkan.");
   return sessionUser;
 }
 
