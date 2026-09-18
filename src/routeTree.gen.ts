@@ -63,6 +63,11 @@ const UploadRoute = UploadRouteImport.update({
   path: '/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WalletRoute = WalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WhatsappRoute = WhatsappRouteImport.update({
   id: '/whatsapp',
   path: '/whatsapp',
@@ -157,6 +162,9 @@ export interface FileRoutesByFullPath {
   '/telegram': typeof TelegramRoute
   '/upload': typeof UploadRoute
   '/whatsapp': typeof WhatsappRoute
+  '/wallet': typeof WalletRoute
+  '/wallet': typeof WalletRoute
+  '/wallet': typeof WalletRoute
   '/api/settings': typeof ApiSettingsRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/projects/': typeof ProjectsIndexRoute
@@ -311,6 +319,7 @@ export interface RootRouteChildren {
   TelegramRoute: typeof TelegramRoute
   UploadRoute: typeof UploadRoute
   WhatsappRoute: typeof WhatsappRoute
+  WalletRoute: typeof WalletRoute
   ApiSettingsRoute: typeof ApiSettingsRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
