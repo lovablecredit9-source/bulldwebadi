@@ -7,7 +7,7 @@ import { HtmlLiveTester } from "@/components/HtmlLiveTester";
 import { AuthGate } from "@/components/AuthGate";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { isAdministratorEmail } from "@/lib/roles";
+import { isAdministratorUser } from "@/lib/roles";
 import type { Session } from "@supabase/supabase-js";
 
 
@@ -62,7 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [authLoading, setAuthLoading] = useState(true);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const workspaceMatch = pathname.match(/^\/projects\/([^/]+)$/);
-  const isAdmin = isAdministratorEmail(session?.user.email);
+  const isAdmin = isAdministratorUser(session?.user);
 
   useEffect(() => {
     let mounted = true;
