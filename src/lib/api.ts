@@ -1,3 +1,10 @@
+import { supabase } from "@/integrations/supabase/client";
+
+async function authHeaders() {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {};
+}
+
 export async function postJson<T>(url: string, body: unknown): Promise<T> {
   const payload =
     typeof window !== "undefined" && body && typeof body === "object" && "projectId" in body
@@ -14,7 +21,7 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
   try {
     res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
       body: JSON.stringify(payload),
     });
   } catch {
@@ -35,7 +42,7 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
 }
 
 export async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: await authHeaders() });
   const data = (await res.json().catch(() => null)) as T | null;
   if (!res.ok || !data) throw new Error("Koneksi bermasalah.");
   return data;
@@ -44,7 +51,7 @@ export async function getJson<T>(url: string): Promise<T> {
 export async function postForm<T>(url: string, form: FormData): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(url, { method: "POST", body: form });
+    res = await fetch(url, { method: "POST", headers: await authHeaders(), body: form });
   } catch {
     throw new Error("Koneksi bermasalah.");
   }
