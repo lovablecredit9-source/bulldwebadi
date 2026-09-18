@@ -2,20 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { loadConfig, safeJson } from "@/lib/ai.server";
 import { normalizeModel } from "@/lib/models";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getAuthenticatedUser } from "@/lib/auth.server";
 import { isAdministratorUser } from "@/lib/roles";
 
 
-
-async function getUser(request: Request) {
-  const token = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
-  if (!token) return null;
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  return error || !data.user ? null : data.user;
-}
-
-function isAdministrator(user: { email?: string | null; user_metadata?: Record<string, unknown> | null; app_metadata?: Record<string, unknown> | null } | null) {
-  return isAdministratorUser(user);
-}
 
 async function getAllowedModels() {
   const { data } = await supabaseAdmin.from("ai_settings").select("allowed_models").eq("id", 1).maybeSingle();
@@ -124,7 +114,7 @@ export const Route = createFileRoute("/api/ai/router-health")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const user = await getUser(request);
+        const user = await getAuthenticatedUser(request);
         if (!user) return safeJson({ error: "Sesi login diperlukan." }, 401);
 
         const body = (await request.json().catch(() => ({}))) as { model?: string; baseUrl?: string; apiKey?: string };
