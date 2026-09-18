@@ -3,6 +3,7 @@ import { loadConfig, safeJson } from "@/lib/ai.server";
 import { normalizeModel } from "@/lib/models";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getAuthenticatedUser } from "@/lib/auth.server";
+import { isAdministratorUser } from "@/lib/roles";
 
 async function allowedModels() {
   const { data } = await supabaseAdmin.from("ai_settings").select("allowed_models").eq("id", 1).maybeSingle();
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/api/ai/models")({
         const user = await getAuthenticatedUser(request);
         if (!user) return safeJson({ error: "Sesi login diperlukan." }, 401);
 
-        if (!isAdmin(user)) {
+        if (!isAdministratorUser(user)) {
           return safeJson({ models: Array.from(new Set(await allowedModels())), source: "admin-allowed" });
         }
 
@@ -35,7 +36,7 @@ export const Route = createFileRoute("/api/ai/models")({
       POST: async ({ request }) => {
         const user = await getAuthenticatedUser(request);
         if (!user) return safeJson({ error: "Sesi login diperlukan." }, 401);
-        if (!isAdmin(user)) return safeJson({ error: "Hanya Administrator yang dapat mengambil daftar model router dengan kredensial Admin." }, 403);
+        if (!isAdministratorUser(user)) return safeJson({ error: "Hanya Administrator yang dapat mengambil daftar model router dengan kredensial Admin." }, 403);
 
         const body = (await request.json().catch(() => ({}))) as { baseUrl?: string; apiKey?: string };
         const stored = await loadConfig();
