@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Eye, EyeOff, ImagePlus, Loader2, Pencil, Save, Server, ShieldCheck, Trash2, XCircle, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
+import { AdminLoginGate } from "@/components/AdminLoginGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,7 +82,7 @@ function publicStoragePath(imageUrl: string) {
 type AiConfig = { baseUrl: string; model: string; hasKey: boolean; maskedKey: string; allowedModels?: string[] };
 type AiHealth = { online: boolean; modelAvailable?: boolean; latencyMs?: number; error?: string };
 
-function AdminPage() {
+function AdminPanel() {
   const router = useRouter();
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [aiBaseUrl, setAiBaseUrl] = useState("");
@@ -480,6 +481,14 @@ function AdminPage() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+function AdminPage() {
+  return (
+    <AdminLoginGate>
+      <AdminPanel />
+    </AdminLoginGate>
   );
 }
 
