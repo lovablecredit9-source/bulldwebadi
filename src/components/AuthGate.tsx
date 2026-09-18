@@ -3,13 +3,14 @@ import { Eye, EyeOff, Loader2, LockKeyhole, LogIn, Mail, UserPlus, UserRound } f
 import { toast } from "sonner";
 import { useRouter } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { ADMIN_EMAIL } from "@/lib/roles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type Mode = "login" | "register";
 type ResetStep = "email" | "code";
-const ADMIN_EMAIL = "panpakarak36@gmail.com";
+
 
 export function AuthGate() {
   const router = useRouter();
