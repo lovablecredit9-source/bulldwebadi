@@ -68,7 +68,7 @@ async function requireAdmin() {
   const sessionUser = sessionData.session?.user;
   if (!sessionUser) throw new Error("Sesi login tidak ditemukan.");
   const email = sessionUser.email?.trim().toLowerCase();
-  if (!isAdministratorUser(email)) throw new Error("Akun yang login bukan administrator yang diizinkan.");
+  if (!isAdministratorUser(sessionUser)) throw new Error("Akun yang login bukan administrator yang diizinkan.");
   return sessionUser;
 }
 
