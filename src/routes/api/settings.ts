@@ -31,7 +31,7 @@ export const Route = createFileRoute("/api/settings")({
       },
       POST: async ({ request }) => {
         const user = await getAuthenticatedUser(request);
-        if (!user) return safeJson({ error: "Sesi login diperlukan." }, 401);
+        if (!user) return safeJson({ error: "Permintaan tidak dapat diproses. Silakan login kembali." }, 401);
         if (!isAdministratorUser(user)) return safeJson({ error: "Hanya Administrator yang dapat mengubah AI Configuration." }, 403);
         const body = (await request.json().catch(() => ({}))) as {
           baseUrl?: string;
