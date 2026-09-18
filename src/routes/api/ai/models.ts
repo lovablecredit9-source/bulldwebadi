@@ -12,7 +12,7 @@ async function getUser(request: Request) {
 }
 
 function isAdmin(user: { email?: string | null } | null) {
-  return isAdministratorUser(user?.email);
+  return isAdministratorUser(user);
 }
 
 async function allowedModels() {
