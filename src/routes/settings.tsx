@@ -66,7 +66,7 @@ function SettingsPage() {
       const user = data.user;
       if (!user) return;
       setEmail(user.email || "");
-      setUsername(typeof user.user_metadata?.username === "string" ? user.user_metadata.username : "");
+      setUsername(typeof user.user_metadata?.['username'] === "string" ? (user.user_metadata['username'] as string) : "");
       setAccountCreatedAt(user.created_at || null);
       const admin = isAdministratorEmail(user.email);
       setIsAdmin(admin);
@@ -87,7 +87,7 @@ function SettingsPage() {
 
   const saveProfile = async () => {
     const value = username.trim();
-    if (!/^[a-zA-Z0-9_]{3,30}$/.test(value)) return toast.error("Username wajib 3-30 karakter dan hanya boleh huruf, angka, atau underscore.");
+    if (!/^[a-zA-Z0-9_]{3,30}$/.test(value)) { toast.error("Username wajib 3-30 karakter dan hanya boleh huruf, angka, atau underscore."); return; }
     setProfileSaving(true);
     try {
       const { error } = await supabase.auth.updateUser({ data: { username: value } });
@@ -99,10 +99,10 @@ function SettingsPage() {
   };
 
   const changePassword = async () => {
-    if (!currentPassword) return toast.error("Password saat ini wajib diisi.");
-    if (newPassword.length < 6) return toast.error("Password baru minimal 6 karakter.");
-    if (newPassword !== confirmPassword) return toast.error("Konfirmasi password baru tidak sama.");
-    if (currentPassword === newPassword) return toast.error("Password baru harus berbeda dari password saat ini.");
+    if (!currentPassword) { toast.error("Password saat ini wajib diisi."); return; }
+    if (newPassword.length < 6) { toast.error("Password baru minimal 6 karakter."); return; }
+    if (newPassword !== confirmPassword) { toast.error("Konfirmasi password baru tidak sama."); return; }
+    if (currentPassword === newPassword) { toast.error("Password baru harus berbeda dari password saat ini."); return; }
     setPasswordSaving(true);
     try {
       const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -132,7 +132,7 @@ function SettingsPage() {
 
   const sendEmailRecoveryCode = async () => {
     if (emailCodeCooldown > 0) return;
-    if (!email) return toast.error("Email akun tidak ditemukan.");
+    if (!email) { toast.error("Email akun tidak ditemukan."); return; }
     setEmailSaving(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email);

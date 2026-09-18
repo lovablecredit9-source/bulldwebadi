@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { ModelSelect } from "@/components/ModelSelect";
 import { getJson, postJson } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
+import { getSessionUser } from "@/lib/session";
 import { isAdministratorUser } from "@/lib/roles";
 
 export const Route = createFileRoute("/admin")({
@@ -63,9 +64,8 @@ function toastError(stage: string, error: unknown) {
 }
 
 async function requireAdmin() {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError) throw new Error(`Sesi login tidak dapat diverifikasi: ${sessionError.message}`);
-  const sessionUser = sessionData.session?.user;
+  // Jalur auth yang sama persis dengan permintaan API terlindungi.
+  const sessionUser = await getSessionUser();
   if (!sessionUser) throw new Error("Sesi login tidak ditemukan.");
   if (!isAdministratorUser(sessionUser)) throw new Error("Akun yang login bukan administrator yang diizinkan.");
   return sessionUser;
@@ -166,9 +166,9 @@ function AdminPage() {
 
   const upload = async (bannerType: BannerType) => {
     const file = files[bannerType];
-    if (!file) return toast.error("Pilih gambar banner terlebih dahulu.");
-    if (!file.type.startsWith("image/")) return toast.error("File harus berupa gambar JPG/PNG/WebP/GIF.");
-    if (file.size > MAX_BANNER_SIZE) return toast.error("Ukuran maksimal banner 10 MB.");
+    if (!file) { toast.error("Pilih gambar banner terlebih dahulu."); return; }
+    if (!file.type.startsWith("image/")) { toast.error("File harus berupa gambar JPG/PNG/WebP/GIF."); return; }
+    if (file.size > MAX_BANNER_SIZE) { toast.error("Ukuran maksimal banner 10 MB."); return; }
 
     setLoading(true);
     let uploadedPath: string | null = null;
@@ -322,8 +322,8 @@ function AdminPage() {
   };
 
   const testAiConnection = async () => {
-    if (!aiBaseUrl.trim()) return toast.error("Base URL wajib diisi.");
-    if (!aiApiKey.trim() && !aiMaskedKey) return toast.error("API Key wajib diisi.");
+    if (!aiBaseUrl.trim()) { toast.error("Base URL wajib diisi."); return; }
+    if (!aiApiKey.trim() && !aiMaskedKey) { toast.error("API Key wajib diisi."); return; }
     setAiTesting(true); setAiStatus("idle"); setAiError(""); setAiLatency(null);
     try {
       const started = performance.now();
@@ -351,12 +351,12 @@ function AdminPage() {
   };
 
   const saveAiConfiguration = async () => {
-    if (!aiBaseUrl.trim()) return toast.error("Base URL wajib diisi.");
+    if (!aiBaseUrl.trim()) { toast.error("Base URL wajib diisi."); return; }
     // Tahap pertama: simpan kredensial router terlebih dahulu. Model belum wajib
     // karena model baru diketahui setelah Test Connection -> GET /models.
     const hasSelectedModel = Boolean(aiModel.trim());
     if (hasSelectedModel && !aiAllowedModels.length) {
-      return toast.error("Pilih minimal satu model yang diizinkan untuk User.");
+      toast.error("Pilih minimal satu model yang diizinkan untuk User."); return;
     }
 
     setAiSaving(true); setAiStatus("idle"); setAiError("");

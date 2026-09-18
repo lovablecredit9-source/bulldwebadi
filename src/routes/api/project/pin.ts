@@ -47,7 +47,7 @@ export const Route = createFileRoute("/api/project/pin")({
       if (body.action === "set" || body.action === "change") {
         if (!validPin(body.newPin)) return safeJson({ error: "PIN harus 4-8 angka." }, 400);
         if (locked && (!body.pin || !validPin(body.pin) || !(await verifyPin(id, body.pin)))) return safeJson({ error: "PIN lama salah." }, 401);
-        await setPin(id, body.newPin);
+        await setPin(id, body.newPin!);
         return safeJson({ ok: true, token: null });
       }
 

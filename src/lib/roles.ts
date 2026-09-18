@@ -26,11 +26,11 @@ export function isAdministratorUser(user: RoleUser | null | undefined) {
   if (isAdministratorEmail(user.email)) return true;
 
   const candidates = [
-    user.user_metadata?.role,
-    user.user_metadata?.user_role,
-    user.user_metadata?.account_role,
-    user.app_metadata?.role,
-    user.app_metadata?.user_role,
+    user.user_metadata?.['role'],
+    user.user_metadata?.['user_role'],
+    user.user_metadata?.['account_role'],
+    user.app_metadata?.['role'],
+    user.app_metadata?.['user_role'],
   ];
 
   return candidates.some((value) => {

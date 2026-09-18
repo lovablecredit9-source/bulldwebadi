@@ -47,7 +47,13 @@ export async function loadConfig(): Promise<AiConfig> {
   }
 }
 
-export class AiError extends Error {}
+export class AiError extends Error {
+  status: number;
+  constructor(message: string, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
 
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 
@@ -237,7 +243,8 @@ export function errorResponse(err: unknown) {
       : err instanceof Error
         ? `Proses AI gagal: ${err.message}`
         : "AI sedang mengalami gangguan. Silakan coba lagi.";
-  return safeJson({ error: message }, 400);
+  const status = err instanceof AiError ? err.status : 400;
+  return safeJson({ error: message }, status);
 }
 
 /** Bersihkan path agar aman (tanpa path traversal). */

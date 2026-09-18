@@ -77,24 +77,24 @@ export type Database = {
       }
       ai_settings: {
         Row: {
-          api_key: string | null
           allowed_models: string[]
+          api_key: string | null
           base_url: string
           id: number
           model: string
           updated_at: string
         }
         Insert: {
-          api_key?: string | null
           allowed_models?: string[]
+          api_key?: string | null
           base_url?: string
           id?: number
           model?: string
           updated_at?: string
         }
         Update: {
-          api_key?: string | null
           allowed_models?: string[]
+          api_key?: string | null
           base_url?: string
           id?: number
           model?: string

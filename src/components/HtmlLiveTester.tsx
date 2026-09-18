@@ -78,6 +78,7 @@ export function HtmlLiveTester() {
         return { path, url: URL.createObjectURL(new Blob([data], { type: mime })) };
       });
       const indexBytes = files[indexPath];
+      if (!indexBytes) throw new Error("index.html tidak dapat dibaca dari ZIP.");
       const indexHtml = strFromU8(indexBytes);
       const rewritten = rewriteRelativeReferences(indexHtml, indexPath, assets);
       setHtml(rewritten);
