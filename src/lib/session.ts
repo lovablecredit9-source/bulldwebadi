@@ -47,6 +47,11 @@ async function refreshSessionOnce(): Promise<Session | null> {
   return refreshInFlight;
 }
 
+export async function refreshValidSession(): Promise<Session | null> {
+  const refreshed = await refreshSessionOnce();
+  return isUsable(refreshed) ? refreshed : null;
+}
+
 export async function getAccessToken(): Promise<string | null> {
   const session = await getValidSession();
   return session?.access_token ?? null;
