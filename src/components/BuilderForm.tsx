@@ -198,14 +198,14 @@ export function BuilderForm({
               <span className="text-lg font-bold tabular-nums">{creditProgress.toFixed(1)} / {estimate.credits}</span>
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `{Math.min(100, (creditProgress / Math.max(estimate.credits, 1)) * 100)}%` }} />
+              <div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${Math.min(100, (creditProgress / Math.max(estimate.credits, 1)) * 100)}%` }} />
             </div>
           </div>
         )}
 
         {loading && (
           <div className="space-y-2">
-            <AiWorkStatus kind="generate" />
+            <AiWorkStatus kind="generate" creditProgress={creditProgress} creditEstimate={estimate.credits} />
             <Skeleton className="h-4 w-2/3" />
             <Skeleton className="h-4 w-1/2" />
             <Skeleton className="h-4 w-3/4" />
