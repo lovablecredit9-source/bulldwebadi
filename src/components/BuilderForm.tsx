@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Loader2, Sparkles } from "lucide-react";
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { ModelSelect } from "@/components/ModelSelect";
 import { DEFAULT_MODEL, PROJECT_TYPES } from "@/lib/models";
-import { postJson } from "@/lib/api";
+import { getJson, postJson } from "@/lib/api";
 import { ReferenceImages } from "@/components/ReferenceImages";
 import { AiWorkStatus } from "@/components/AiWorkStatus";
 import { estimateAiCredits } from "@/lib/credits";
@@ -50,13 +50,13 @@ export function BuilderForm({
 
   const loadCredits = async () => {
     try {
-      setCreditStatus(await postJson("/api/credits", { }));
+      setCreditStatus(await getJson("/api/credits"));
     } catch {
       setCreditStatus(null);
     }
   };
 
-  useState(() => { void loadCredits(); });
+  useEffect(() => { void loadCredits(); }, []);
 
   const submit = async () => {
     setLoading(true);
