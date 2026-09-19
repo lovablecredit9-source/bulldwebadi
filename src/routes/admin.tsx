@@ -208,6 +208,144 @@ function AdminPanel() {
     void load();
   }, []);
 
+  const refreshWalletDeposits = async () => {
+  const wallet = await getJson<{
+    deposits?: typeof walletDeposits;
+    paymentSettings?: {
+      dana_number?: string | null;
+      dana_name?: string | null;
+      ovo_number?: string | null;
+      ovo_name?: string | null;
+      gopay_number?: string | null;
+      gopay_name?: string | null;
+      qris_image_url?: string | null;
+    } | null;
+  }>("/api/admin/wallet");
+  setWalletDeposits(Array.isArray(wallet.deposits) ? wallet.deposits : []);
+  };
+
+  const saveWalletPaymentSettings = async () => {
+  if (walletQrisFile) {
+    if (!walletQrisFile.type.startsWith("image/")) {
+      toast.error("File QRIS harus berupa gambar.");
+      return;
+    }
+    if (walletQrisFile.size > 5 * 1024 * 1024) {
+      toast.error("Foto QRIS maksimal 5 MB.");
+      return;
+    }
+  }
+
+  setWalletBusy(true);
+  try {
+    let qrisImageUrl = walletQrisUrl.trim();
+
+    if (walletQrisFile) {
+      const extension = walletQrisFile.name.split(".").pop()?.toLowerCase() || "png";
+      const filePath = `wallet-qris/${crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(filePath, walletQrisFile, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: walletQrisFile.type,
+        });
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrl } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(filePath);
+      qrisImageUrl = publicUrl.publicUrl;
+      setWalletQrisUrl(qrisImageUrl);
+      setWalletQrisFile(null);
+    }
+
+    const result = await postJson<{ paymentSettings?: { qris_image_url?: string | null } }>(
+      "/api/admin/wallet",
+      {
+        action: "payment-settings",
+        danaNumber: walletDanaNumber,
+        danaName: walletDanaName,
+        ovoNumber: walletOvoNumber,
+        ovoName: walletOvoName,
+        gopayNumber: walletGopayNumber,
+        gopayName: walletGopayName,
+        qrisImageUrl,
+      },
+    );
+    if (result.paymentSettings?.qris_image_url) {
+      setWalletQrisUrl(result.paymentSettings.qris_image_url);
+    }
+    toast.success("Metode pembayaran wallet berhasil disimpan.");
+  } catch (error) {
+    toast.error(errorText(error));
+  } finally {
+    setWalletBusy(false);
+  }
+  };
+
+  const reviewDeposit = async (depositId: string, approve: boolean) => {
+  if (walletBusy) return;
+
+  const normalizedDepositId = String(depositId || "").trim();
+  if (!normalizedDepositId) {
+    toast.error("Deposit tidak memiliki ID yang valid.");
+    return;
+  }
+
+  setWalletBusy(true);
+  try {
+    // Konfirmasi/Tolak selalu melewati backend Admin. Frontend tidak
+    // menentukan saldo, status, atau apakah deposit masih pending.
+    const result = await postJson<{
+      ok: boolean;
+      result?: { status?: string; balance?: number | null };
+    }>("/api/admin/wallet", {
+      action: approve ? "approve-deposit" : "reject-deposit",
+      depositId: normalizedDepositId,
+      adminNote: null,
+    });
+
+    if (!result?.ok || !result.result?.status) {
+      throw new Error("Backend tidak mengembalikan hasil konfirmasi deposit yang valid.");
+    }
+
+    toast.success(
+      approve
+        ? `Deposit dikonfirmasi. Saldo user sekarang Rp ${Number(result.result.balance ?? 0).toLocaleString("id-ID")}. `
+        : "Deposit ditolak.",
+    );
+    await refreshWalletDeposits();
+  } catch (error) {
+    const message = errorText(error);
+    console.error("[ADMIN DEPOSIT] review gagal", {
+      depositId: normalizedDepositId,
+      approve,
+      error: message,
+    });
+    toast.error(`Gagal memproses deposit: ${message}`);
+  } finally {
+    setWalletBusy(false);
+  }
+  };
+
+  const manualWalletChange = async (action: "admin-credit" | "admin-debit") => {
+  const amount = Number(walletAmount);
+  if (!walletUsername.trim()) { toast.error("Username wajib diisi."); return; }
+  if (!Number.isFinite(amount) || amount <= 0) { toast.error("Jumlah saldo tidak valid."); return; }
+  setWalletBusy(true);
+  try {
+    const result = await postJson<{ balance: number }>("/api/wallet", {
+      action, username: walletUsername.trim(), amount, note: walletNote.trim(),
+    });
+    toast.success(`${action === "admin-credit" ? "Saldo ditambahkan" : "Saldo dikurangi"}. Saldo baru: Rp ${Number(result.balance || 0).toLocaleString("id-ID")}`);
+    setWalletAmount(""); setWalletNote("");
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "Perubahan saldo gagal.");
+  } finally { setWalletBusy(false); }
+  };
+
+
   useEffect(() => {
     if (allowed === false) {
       void router.navigate({ to: "/" });
@@ -258,143 +396,6 @@ function AdminPanel() {
         setAiError(errorText(error));
       }
     }, 500);
-
-    const refreshWalletDeposits = async () => {
-    const wallet = await getJson<{
-      deposits?: typeof walletDeposits;
-      paymentSettings?: {
-        dana_number?: string | null;
-        dana_name?: string | null;
-        ovo_number?: string | null;
-        ovo_name?: string | null;
-        gopay_number?: string | null;
-        gopay_name?: string | null;
-        qris_image_url?: string | null;
-      } | null;
-    }>("/api/admin/wallet");
-    setWalletDeposits(Array.isArray(wallet.deposits) ? wallet.deposits : []);
-  };
-
-  const saveWalletPaymentSettings = async () => {
-    if (walletQrisFile) {
-      if (!walletQrisFile.type.startsWith("image/")) {
-        toast.error("File QRIS harus berupa gambar.");
-        return;
-      }
-      if (walletQrisFile.size > 5 * 1024 * 1024) {
-        toast.error("Foto QRIS maksimal 5 MB.");
-        return;
-      }
-    }
-
-    setWalletBusy(true);
-    try {
-      let qrisImageUrl = walletQrisUrl.trim();
-
-      if (walletQrisFile) {
-        const extension = walletQrisFile.name.split(".").pop()?.toLowerCase() || "png";
-        const filePath = `wallet-qris/${crypto.randomUUID()}.${extension}`;
-        const { error: uploadError } = await supabase.storage
-          .from(STORAGE_BUCKET)
-          .upload(filePath, walletQrisFile, {
-            cacheControl: "3600",
-            upsert: false,
-            contentType: walletQrisFile.type,
-          });
-        if (uploadError) throw uploadError;
-
-        const { data: publicUrl } = supabase.storage
-          .from(STORAGE_BUCKET)
-          .getPublicUrl(filePath);
-        qrisImageUrl = publicUrl.publicUrl;
-        setWalletQrisUrl(qrisImageUrl);
-        setWalletQrisFile(null);
-      }
-
-      const result = await postJson<{ paymentSettings?: { qris_image_url?: string | null } }>(
-        "/api/admin/wallet",
-        {
-          action: "payment-settings",
-          danaNumber: walletDanaNumber,
-          danaName: walletDanaName,
-          ovoNumber: walletOvoNumber,
-          ovoName: walletOvoName,
-          gopayNumber: walletGopayNumber,
-          gopayName: walletGopayName,
-          qrisImageUrl,
-        },
-      );
-      if (result.paymentSettings?.qris_image_url) {
-        setWalletQrisUrl(result.paymentSettings.qris_image_url);
-      }
-      toast.success("Metode pembayaran wallet berhasil disimpan.");
-    } catch (error) {
-      toast.error(errorText(error));
-    } finally {
-      setWalletBusy(false);
-    }
-  };
-
-  const reviewDeposit = async (depositId: string, approve: boolean) => {
-    if (walletBusy) return;
-
-    const normalizedDepositId = String(depositId || "").trim();
-    if (!normalizedDepositId) {
-      toast.error("Deposit tidak memiliki ID yang valid.");
-      return;
-    }
-
-    setWalletBusy(true);
-    try {
-      // Konfirmasi/Tolak selalu melewati backend Admin. Frontend tidak
-      // menentukan saldo, status, atau apakah deposit masih pending.
-      const result = await postJson<{
-        ok: boolean;
-        result?: { status?: string; balance?: number | null };
-      }>("/api/admin/wallet", {
-        action: approve ? "approve-deposit" : "reject-deposit",
-        depositId: normalizedDepositId,
-        adminNote: null,
-      });
-
-      if (!result?.ok || !result.result?.status) {
-        throw new Error("Backend tidak mengembalikan hasil konfirmasi deposit yang valid.");
-      }
-
-      toast.success(
-        approve
-          ? `Deposit dikonfirmasi. Saldo user sekarang Rp ${Number(result.result.balance ?? 0).toLocaleString("id-ID")}. `
-          : "Deposit ditolak.",
-      );
-      await refreshWalletDeposits();
-    } catch (error) {
-      const message = errorText(error);
-      console.error("[ADMIN DEPOSIT] review gagal", {
-        depositId: normalizedDepositId,
-        approve,
-        error: message,
-      });
-      toast.error(`Gagal memproses deposit: ${message}`);
-    } finally {
-      setWalletBusy(false);
-    }
-  };
-
-  const manualWalletChange = async (action: "admin-credit" | "admin-debit") => {
-    const amount = Number(walletAmount);
-    if (!walletUsername.trim()) { toast.error("Username wajib diisi."); return; }
-    if (!Number.isFinite(amount) || amount <= 0) { toast.error("Jumlah saldo tidak valid."); return; }
-    setWalletBusy(true);
-    try {
-      const result = await postJson<{ balance: number }>("/api/wallet", {
-        action, username: walletUsername.trim(), amount, note: walletNote.trim(),
-      });
-      toast.success(`${action === "admin-credit" ? "Saldo ditambahkan" : "Saldo dikurangi"}. Saldo baru: Rp ${Number(result.balance || 0).toLocaleString("id-ID")}`);
-      setWalletAmount(""); setWalletNote("");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Perubahan saldo gagal.");
-    } finally { setWalletBusy(false); }
-  };
 
   return () => {
       cancelled = true;
