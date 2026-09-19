@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Loader2, Sparkles } from "lucide-react";
@@ -88,7 +88,6 @@ export function BuilderForm({
   const submit = async () => {
     setLoading(true);
     setCreditProgress(0);
-    const controller = new AbortController();
     try {
       // Selalu ambil saldo terbaru sebelum mulai AI agar angka di layar tidak stale/cached.
       const freshCredits = await getJson<{
