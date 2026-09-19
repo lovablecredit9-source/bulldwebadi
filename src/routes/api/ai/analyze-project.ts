@@ -2,6 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AiError, SYSTEM_PROMPT, callAI, errorResponse, parseJsonLoose, safeJson } from "@/lib/ai.server";
 import { buildTree, contextBlock, getFiles, getProject, pickRelevantFiles } from "@/lib/project.server";
 import { hasAccess } from "@/lib/pin.server";
+import { getAuthenticatedUser } from "@/lib/auth.server";
+import { createSupabaseUserClient } from "@/integrations/supabase/client.server";
+import { estimateAiCredits } from "@/lib/credits";
 
 export const Route = createFileRoute("/api/ai/analyze-project")({
   server: {
@@ -13,7 +16,15 @@ export const Route = createFileRoute("/api/ai/analyze-project")({
           focus?: string;
           token?: string;
         };
+        let creditDb: ReturnType<typeof createSupabaseUserClient> | null = null;
+        let creditRequestId = "";
+        let creditReserved = false;
         try {
+          const user = await getAuthenticatedUser(request);
+          if (!user) throw new AiError("Sesi login diperlukan.", 401);
+          const token = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1] || request.headers.get("x-adi-access-token")?.trim() || "";
+          if (!token) throw new AiError("Token login tidak ditemukan.", 401);
+          creditDb = createSupabaseUserClient(token);
           if (!body.projectId) throw new AiError("Project tidak ditemukan.");
           if (!(await hasAccess(body.projectId, body.token))) throw new AiError("Masukkan PIN project terlebih dahulu.", 401);
           const project = await getProject(body.projectId);
@@ -22,6 +33,16 @@ export const Route = createFileRoute("/api/ai/analyze-project")({
           if (!files.length) throw new AiError("Project belum memiliki file.");
 
           const relevant = pickRelevantFiles(files, body.focus ?? "analisa struktur dan error");
+
+          const estimate = estimateAiCredits(body.model, project.type, body.focus ?? "analisa struktur dan error");
+          creditRequestId = crypto.randomUUID();
+          const { error: creditError } = await creditDb.rpc("credit_consume", {
+            p_amount: estimate.credits,
+            p_request_id: creditRequestId,
+            p_description: "Analisis project",
+          });
+          if (creditError) throw new AiError(creditError.message || "Kredit tidak cukup.", 402);
+          creditReserved = true;
 
           const out = await callAI(
             [
@@ -45,6 +66,9 @@ Balas HANYA JSON valid:
 
           return safeJson(parseJsonLoose(out));
         } catch (err) {
+          if (creditReserved && creditDb && creditRequestId) {
+            await creditDb.rpc("credit_refund", { p_request_id: creditRequestId, p_description: "Kredit dikembalikan karena proses AI gagal." });
+          }
           return errorResponse(err);
         }
       },
