@@ -23,6 +23,16 @@ type PaymentSettings = {
   qris_image_url: string | null;
 };
 type WalletData = { balance: number; hasPin: boolean; deposits: Deposit[]; paymentSettings: PaymentSettings | null };
+type CreditStatus = {
+  total_credits: number;
+  paid_credits: number;
+  free_daily_remaining: number;
+  free_month_remaining: number;
+  pro_active: boolean;
+  pro_plan: string | null;
+  pro_active_until: string | null;
+  pro_month_remaining: number;
+};
 
 export function WalletPanel() {
   const [data, setData] = useState<WalletData | null>(null);
@@ -33,11 +43,19 @@ export function WalletPanel() {
   const [method, setMethod] = useState<"DANA" | "OVO" | "GOPAY" | "QRIS">("DANA");
   const [saving, setSaving] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [credits, setCredits] = useState<CreditStatus | null>(null);
+  const [creditPin, setCreditPin] = useState("");
+  const [creditSaving, setCreditSaving] = useState(false);
 
   const load = async () => {
     try {
       setLoadError("");
-      setData(await getJson<WalletData>("/api/wallet"));
+      const [wallet, credit] = await Promise.all([
+        getJson<WalletData>("/api/wallet"),
+        getJson<CreditStatus>("/api/credits"),
+      ]);
+      setData(wallet);
+      setCredits(credit);
     } catch (e) {
       setData(null);
       setLoadError(e instanceof Error ? e.message : "Wallet tidak dapat dimuat.");
@@ -73,6 +91,44 @@ export function WalletPanel() {
     finally { setSaving(false); }
   };
 
+  const buyCredits = async (creditsToBuy: number, price: number) => {
+    if (!/^\\d{6}$/.test(creditPin)) { toast.error("Masukkan PIN saldo 6 angka untuk pembelian kredit."); return; }
+    setCreditSaving(true);
+    try {
+      const result = await postJson<{ status: CreditStatus }>("/api/credits", {
+        action: "buy-credits",
+        credits: creditsToBuy,
+        price,
+        pin: creditPin,
+        requestId: crypto.randomUUID(),
+      });
+      setCredits(result.status);
+      setCreditPin("");
+      toast.success(`Berhasil membeli ${creditsToBuy} kredit.`);
+      await load();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Pembelian kredit gagal."); }
+    finally { setCreditSaving(false); }
+  };
+
+  const buyPro = async (plan: "pro-50" | "pro-100", price: number) => {
+    if (!/^\\d{6}$/.test(creditPin)) { toast.error("Masukkan PIN saldo 6 angka untuk pembelian Pro."); return; }
+    setCreditSaving(true);
+    try {
+      const result = await postJson<{ status: CreditStatus }>("/api/credits", {
+        action: "buy-pro",
+        plan,
+        price,
+        pin: creditPin,
+        requestId: crypto.randomUUID(),
+      });
+      setCredits(result.status);
+      setCreditPin("");
+      toast.success(`Paket ${plan === "pro-50" ? "Pro 50" : "Pro 100"} aktif.`);
+      await load();
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Pembelian Pro gagal."); }
+    finally { setCreditSaving(false); }
+  };
+
   const paymentInfo = (() => {
     const p = data?.paymentSettings;
     if (!p) return null;
@@ -101,6 +157,43 @@ export function WalletPanel() {
         <div><h2 className="text-xl font-bold">Saldo & Deposit</h2><p className="text-sm text-muted-foreground">Kelola saldo akun dan permintaan deposit.</p></div>
       </div>
       <div className="rounded-2xl border bg-background px-4 py-3 text-right"><p className="text-xs text-muted-foreground">Saldo saat ini</p><p className="text-xl font-bold">Rp {data.balance.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</p></div>
+    </div>
+
+    <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="font-semibold">Kredit AI</h3>
+          <p className="text-xs text-muted-foreground">Gratis 5 kredit per hari, maksimal 30 kredit gratis per bulan. Kredit berbayar tersimpan sampai dipakai.</p>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-bold">{credits?.total_credits ?? 0}</p>
+          <p className="text-xs text-muted-foreground">kredit tersedia</p>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+        <span className="rounded-full border bg-background px-2.5 py-1">Gratis hari ini: {credits?.free_daily_remaining ?? 0}/5</span>
+        <span className="rounded-full border bg-background px-2.5 py-1">Gratis bulan ini: {credits?.free_month_remaining ?? 0}/30</span>
+        {credits?.pro_active && <span className="rounded-full border bg-background px-2.5 py-1">PRO {credits.pro_plan === "pro-100" ? "100" : "50"} · {credits.pro_month_remaining} kredit bulan ini · aktif s/d {credits.pro_active_until ? new Date(credits.pro_active_until).toLocaleDateString("id-ID") : "—"}</span>}
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        {[{c:10,p:2000},{c:50,p:10000},{c:100,p:15000},{c:200,p:20000},{c:500,p:40000},{c:1000,p:70000}].map((pack) => (
+          <Button key={pack.c} variant="outline" disabled={creditSaving} onClick={() => void buyCredits(pack.c, pack.p)} className="h-auto justify-between rounded-xl px-3 py-3">
+            <span>{pack.c} kredit</span><span>Rp {pack.p.toLocaleString("id-ID")}</span>
+          </Button>
+        ))}
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <Button variant="outline" disabled={creditSaving} onClick={() => void buyPro("pro-50", 30000)} className="h-auto justify-between rounded-xl px-3 py-3">
+          <span><b>PRO 50</b><small className="ml-2 text-muted-foreground">50 kredit/bulan</small></span><span>Rp 30.000</span>
+        </Button>
+        <Button variant="outline" disabled={creditSaving} onClick={() => void buyPro("pro-100", 50000)} className="h-auto justify-between rounded-xl px-3 py-3">
+          <span><b>PRO 100</b><small className="ml-2 text-muted-foreground">100 kredit/bulan</small></span><span>Rp 50.000</span>
+        </Button>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Input value={creditPin} onChange={e=>setCreditPin(e.target.value.replace(/\\D/g,"").slice(0,6))} inputMode="numeric" type="password" placeholder="PIN saldo untuk membeli kredit / Pro" className="max-w-sm" />
+        {creditSaving && <Loader2 className="size-4 animate-spin" />}
+      </div>
     </div>
 
     <div className="mt-5 grid gap-5 lg:grid-cols-2">
