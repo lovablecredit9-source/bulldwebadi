@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import { DEFAULT_MODEL, PROJECT_TYPES } from "@/lib/models";
 import { postJson } from "@/lib/api";
 import { ReferenceImages } from "@/components/ReferenceImages";
 import { AiWorkStatus } from "@/components/AiWorkStatus";
+import { estimateAiCredits } from "@/lib/credits";
 
 export function BuilderForm({
   fixedType,
@@ -44,6 +45,18 @@ export function BuilderForm({
   const [model, setModel] = useState(DEFAULT_MODEL);
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState<string[]>([]);
+  const [creditStatus, setCreditStatus] = useState<{ total_credits?: number; paid_credits?: number; free_daily_remaining?: number; free_month_remaining?: number; pro_active?: boolean; pro_plan?: string | null; pro_active_until?: string | null } | null>(null);
+  const estimate = estimateAiCredits(model, fixedType ?? type, desc);
+
+  const loadCredits = async () => {
+    try {
+      setCreditStatus(await postJson("/api/credits", { }));
+    } catch {
+      setCreditStatus(null);
+    }
+  };
+
+  useState(() => { void loadCredits(); });
 
   const submit = async () => {
     setLoading(true);
@@ -52,7 +65,8 @@ export function BuilderForm({
         "/api/ai/generate-project",
         { name, type: fixedType ?? type, description: desc, model, meta: meta ?? {}, images },
       );
-      toast.success(`Project dibuat: ${res.files.length} file`);
+      toast.success(`Project dibuat: ${res.files.length} file • ${res.creditUsed ?? estimate.credits} kredit`);
+      await loadCredits();
       navigate({ to: "/projects/$id", params: { id: res.projectId } });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "AI sedang mengalami gangguan. Silakan coba lagi.");
@@ -103,6 +117,20 @@ export function BuilderForm({
         </div>
 
         <ModelSelect value={model} onChange={setModel} />
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold">Estimasi pengerjaan: {estimate.credits} kredit</p>
+              <p className="mt-1 text-xs text-muted-foreground">{estimate.reason} Kredit dipotong hanya setelah request lolos pengecekan; jika AI gagal sebelum selesai, kredit dikembalikan.</p>
+            </div>
+            <Link to="/wallet" className="inline-flex h-9 items-center rounded-xl border bg-background px-3 text-sm font-medium">Top Up Kredit</Link>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full border bg-background px-2.5 py-1">Kredit tersedia: {creditStatus?.total_credits ?? "—"}</span>
+            <span className="rounded-full border bg-background px-2.5 py-1">Gratis hari ini: {creditStatus?.free_daily_remaining ?? "—"}/5</span>
+            {creditStatus?.pro_active && <span className="rounded-full border bg-background px-2.5 py-1">PRO {creditStatus.pro_plan === "pro-100" ? "100" : "50"} • aktif s/d {creditStatus.pro_active_until ? new Date(creditStatus.pro_active_until).toLocaleDateString("id-ID") : "—"}</span>}
+          </div>
+        </div>
 
         <ReferenceImages images={images} onChange={setImages} disabled={loading} />
 
