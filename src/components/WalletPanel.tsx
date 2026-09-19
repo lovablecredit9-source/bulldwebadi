@@ -43,7 +43,10 @@ type CreditStatus = {
   pro_month_remaining: number;
 };
 
-export function WalletPanel() {
+export function WalletPanel({ mode = "wallet" }: { mode?: "wallet" | "credits" | "history" }) {
+  const showWallet = mode === "wallet";
+  const showCredits = mode === "credits";
+  const showHistory = mode === "history";
   const [data, setData] = useState<WalletData | null>(null);
   const [loading, setLoading] = useState(true);
   const [pin, setPin] = useState("");
@@ -188,22 +191,13 @@ export function WalletPanel() {
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-3">
         <div className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary"><WalletCards className="size-6" /></div>
-        <div><h2 className="text-xl font-bold">Saldo & Deposit</h2><p className="text-sm text-muted-foreground">Kelola saldo akun dan permintaan deposit.</p></div>
+        <div><h2 className="text-xl font-bold">{showWallet ? "Deposit & Total Saldo" : showCredits ? "Top Up Kredit" : "Riwayat Akun"}</h2><p className="text-sm text-muted-foreground">{showWallet ? "Kelola saldo akun dan permintaan deposit." : showCredits ? "Beli kredit AI dan paket PRO." : "Lihat pembelian dan pemakaian kredit akun."}</p></div>
       </div>
-      <div className="flex items-end gap-2">
-        <div className="rounded-2xl border bg-background px-4 py-3 text-right">
-          <p className="text-xs text-muted-foreground">Saldo saat ini</p>
-          <p className="text-xl font-bold">Rp {data.balance.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</p>
-        </div>
-        <Button type="button" variant="outline" className="h-auto rounded-2xl px-4 py-3" onClick={toggleHistory}>
-          <History className="size-4" />
-          Riwayat
-        </Button>
-      </div>
+      {showWallet && <div className="rounded-2xl border bg-background px-4 py-3 text-right"><p className="text-xs text-muted-foreground">Saldo saat ini</p><p className="text-xl font-bold">Rp {data.balance.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</p></div>}
     </div>
 
-    {historyOpen && (
-      <div className="mt-4 rounded-2xl border bg-background/50 p-4">
+    {showHistory && (
+      <div className="mt-5 rounded-2xl border bg-background/50 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-semibold">Riwayat Kredit</h3>
@@ -214,53 +208,21 @@ export function WalletPanel() {
           </Button>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <Button type="button" variant={historyTab === "purchases" ? "default" : "outline"} onClick={() => setHistoryTab("purchases")} className="rounded-xl">
-            Pembelian Kredit
-          </Button>
-          <Button type="button" variant={historyTab === "usage" ? "default" : "outline"} onClick={() => setHistoryTab("usage")} className="rounded-xl">
-            Pemakaian Kredit
-          </Button>
+          <Button type="button" variant={historyTab === "purchases" ? "default" : "outline"} onClick={() => setHistoryTab("purchases")} className="rounded-xl">Pembelian Kredit</Button>
+          <Button type="button" variant={historyTab === "usage" ? "default" : "outline"} onClick={() => setHistoryTab("usage")} className="rounded-xl">Pemakaian Kredit</Button>
         </div>
         <div className="mt-3 grid gap-2">
-          {historyLoading && creditHistory.length === 0 && (
-            <div className="flex items-center gap-2 rounded-xl border p-4 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" /> Memuat riwayat...
-            </div>
-          )}
-          {!historyLoading && (historyTab === "purchases" ? purchaseHistory : usageHistory).length === 0 && (
-            <p className="rounded-xl border p-4 text-sm text-muted-foreground">
-              Belum ada {historyTab === "purchases" ? "pembelian kredit" : "pemakaian kredit"}.
-            </p>
-          )}
+          {historyLoading && creditHistory.length === 0 && <div className="flex items-center gap-2 rounded-xl border p-4 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Memuat riwayat...</div>}
+          {!historyLoading && (historyTab === "purchases" ? purchaseHistory : usageHistory).length === 0 && <p className="rounded-xl border p-4 text-sm text-muted-foreground">Belum ada {historyTab === "purchases" ? "pembelian kredit" : "pemakaian kredit"}.</p>}
           {(historyTab === "purchases" ? purchaseHistory : usageHistory).map((tx) => {
-            const isRefund = tx.kind === "ai_refund";
-            const isPro = tx.kind === "pro_purchase";
-            const title = isRefund
-              ? "Kredit dikembalikan"
-              : isPro
-                ? "Pembelian PRO"
-                : tx.kind === "paid_topup"
-                  ? "Top Up Kredit"
-                  : "Pemakaian AI";
-            return (
-              <div key={tx.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3">
-                <div>
-                  <p className="font-medium">{title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {tx.description || "Transaksi kredit"} · {new Date(tx.created_at).toLocaleString("id-ID")}
-                  </p>
-                </div>
-                <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${tx.credits >= 0 ? "text-emerald-400" : "text-destructive"}`}>
-                  {tx.credits >= 0 ? "+" : ""}{tx.credits} kredit
-                </span>
-              </div>
-            );
+            const title = tx.kind === "ai_refund" ? "Kredit dikembalikan" : tx.kind === "pro_purchase" ? "Pembelian PRO" : tx.kind === "paid_topup" ? "Top Up Kredit" : "Pemakaian AI";
+            return <div key={tx.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"><div><p className="font-medium">{title}</p><p className="text-xs text-muted-foreground">{tx.description || "Transaksi kredit"} · {new Date(tx.created_at).toLocaleString("id-ID")}</p></div><span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${tx.credits >= 0 ? "text-emerald-400" : "text-destructive"}`}>{tx.credits >= 0 ? "+" : ""}{tx.credits} kredit</span></div>;
           })}
         </div>
       </div>
     )}
 
-    <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+    {showCredits && <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/5 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="font-semibold">Kredit AI</h3>
@@ -296,9 +258,9 @@ export function WalletPanel() {
         <Input value={creditPin} onChange={e=>setCreditPin(e.target.value.replace(/\\D/g,"").slice(0,6))} inputMode="numeric" type="password" placeholder="PIN saldo untuk membeli kredit / Pro" className="max-w-sm" />
         {creditSaving && <Loader2 className="size-4 animate-spin" />}
       </div>
-    </div>
+    </div>}
 
-    <div className="mt-5 grid gap-5 lg:grid-cols-2">
+    {showWallet && <div className="mt-5 grid gap-5 lg:grid-cols-2">
       <div className="rounded-2xl border bg-background/50 p-4">
         <div className="flex items-center gap-2"><KeyRound className="size-4 text-primary" /><h3 className="font-semibold">{data.hasPin ? "Ubah PIN Saldo" : "Buat PIN Saldo"}</h3></div>
         {data.hasPin && <div className="mt-3 space-y-2"><Label>PIN lama</Label><Input value={pin} onChange={e=>setPin(e.target.value.replace(/\\D/g,"").slice(0,6))} inputMode="numeric" type="password" placeholder="6 angka" /></div>}
@@ -356,6 +318,6 @@ export function WalletPanel() {
           <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold">{d.status==="approved"?<CheckCircle2 className="size-3.5"/>:d.status==="rejected"?<XCircle className="size-3.5"/>:<Clock3 className="size-3.5"/>}{d.status==="approved"?"Disetujui":d.status==="rejected"?"Ditolak":"Menunggu"}</span>
         </div>)}
       </div>
-    </div>
+    </div>}
   </section>;
 }
