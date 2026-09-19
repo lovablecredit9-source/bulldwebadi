@@ -173,7 +173,8 @@ export function WalletPanel() {
       <div className="mt-3 flex flex-wrap gap-2 text-xs">
         <span className="rounded-full border bg-background px-2.5 py-1">Gratis hari ini: {credits?.free_daily_remaining ?? 0}/5</span>
         <span className="rounded-full border bg-background px-2.5 py-1">Gratis bulan ini: {credits?.free_month_remaining ?? 0}/30</span>
-        {credits?.pro_active && <span className="rounded-full border bg-background px-2.5 py-1">PRO {credits.pro_plan === "pro-100" ? "100" : "50"} · {credits.pro_month_remaining} kredit bulan ini · aktif s/d {credits.pro_active_until ? new Date(credits.pro_active_until).toLocaleDateString("id-ID") : "—"}</span>}
+        <span className="rounded-full border bg-background px-2.5 py-1">{credits?.pro_active ? `PRO AKTIF · sampai ${credits.pro_active_until ? new Date(credits.pro_active_until).toLocaleDateString("id-ID") : "—"}` : "PRO TIDAK AKTIF"}</span>
+        {credits?.pro_active && <span className="rounded-full border bg-background px-2.5 py-1">PRO {credits.pro_plan === "pro-100" ? "100" : "50"} · {credits.pro_month_remaining} kredit bulan ini</span>}
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         {[{c:10,p:2000},{c:50,p:10000},{c:100,p:15000},{c:200,p:20000},{c:500,p:40000},{c:1000,p:70000}].map((pack) => (
