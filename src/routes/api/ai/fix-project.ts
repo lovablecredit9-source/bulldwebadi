@@ -63,7 +63,7 @@ Aturan: hanya kembalikan file yang benar-benar perlu diubah, isi file harus leng
           const content: MsgContent = images.length
             ? [{ type: "text", text: prompt }, ...images.map((url) => ({ type: "image_url" as const, image_url: { url } }))]
             : prompt;
-          const estimate = estimateAiCredits(body.model, project.type, instruction);
+          const estimate = estimateAiCredits(body.model, project.type, instruction, "fix");
           creditRequestId = crypto.randomUUID();
           const { error: creditError } = await creditDb.rpc("credit_consume", {
             p_amount: estimate.credits,
