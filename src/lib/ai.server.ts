@@ -116,7 +116,7 @@ function routerEndpoints(baseUrl: string) {
 
 export async function callAI(
   messages: Msg[],
-  opts: { model?: string; json?: boolean; config?: AiConfig } = {},
+  opts: { model?: string; json?: boolean; config?: AiConfig; signal?: AbortSignal } = {},
 ): Promise<string> {
   const config = opts.config ?? (await loadConfig());
   if (!config.apiKey) {
