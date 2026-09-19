@@ -45,7 +45,6 @@ export function BuilderForm({
   const [model, setModel] = useState(DEFAULT_MODEL);
   const [loading, setLoading] = useState(false);
   const [creditProgress, setCreditProgress] = useState(0);
-  const abortRef = useRef<AbortController | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [creditStatus, setCreditStatus] = useState<{ total_credits?: number; paid_credits?: number; free_daily_remaining?: number; free_month_remaining?: number; pro_active?: boolean; pro_plan?: string | null; pro_active_until?: string | null } | null>(null);
   const estimate = estimateAiCredits(model, fixedType ?? type, desc);
@@ -73,20 +72,23 @@ export function BuilderForm({
     const startedAt = Date.now();
     const tick = window.setInterval(() => {
       const elapsedSeconds = (Date.now() - startedAt) / 1000;
-      const estimatedSeconds = Math.max(12, estimate.credits * 6);
-      const next = Math.min(estimate.credits, Math.round((elapsedSeconds / estimatedSeconds) * estimate.credits * 10) / 10);
+      // Ini hanya indikator progres visual. Jangan hentikan request berdasarkan
+      // estimasi waktu karena proses AI yang lambat tetap harus dibiarkan selesai.
+      const visualBudget = Math.max(1, Number(creditStatus?.total_credits ?? estimate.credits));
+      const visualRate = Math.max(0.08, Math.min(0.35, visualBudget / 120));
+      const next = Math.min(
+        Math.max(0, visualBudget * 0.95),
+        Math.round(elapsedSeconds * visualRate * 10) / 10,
+      );
       setCreditProgress(next);
-      if (next >= estimate.credits && abortRef.current) abortRef.current.abort();
     }, 500);
     return () => window.clearInterval(tick);
-  }, [loading, estimate.credits]);
+  }, [loading, estimate.credits, creditStatus?.total_credits]);
 
   const submit = async () => {
     setLoading(true);
     setCreditProgress(0);
     const controller = new AbortController();
-    abortRef.current = controller;
-    let budgetReached = false;
     try {
       // Selalu ambil saldo terbaru sebelum mulai AI agar angka di layar tidak stale/cached.
       const freshCredits = await getJson<{
@@ -107,18 +109,14 @@ export function BuilderForm({
       const res = await postJson<{ projectId: string; plan: string; files: string[]; creditUsed?: number }>(
         "/api/ai/generate-project",
         { name, type: fixedType ?? type, description: desc, model, meta: meta ?? {}, images },
-        { signal: controller.signal },
+
       );
       toast.success(`Project dibuat: ${res.files.length} file • ${res.creditUsed ?? estimate.credits} kredit`);
       await loadCredits();
       navigate({ to: "/projects/$id", params: { id: res.projectId } });
     } catch (e) {
-      if (controller.signal.aborted) {
-        budgetReached = true;
-      }
-      toast.error(budgetReached ? "Batas kredit estimasi tercapai. Proses dihentikan aman dan kredit yang dicadangkan akan dikembalikan." : e instanceof Error ? e.message : "AI sedang mengalami gangguan. Silakan coba lagi.");
+      toast.error(e instanceof Error ? e.message : "AI sedang mengalami gangguan. Silakan coba lagi.");
     } finally {
-      abortRef.current = null;
       setLoading(false);
       setCreditProgress(0);
     }
@@ -170,7 +168,7 @@ export function BuilderForm({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="font-semibold">Estimasi pengerjaan: {estimate.credits} kredit</p>
-              <p className="mt-1 text-xs text-muted-foreground">{estimate.reason} Kredit dipotong hanya setelah request lolos pengecekan; jika AI gagal sebelum selesai, kredit dikembalikan.</p>
+              <p className="mt-1 text-xs text-muted-foreground">{estimate.reason} Estimasi ini bukan batas waktu proses. Request hanya dicek terhadap saldo yang tersedia; proses tidak dihentikan saat mencapai angka estimasi.</p>
             </div>
             <Link to="/wallet" className="inline-flex h-9 items-center rounded-xl border bg-background px-3 text-sm font-medium">Top Up Kredit</Link>
           </div>
@@ -189,23 +187,8 @@ export function BuilderForm({
         </Button>
 
         {loading && (
-          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="font-semibold">Pemakaian kredit berjalan</p>
-                <p className="text-xs text-muted-foreground">Estimasi bertambah bertahap sampai batas {estimate.credits}. Jika batas tercapai, proses dihentikan dan kredit dikembalikan.</p>
-              </div>
-              <span className="text-lg font-bold tabular-nums">{creditProgress.toFixed(1)} / {estimate.credits}</span>
-            </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${Math.min(100, (creditProgress / Math.max(estimate.credits, 1)) * 100)}%` }} />
-            </div>
-          </div>
-        )}
-
-        {loading && (
           <div className="space-y-2">
-            <AiWorkStatus kind="generate" creditProgress={creditProgress} creditEstimate={estimate.credits} />
+            <AiWorkStatus kind="generate" creditProgress={creditProgress} creditEstimate={Number(creditStatus?.total_credits ?? estimate.credits)} />
             <Skeleton className="h-4 w-2/3" />
             <Skeleton className="h-4 w-1/2" />
             <Skeleton className="h-4 w-3/4" />
