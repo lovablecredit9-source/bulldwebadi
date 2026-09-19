@@ -12,7 +12,7 @@ export function estimateAiCredits(
 ): CreditEstimate {
   const m = (model || "mk/auto").toLowerCase();
   const text = description.trim();
-  const complexity = text.length > 900 ? 3 : text.length > 350 ? 2 : 1;
+  const complexityAdd = text.length > 900 ? 2 : text.length > 350 ? 1 : 0;
   const generateBase =
     projectType === "browser-extension" ? 3 :
     projectType === "telegram-bot" || projectType === "whatsapp-bot" ? 3 :
@@ -27,7 +27,7 @@ export function estimateAiCredits(
   else if (m.includes("haiku") || m.includes("flash-lite") || m.includes("deepseek-v4-flash")) modelFactor = 0.8;
   else if (m.includes("qwen") || m.includes("deepseek") || m.includes("kimi") || m.includes("glm")) modelFactor = 1.1;
 
-  const credits = Math.max(2, Math.min(30, Math.ceil((typeBase + complexity * 2) * modelFactor)));
+  const credits = Math.max(1, Math.min(30, Math.ceil((typeBase + complexityAdd) * modelFactor)));
   const label = credits <= 5 ? "ringan" : credits <= 10 ? "sedang" : "berat";
   return {
     credits,
