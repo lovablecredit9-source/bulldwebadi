@@ -13,6 +13,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getAuthenticatedUser } from "@/lib/auth.server";
 import { isAdministratorUser } from "@/lib/roles";
 import { normalizeModel } from "@/lib/models";
+import { createSupabaseUserClient } from "@/integrations/supabase/client.server";
+import { estimateAiCredits } from "@/lib/credits";
 
 
 
@@ -35,6 +37,9 @@ export const Route = createFileRoute("/api/ai/chat")({
           images?: string[];
           token?: string;
         };
+        let creditDb: ReturnType<typeof createSupabaseUserClient> | null = null;
+        let creditRequestId = "";
+        let creditReserved = false;
         try {
           const user = await getAuthenticatedUser(request);
           if (!user) throw new AiError("Sesi login diperlukan.", 401);
@@ -50,6 +55,9 @@ export const Route = createFileRoute("/api/ai/chat")({
           const message = (body.message ?? "").trim() || (images.length ? "Tiru desain pada foto ini semirip mungkin, lalu rangkum isi fotonya." : "");
           if (!message) throw new AiError("Pesan kosong.");
           if (!body.chatId) throw new AiError("Chat tidak ditemukan.");
+          const accessToken = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1] || request.headers.get("x-adi-access-token")?.trim() || "";
+          if (!accessToken) throw new AiError("Token login tidak ditemukan.", 401);
+          creditDb = createSupabaseUserClient(accessToken);
 
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -103,6 +111,17 @@ Tugas tambahan: analisa foto terlampir, rangkum isinya (layout, warna, font, kom
             messages.push({ role: "user", content: message });
           }
 
+          const projectForCost = body.projectId ? await getProject(body.projectId) : null;
+          const estimate = estimateAiCredits(body.model, projectForCost?.type ?? "nodejs", message);
+          creditRequestId = crypto.randomUUID();
+          const { error: creditError } = await creditDb.rpc("credit_consume", {
+            p_amount: Math.max(1, Math.min(10, Math.ceil(estimate.credits / 2))),
+            p_request_id: creditRequestId,
+            p_description: "AI Chat",
+          });
+          if (creditError) throw new AiError(creditError.message || "Kredit tidak cukup.", 402);
+          creditReserved = true;
+
           const reply = await callAI(messages, { ...(body.model ? { model: body.model } : {}) });
 
           await supabaseAdmin.from("ai_messages").insert([
@@ -116,6 +135,9 @@ Tugas tambahan: analisa foto terlampir, rangkum isinya (layout, warna, font, kom
 
           return safeJson({ reply });
         } catch (err) {
+          if (creditReserved && creditDb && creditRequestId) {
+            await creditDb.rpc("credit_refund", { p_request_id: creditRequestId, p_description: "Kredit dikembalikan karena chat AI gagal." });
+          }
           return errorResponse(err);
         }
       },
