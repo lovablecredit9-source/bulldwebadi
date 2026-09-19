@@ -308,7 +308,7 @@ export function WalletPanel({ mode = "wallet" }: { mode?: "wallet" | "credits" |
       </div>
     </div>
 
-    <div className="mt-5">
+    {showWallet && <div className="mt-5">
       <h3 className="font-semibold">Riwayat Deposit</h3>
       <div className="mt-3 grid gap-2">
         {data.deposits.length === 0 && <p className="text-sm text-muted-foreground">Belum ada permintaan deposit.</p>}
@@ -317,8 +317,6 @@ export function WalletPanel({ mode = "wallet" }: { mode?: "wallet" | "credits" |
           <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold">{d.status==="approved"?<CheckCircle2 className="size-3.5"/>:d.status==="rejected"?<XCircle className="size-3.5"/>:<Clock3 className="size-3.5"/>}{d.status==="approved"?"Disetujui":d.status==="rejected"?"Ditolak":"Menunggu"}</span>
         </div>)}
       </div>
-    </div>
-      </>
-    )}
+    </div>}
   </section>;
 }
