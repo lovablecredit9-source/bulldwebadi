@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Clock3, KeyRound, Loader2, WalletCards, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, History, KeyRound, Loader2, WalletCards, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,15 @@ type PaymentSettings = {
   qris_image_url: string | null;
 };
 type WalletData = { balance: number; hasPin: boolean; deposits: Deposit[]; paymentSettings: PaymentSettings | null };
+type CreditTransaction = {
+  id: string;
+  kind: string;
+  credits: number;
+  amount: number | null;
+  source: string | null;
+  description: string | null;
+  created_at: string;
+};
 type CreditStatus = {
   total_credits: number;
   paid_credits: number;
@@ -46,6 +55,10 @@ export function WalletPanel() {
   const [credits, setCredits] = useState<CreditStatus | null>(null);
   const [creditPin, setCreditPin] = useState("");
   const [creditSaving, setCreditSaving] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyTab, setHistoryTab] = useState<"purchases" | "usage">("purchases");
+  const [creditHistory, setCreditHistory] = useState<CreditTransaction[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const load = async () => {
     try {
@@ -64,6 +77,27 @@ export function WalletPanel() {
     }
   };
   useEffect(() => { void load(); }, []);
+
+  const loadCreditHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const result = await getJson<{ items: CreditTransaction[] }>("/api/credits?history=1");
+      setCreditHistory(result.items ?? []);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Riwayat kredit gagal dimuat.");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const toggleHistory = () => {
+    const next = !historyOpen;
+    setHistoryOpen(next);
+    if (next && creditHistory.length === 0) void loadCreditHistory();
+  };
+
+  const purchaseHistory = creditHistory.filter((tx) => tx.kind === "paid_topup" || tx.kind === "pro_purchase");
+  const usageHistory = creditHistory.filter((tx) => tx.kind === "ai_consume" || tx.kind === "ai_refund");
 
   const setWalletPin = async () => {
     if (!/^\d{6}$/.test(newPin)) { toast.error("PIN saldo harus tepat 6 angka."); return; }
@@ -156,8 +190,75 @@ export function WalletPanel() {
         <div className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary"><WalletCards className="size-6" /></div>
         <div><h2 className="text-xl font-bold">Saldo & Deposit</h2><p className="text-sm text-muted-foreground">Kelola saldo akun dan permintaan deposit.</p></div>
       </div>
-      <div className="rounded-2xl border bg-background px-4 py-3 text-right"><p className="text-xs text-muted-foreground">Saldo saat ini</p><p className="text-xl font-bold">Rp {data.balance.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</p></div>
+      <div className="flex items-end gap-2">
+        <div className="rounded-2xl border bg-background px-4 py-3 text-right">
+          <p className="text-xs text-muted-foreground">Saldo saat ini</p>
+          <p className="text-xl font-bold">Rp {data.balance.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</p>
+        </div>
+        <Button type="button" variant="outline" className="h-auto rounded-2xl px-4 py-3" onClick={toggleHistory}>
+          <History className="size-4" />
+          Riwayat
+        </Button>
+      </div>
     </div>
+
+    {historyOpen && (
+      <div className="mt-4 rounded-2xl border bg-background/50 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="font-semibold">Riwayat Kredit</h3>
+            <p className="text-xs text-muted-foreground">Riwayat pembelian dan pemakaian kredit AI.</p>
+          </div>
+          <Button type="button" variant="ghost" size="sm" onClick={() => void loadCreditHistory()} disabled={historyLoading}>
+            {historyLoading ? <Loader2 className="size-4 animate-spin" /> : "Refresh"}
+          </Button>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Button type="button" variant={historyTab === "purchases" ? "default" : "outline"} onClick={() => setHistoryTab("purchases")} className="rounded-xl">
+            Pembelian Kredit
+          </Button>
+          <Button type="button" variant={historyTab === "usage" ? "default" : "outline"} onClick={() => setHistoryTab("usage")} className="rounded-xl">
+            Pemakaian Kredit
+          </Button>
+        </div>
+        <div className="mt-3 grid gap-2">
+          {historyLoading && creditHistory.length === 0 && (
+            <div className="flex items-center gap-2 rounded-xl border p-4 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" /> Memuat riwayat...
+            </div>
+          )}
+          {!historyLoading && (historyTab === "purchases" ? purchaseHistory : usageHistory).length === 0 && (
+            <p className="rounded-xl border p-4 text-sm text-muted-foreground">
+              Belum ada {historyTab === "purchases" ? "pembelian kredit" : "pemakaian kredit"}.
+            </p>
+          )}
+          {(historyTab === "purchases" ? purchaseHistory : usageHistory).map((tx) => {
+            const isRefund = tx.kind === "ai_refund";
+            const isPro = tx.kind === "pro_purchase";
+            const title = isRefund
+              ? "Kredit dikembalikan"
+              : isPro
+                ? "Pembelian PRO"
+                : tx.kind === "paid_topup"
+                  ? "Top Up Kredit"
+                  : "Pemakaian AI";
+            return (
+              <div key={tx.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3">
+                <div>
+                  <p className="font-medium">{title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {tx.description || "Transaksi kredit"} · {new Date(tx.created_at).toLocaleString("id-ID")}
+                  </p>
+                </div>
+                <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${tx.credits >= 0 ? "text-emerald-400" : "text-destructive"}`}>
+                  {tx.credits >= 0 ? "+" : ""}{tx.credits} kredit
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    )}
 
     <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/5 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
