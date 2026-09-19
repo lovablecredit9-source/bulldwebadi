@@ -123,10 +123,17 @@ Aturan:
           return safeJson({ projectId: project.id, plan: parsed.plan ?? "", files: files.map((f) => f.path), creditUsed: estimate.credits });
         } catch (err) {
           if (creditReserved) {
-            await db.rpc("credit_refund", {
+            const { error: refundError } = await db.rpc("credit_refund", {
               p_request_id: requestId,
               p_description: "Kredit dikembalikan karena generate project gagal sebelum selesai.",
             });
+            if (refundError) {
+              console.error("[credits] refund failed", {
+                requestId,
+                userId: user.id,
+                error: refundError.message,
+              });
+            }
           }
           return errorResponse(err);
         }
