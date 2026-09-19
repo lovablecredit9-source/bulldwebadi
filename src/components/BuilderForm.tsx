@@ -50,7 +50,15 @@ export function BuilderForm({
 
   const loadCredits = async () => {
     try {
-      setCreditStatus(await getJson("/api/credits"));
+      setCreditStatus(await getJson<{
+        total_credits?: number;
+        paid_credits?: number;
+        free_daily_remaining?: number;
+        free_month_remaining?: number;
+        pro_active?: boolean;
+        pro_plan?: string | null;
+        pro_active_until?: string | null;
+      }>("/api/credits"));
     } catch {
       setCreditStatus(null);
     }
