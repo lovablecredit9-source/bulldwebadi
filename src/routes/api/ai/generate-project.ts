@@ -90,7 +90,7 @@ Aturan:
               { role: "system", content: SYSTEM_PROMPT },
               { role: "user", content },
             ],
-            { ...(body.model ? { model: body.model } : {}), json: true },
+            { ...(body.model ? { model: body.model } : {}), json: true, signal: request.signal },
           );
 
           const parsed = parseJsonLoose<GenResult>(out);
