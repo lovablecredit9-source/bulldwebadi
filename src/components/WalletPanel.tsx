@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Clock3, History, KeyRound, Loader2, WalletCards, XCircle } from "lucide-react";
+import { CheckCircle2, Clock3, KeyRound, Loader2, WalletCards, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,7 +58,6 @@ export function WalletPanel({ mode = "wallet" }: { mode?: "wallet" | "credits" |
   const [credits, setCredits] = useState<CreditStatus | null>(null);
   const [creditPin, setCreditPin] = useState("");
   const [creditSaving, setCreditSaving] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [historyTab, setHistoryTab] = useState<"purchases" | "usage">("purchases");
   const [creditHistory, setCreditHistory] = useState<CreditTransaction[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -93,11 +92,9 @@ export function WalletPanel({ mode = "wallet" }: { mode?: "wallet" | "credits" |
     }
   };
 
-  const toggleHistory = () => {
-    const next = !historyOpen;
-    setHistoryOpen(next);
-    if (next && creditHistory.length === 0) void loadCreditHistory();
-  };
+  useEffect(() => {
+    if (showHistory && creditHistory.length === 0) void loadCreditHistory();
+  }, [showHistory]);
 
   const purchaseHistory = creditHistory.filter((tx) => tx.kind === "paid_topup" || tx.kind === "pro_purchase");
   const usageHistory = creditHistory.filter((tx) => tx.kind === "ai_consume" || tx.kind === "ai_refund");
