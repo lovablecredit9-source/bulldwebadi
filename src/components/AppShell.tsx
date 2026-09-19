@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Component, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
-import { Bug, Bot, FolderTree, Home, Instagram, LogOut, Menu, MessageCircle, Moon, Puzzle, Search, Settings, ShieldCheck, Smartphone, Sun, Upload, Youtube, Loader2, WalletCards } from "lucide-react";
+import { Bug, Bot, FolderTree, Home, History, Instagram, LogOut, Menu, MessageCircle, Moon, Puzzle, Search, Settings, ShieldCheck, Smartphone, Sun, Upload, Youtube, Loader2, WalletCards, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { HtmlLiveTester } from "@/components/HtmlLiveTester";
@@ -20,7 +20,9 @@ const NAV = [
   { to: "/extension", label: "Extension Builder", icon: Puzzle },
   { to: "/upload", label: "Upload Project", icon: Upload },
   { to: "/projects", label: "Project Files", icon: FolderTree },
-  { to: "/wallet", label: "Total Saldo", icon: WalletCards },
+  { to: "/wallet", label: "Deposit & Total Saldo", icon: WalletCards },
+  { to: "/topup", label: "Top Up Kredit", icon: CreditCard },
+  { to: "/account-history", label: "Riwayat Akun", icon: History },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
