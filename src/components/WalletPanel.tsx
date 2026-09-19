@@ -66,8 +66,8 @@ export function WalletPanel() {
   useEffect(() => { void load(); }, []);
 
   const setWalletPin = async () => {
-    if (!/^\\d{6}$/.test(newPin)) { toast.error("PIN saldo harus tepat 6 angka."); return; }
-    if (data?.hasPin && !/^\\d{6}$/.test(pin)) { toast.error("Masukkan PIN lama 6 angka."); return; }
+    if (!/^\d{6}$/.test(newPin)) { toast.error("PIN saldo harus tepat 6 angka."); return; }
+    if (data?.hasPin && !/^\d{6}$/.test(pin)) { toast.error("Masukkan PIN lama 6 angka."); return; }
     setSaving(true);
     try {
       await postJson("/api/wallet", { action: data?.hasPin ? "change-pin" : "set-pin", pin, newPin });
@@ -92,7 +92,7 @@ export function WalletPanel() {
   };
 
   const buyCredits = async (creditsToBuy: number, price: number) => {
-    if (!/^\\d{6}$/.test(creditPin)) { toast.error("Masukkan PIN saldo 6 angka untuk pembelian kredit."); return; }
+    if (!/^\d{6}$/.test(creditPin)) { toast.error("Masukkan PIN saldo 6 angka untuk pembelian kredit."); return; }
     setCreditSaving(true);
     try {
       const result = await postJson<{ status: CreditStatus }>("/api/credits", {
@@ -111,7 +111,7 @@ export function WalletPanel() {
   };
 
   const buyPro = async (plan: "pro-50" | "pro-100", price: number) => {
-    if (!/^\\d{6}$/.test(creditPin)) { toast.error("Masukkan PIN saldo 6 angka untuk pembelian Pro."); return; }
+    if (!/^\d{6}$/.test(creditPin)) { toast.error("Masukkan PIN saldo 6 angka untuk pembelian Pro."); return; }
     setCreditSaving(true);
     try {
       const result = await postJson<{ status: CreditStatus }>("/api/credits", {
