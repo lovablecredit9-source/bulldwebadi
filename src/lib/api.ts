@@ -22,11 +22,13 @@ async function fetchWithAuthRetry(input: RequestInfo | URL, init: RequestInit = 
     return headers;
   };
 
-  let res = await fetch(input, {
+  const requestInit: RequestInit = {
     ...init,
     credentials: "include",
+    cache: "no-store",
     headers: await buildHeaders(),
-  });
+  };
+  let res = await fetch(input, requestInit);
   if (res.status === 401) {
     const refreshed = await refreshValidSession();
     if (refreshed?.access_token) {
@@ -36,6 +38,7 @@ async function fetchWithAuthRetry(input: RequestInfo | URL, init: RequestInit = 
       res = await fetch(input, {
         ...init,
         credentials: "include",
+        cache: "no-store",
         headers,
       });
     }
