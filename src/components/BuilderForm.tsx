@@ -69,6 +69,22 @@ export function BuilderForm({
   const submit = async () => {
     setLoading(true);
     try {
+      // Selalu ambil saldo terbaru sebelum mulai AI agar angka di layar tidak stale/cached.
+      const freshCredits = await getJson<{
+        total_credits?: number;
+        paid_credits?: number;
+        free_daily_remaining?: number;
+        free_month_remaining?: number;
+        pro_active?: boolean;
+        pro_plan?: string | null;
+        pro_active_until?: string | null;
+      }>(`/api/credits?fresh=${Date.now()}`);
+      setCreditStatus(freshCredits);
+      const available = Number(freshCredits.total_credits ?? 0);
+      if (available < estimate.credits) {
+        throw new Error(`Kredit tidak cukup. Dibutuhkan ${estimate.credits}, tersedia ${available}. Saldo sudah diperbarui.`);
+      }
+
       const res = await postJson<{ projectId: string; plan: string; files: string[]; creditUsed?: number }>(
         "/api/ai/generate-project",
         { name, type: fixedType ?? type, description: desc, model, meta: meta ?? {}, images },
