@@ -337,32 +337,43 @@ function AdminPanel() {
 
   const reviewDeposit = async (depositId: string, approve: boolean) => {
     if (walletBusy) return;
+
+    const normalizedDepositId = String(depositId || "").trim();
+    if (!normalizedDepositId) {
+      toast.error("Deposit tidak memiliki ID yang valid.");
+      return;
+    }
+
     setWalletBusy(true);
     try {
-      // Jalur paling langsung: gunakan session Supabase yang sedang login
-      // untuk memanggil RPC SECURITY DEFINER. Ini menghindari kegagalan
-      // routing/SSR endpoint saat tombol Admin ditekan dari browser.
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      const accessToken = sessionData.session?.access_token;
-      const adminId = sessionData.session?.user?.id;
-      if (!accessToken || !adminId) throw new Error("Sesi admin tidak ditemukan. Silakan login ulang.");
-
-      const { data, error } = await supabase.rpc("wallet_approve_deposit", {
-        p_deposit_id: depositId,
-        p_admin_id: adminId,
-        p_approve: approve,
-        p_admin_note: null,
+      // Konfirmasi/Tolak selalu melewati backend Admin. Frontend tidak
+      // menentukan saldo, status, atau apakah deposit masih pending.
+      const result = await postJson<{
+        ok: boolean;
+        result?: { status?: string; balance?: number | null };
+      }>("/api/admin/wallet", {
+        action: approve ? "approve-deposit" : "reject-deposit",
+        depositId: normalizedDepositId,
+        adminNote: null,
       });
 
-      if (error) throw error;
-      if (!data || typeof data !== "object") throw new Error("Server tidak mengembalikan hasil approval deposit.");
+      if (!result?.ok || !result.result?.status) {
+        throw new Error("Backend tidak mengembalikan hasil konfirmasi deposit yang valid.");
+      }
 
-      toast.success(approve ? "Deposit disetujui dan saldo ditambahkan." : "Deposit ditolak.");
+      toast.success(
+        approve
+          ? `Deposit dikonfirmasi. Saldo user sekarang Rp ${Number(result.result.balance ?? 0).toLocaleString("id-ID")}. `
+          : "Deposit ditolak.",
+      );
       await refreshWalletDeposits();
     } catch (error) {
       const message = errorText(error);
-      console.error("[Admin Wallet] review deposit gagal", error);
+      console.error("[ADMIN DEPOSIT] review gagal", {
+        depositId: normalizedDepositId,
+        approve,
+        error: message,
+      });
       toast.error(`Gagal memproses deposit: ${message}`);
     } finally {
       setWalletBusy(false);
