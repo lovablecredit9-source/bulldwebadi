@@ -50,13 +50,41 @@ export async function handleAdminWalletRequest(request: Request): Promise<Respon
         const depositId = String(body.depositId || "").trim();
         if (!depositId) return safeJson({ error: "Deposit tidak ditemukan." }, 400);
 
+        const approve = body.action === "approve-deposit";
+        console.info("[ADMIN DEPOSIT] request", {
+          depositId,
+          adminId: admin.id,
+          action: approve ? "approve" : "reject",
+        });
+
         const { data, error } = await supabaseUser.rpc("wallet_approve_deposit", {
           p_deposit_id: depositId,
           p_admin_id: admin.id,
-          p_approve: body.action === "approve-deposit",
+          p_approve: approve,
           p_admin_note: body.adminNote ? String(body.adminNote).slice(0, 500) : null,
         });
-        if (error) throw error;
+
+        if (error) {
+          console.error("[ADMIN DEPOSIT] database error", {
+            depositId,
+            adminId: admin.id,
+            action: approve ? "approve" : "reject",
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+          });
+          const message = error.message || "Database gagal memproses deposit.";
+          const status = /sudah diproses/i.test(message) ? 409 : /tidak ditemukan/i.test(message) ? 404 : 400;
+          return safeJson({ error: message }, status);
+        }
+
+        console.info("[ADMIN DEPOSIT] success", {
+          depositId,
+          adminId: admin.id,
+          action: approve ? "approve" : "reject",
+          result: data,
+        });
 
         return safeJson({ ok: true, result: data });
       }
