@@ -257,7 +257,9 @@ export function WalletPanel({ mode = "wallet" }: { mode?: "wallet" | "credits" |
       </div>
     </div>}
 
-    {showWallet && <div className="mt-5 grid gap-5 lg:grid-cols-2">
+    {showWallet && (
+      <>
+      <div className="mt-5 grid gap-5 lg:grid-cols-2">
       <div className="rounded-2xl border bg-background/50 p-4">
         <div className="flex items-center gap-2"><KeyRound className="size-4 text-primary" /><h3 className="font-semibold">{data.hasPin ? "Ubah PIN Saldo" : "Buat PIN Saldo"}</h3></div>
         {data.hasPin && <div className="mt-3 space-y-2"><Label>PIN lama</Label><Input value={pin} onChange={e=>setPin(e.target.value.replace(/\\D/g,"").slice(0,6))} inputMode="numeric" type="password" placeholder="6 angka" /></div>}
@@ -315,6 +317,8 @@ export function WalletPanel({ mode = "wallet" }: { mode?: "wallet" | "credits" |
           <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold">{d.status==="approved"?<CheckCircle2 className="size-3.5"/>:d.status==="rejected"?<XCircle className="size-3.5"/>:<Clock3 className="size-3.5"/>}{d.status==="approved"?"Disetujui":d.status==="rejected"?"Ditolak":"Menunggu"}</span>
         </div>)}
       </div>
-    </div>}
+    </div>
+      </>
+    )}
   </section>;
 }
