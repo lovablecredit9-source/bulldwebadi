@@ -30,7 +30,7 @@ function formatElapsed(seconds: number) {
   return minutes ? `${minutes}:${remaining.toString().padStart(2, "0")}` : `${remaining} detik`;
 }
 
-export function AiWorkStatus({ kind }: { kind: WorkKind }) {
+export function AiWorkStatus({ kind, creditProgress, creditEstimate }: { kind: WorkKind; creditProgress?: number; creditEstimate?: number }) {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
@@ -56,9 +56,14 @@ export function AiWorkStatus({ kind }: { kind: WorkKind }) {
       <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-primary" />
       <div className="min-w-0">
         <p className="text-sm font-medium">{stage.label}…</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Sedang mengerjakan · {formatElapsed(elapsed)}
-        </p>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span>Sedang mengerjakan · {formatElapsed(elapsed)}</span>
+          {typeof creditEstimate === "number" && (
+            <span className="font-medium text-primary">
+              Kredit berjalan {Math.min(creditEstimate, Math.max(0, creditProgress ?? 0)).toFixed(1)} / {creditEstimate}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
