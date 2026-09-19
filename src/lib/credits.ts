@@ -4,14 +4,22 @@ export type CreditEstimate = {
   reason: string;
 };
 
-export function estimateAiCredits(model: string | null | undefined, projectType: string, description: string): CreditEstimate {
+export function estimateAiCredits(
+  model: string | null | undefined,
+  projectType: string,
+  description: string,
+  operation: "generate" | "edit" | "fix" = "generate",
+): CreditEstimate {
   const m = (model || "mk/auto").toLowerCase();
   const text = description.trim();
   const complexity = text.length > 900 ? 3 : text.length > 350 ? 2 : 1;
-  const typeBase =
-    projectType === "browser-extension" ? 4 :
-    projectType === "telegram-bot" || projectType === "whatsapp-bot" ? 4 :
-    projectType === "python" || projectType === "nodejs" ? 3 : 2;
+  const generateBase =
+    projectType === "browser-extension" ? 3 :
+    projectType === "telegram-bot" || projectType === "whatsapp-bot" ? 3 :
+    projectType === "python" || projectType === "nodejs" ? 2 : 2;
+  const typeBase = operation === "generate"
+    ? generateBase
+    : Math.max(1, generateBase - 1);
 
   let modelFactor = 1;
   if (m.includes("thinking") || m.includes("agentic")) modelFactor = 1.6;
@@ -24,6 +32,6 @@ export function estimateAiCredits(model: string | null | undefined, projectType:
   return {
     credits,
     label,
-    reason: "Pekerjaan " + label + "; jenis project, panjang permintaan, dan model " + (model || "auto") + " ikut dihitung.",
+    reason: (operation === "edit" ? "Edit" : operation === "fix" ? "Perbaikan" : "Pembuatan") + " " + label + "; jenis project, panjang permintaan, dan model " + (model || "auto") + " ikut dihitung.",
   };
 }
