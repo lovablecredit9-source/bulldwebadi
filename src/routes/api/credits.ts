@@ -23,6 +23,17 @@ export const Route = createFileRoute("/api/credits")({
           const token = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1] || request.headers.get("x-adi-access-token")?.trim() || "";
           if (!token) return safeJson({ error: "Token login tidak ditemukan." }, 401);
           const db = createSupabaseUserClient(token);
+          const url = new URL(request.url);
+          if (url.searchParams.get("history") === "1") {
+            const { data, error } = await db
+              .from("credit_transactions")
+              .select("id,kind,credits,amount,source,description,created_at")
+              .eq("user_id", user.id)
+              .order("created_at", { ascending: false })
+              .limit(100);
+            if (error) throw error;
+            return safeJson({ items: data ?? [] });
+          }
           const { data, error } = await db.rpc("credit_get_status");
           if (error) throw error;
           return safeJson(data ?? {});
