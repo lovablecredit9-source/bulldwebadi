@@ -61,7 +61,7 @@ export function BuilderForm({
   const submit = async () => {
     setLoading(true);
     try {
-      const res = await postJson<{ projectId: string; plan: string; files: string[] }>(
+      const res = await postJson<{ projectId: string; plan: string; files: string[]; creditUsed?: number }>(
         "/api/ai/generate-project",
         { name, type: fixedType ?? type, description: desc, model, meta: meta ?? {}, images },
       );
