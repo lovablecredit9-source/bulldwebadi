@@ -130,6 +130,7 @@ export async function callAI(
       try {
         lastResponse = await fetch(endpoint, {
           method: "POST",
+          signal: opts.signal,
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${config.apiKey}`,
