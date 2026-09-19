@@ -35,7 +35,7 @@ export const Route = createFileRoute("/api/ai/generate-project")({
         const description = (body.description ?? "").trim();
         const user = await getAuthenticatedUser(request);
         if (!user) throw new AiError("Sesi login diperlukan.", 401);
-        const accessToken = request.headers.get("authorization")?.match(/^Bearer\\s+(.+)$/i)?.[1] || request.headers.get("x-adi-access-token")?.trim() || "";
+        const accessToken = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1] || request.headers.get("x-adi-access-token")?.trim() || "";
         if (!accessToken) throw new AiError("Token login tidak ditemukan.", 401);
         const db = createSupabaseUserClient(accessToken);
         const estimate = estimateAiCredits(body.model, type, description);
