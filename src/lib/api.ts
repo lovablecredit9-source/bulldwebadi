@@ -46,7 +46,7 @@ async function fetchWithAuthRetry(input: RequestInfo | URL, init: RequestInit = 
   return res;
 }
 
-export async function postJson<T>(url: string, body: unknown): Promise<T> {
+export async function postJson<T>(url: string, body: unknown, init: RequestInit = {}): Promise<T> {
   const payload =
     typeof window !== "undefined" && body && typeof body === "object" && "projectId" in body
       ? {
@@ -61,8 +61,9 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
   let res: Response;
   try {
     res = await fetchWithAuthRetry(url, {
+      ...init,
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
       body: JSON.stringify(payload),
     });
   } catch {
