@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AiError, SYSTEM_PROMPT, callAI, errorResponse, parseJsonLoose, safeJson, type MsgContent } from "@/lib/ai.server";
 import { supabase } from "@/integrations/supabase/client";
+import { getAuthenticatedUser } from "@/lib/auth.server";
+import { createSupabaseUserClient } from "@/integrations/supabase/client.server";
+import { estimateAiCredits } from "@/lib/credits";
 import { applyFiles, logActivity, saveVersion } from "@/lib/project.server";
 import { projectTypeLabel } from "@/lib/models";
 
@@ -30,6 +33,14 @@ export const Route = createFileRoute("/api/ai/generate-project")({
         const name = (body.name ?? "").trim();
         const type = body.type ?? "nodejs";
         const description = (body.description ?? "").trim();
+        const user = await getAuthenticatedUser(request);
+        if (!user) throw new AiError("Sesi login diperlukan.", 401);
+        const accessToken = request.headers.get("authorization")?.match(/^Bearer\\s+(.+)$/i)?.[1] || request.headers.get("x-adi-access-token")?.trim() || "";
+        if (!accessToken) throw new AiError("Token login tidak ditemukan.", 401);
+        const db = createSupabaseUserClient(accessToken);
+        const estimate = estimateAiCredits(body.model, type, description);
+        const requestId = crypto.randomUUID();
+        let creditReserved = false;
 
         try {
           if (!name) throw new AiError("Nama project wajib diisi.");
@@ -66,6 +77,14 @@ Aturan:
               ]
             : prompt;
 
+          const { error: creditError } = await db.rpc("credit_consume", {
+            p_amount: estimate.credits,
+            p_request_id: requestId,
+            p_description: "Generate project " + type + " (" + (body.model ?? "mk/auto") + ")",
+          });
+          if (creditError) throw new AiError(creditError.message || "Kredit tidak cukup.", 402);
+          creditReserved = true;
+
           const out = await callAI(
             [
               { role: "system", content: SYSTEM_PROMPT },
@@ -101,8 +120,14 @@ Aturan:
             files,
           );
 
-          return safeJson({ projectId: project.id, plan: parsed.plan ?? "", files: files.map((f) => f.path) });
+          return safeJson({ projectId: project.id, plan: parsed.plan ?? "", files: files.map((f) => f.path), creditUsed: estimate.credits });
         } catch (err) {
+          if (creditReserved) {
+            await db.rpc("credit_refund", {
+              p_request_id: requestId,
+              p_description: "Kredit dikembalikan karena generate project gagal sebelum selesai.",
+            });
+          }
           return errorResponse(err);
         }
       },
