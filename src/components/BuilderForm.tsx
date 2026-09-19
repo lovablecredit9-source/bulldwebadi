@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Loader2, Sparkles } from "lucide-react";
@@ -44,6 +44,8 @@ export function BuilderForm({
   const [desc, setDesc] = useState("");
   const [model, setModel] = useState(DEFAULT_MODEL);
   const [loading, setLoading] = useState(false);
+  const [creditProgress, setCreditProgress] = useState(0);
+  const abortRef = useRef<AbortController | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [creditStatus, setCreditStatus] = useState<{ total_credits?: number; paid_credits?: number; free_daily_remaining?: number; free_month_remaining?: number; pro_active?: boolean; pro_plan?: string | null; pro_active_until?: string | null } | null>(null);
   const estimate = estimateAiCredits(model, fixedType ?? type, desc);
@@ -66,8 +68,25 @@ export function BuilderForm({
 
   useEffect(() => { void loadCredits(); }, []);
 
+  useEffect(() => {
+    if (!loading) return;
+    const startedAt = Date.now();
+    const tick = window.setInterval(() => {
+      const elapsedSeconds = (Date.now() - startedAt) / 1000;
+      const estimatedSeconds = Math.max(12, estimate.credits * 6);
+      const next = Math.min(estimate.credits, Math.round((elapsedSeconds / estimatedSeconds) * estimate.credits * 10) / 10);
+      setCreditProgress(next);
+      if (next >= estimate.credits && abortRef.current) abortRef.current.abort();
+    }, 500);
+    return () => window.clearInterval(tick);
+  }, [loading, estimate.credits]);
+
   const submit = async () => {
     setLoading(true);
+    setCreditProgress(0);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    let budgetReached = false;
     try {
       // Selalu ambil saldo terbaru sebelum mulai AI agar angka di layar tidak stale/cached.
       const freshCredits = await getJson<{
@@ -88,14 +107,20 @@ export function BuilderForm({
       const res = await postJson<{ projectId: string; plan: string; files: string[]; creditUsed?: number }>(
         "/api/ai/generate-project",
         { name, type: fixedType ?? type, description: desc, model, meta: meta ?? {}, images },
+        { signal: controller.signal },
       );
       toast.success(`Project dibuat: ${res.files.length} file • ${res.creditUsed ?? estimate.credits} kredit`);
       await loadCredits();
       navigate({ to: "/projects/$id", params: { id: res.projectId } });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "AI sedang mengalami gangguan. Silakan coba lagi.");
+      if (controller.signal.aborted) {
+        budgetReached = true;
+      }
+      toast.error(budgetReached ? "Batas kredit estimasi tercapai. Proses dihentikan aman dan kredit yang dicadangkan akan dikembalikan." : e instanceof Error ? e.message : "AI sedang mengalami gangguan. Silakan coba lagi.");
     } finally {
+      abortRef.current = null;
       setLoading(false);
+      setCreditProgress(0);
     }
   };
 
@@ -162,6 +187,21 @@ export function BuilderForm({
           {loading ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
           {loading ? "Sedang membuat…" : "Buat dengan AI"}
         </Button>
+
+        {loading && (
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold">Pemakaian kredit berjalan</p>
+                <p className="text-xs text-muted-foreground">Estimasi bertambah bertahap sampai batas {estimate.credits}. Jika batas tercapai, proses dihentikan dan kredit dikembalikan.</p>
+              </div>
+              <span className="text-lg font-bold tabular-nums">{creditProgress.toFixed(1)} / {estimate.credits}</span>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `{Math.min(100, (creditProgress / Math.max(estimate.credits, 1)) * 100)}%` }} />
+            </div>
+          </div>
+        )}
 
         {loading && (
           <div className="space-y-2">
